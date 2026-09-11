@@ -1,0 +1,87 @@
+.comparison-matrix {
+  padding: 1.25rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.comparison-matrix__heading {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.comparison-matrix__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.comparison-matrix__scroll {
+  overflow-x: auto;
+}
+
+.comparison-matrix__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th, td {
+    padding: 0.5rem 0.65rem;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+  }
+
+  thead th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #1e3a8a;
+    font-size: 0.75rem;
+  }
+}
+
+.matrix-corner {
+  text-align: left !important;
+  font-size: 0.6875rem !important;
+  color: #64748b !important;
+}
+
+.matrix-row-label {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #1e3a8a;
+  text-align: left !important;
+  font-size: 0.75rem;
+}
+
+.matrix-cell {
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+  transition: outline 0.12s;
+
+  &:hover:not(.matrix-cell--diag) {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+  }
+
+  &--diag {
+    background: #f1f5f9 !important;
+    color: #94a3b8;
+    cursor: default;
+    font-weight: 400;
+  }
+
+  &--selected {
+    outline: 3px solid #1e3a8a;
+    outline-offset: -3px;
+    font-weight: 800;
+  }
+}

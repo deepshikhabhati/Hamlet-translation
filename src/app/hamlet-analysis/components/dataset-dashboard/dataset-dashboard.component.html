@@ -1,0 +1,46 @@
+<div class="dataset-dashboard" *ngIf="summary">
+  <div class="dataset-dashboard__stats">
+    <div class="stat-card">
+      <div class="stat-card__value">{{ summary.total_passages }}</div>
+      <div class="stat-card__label">Passages</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__value">{{ summary.total_comparisons }}</div>
+      <div class="stat-card__label">Total Comparisons</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__value">{{ summary.comparisons_per_passage }}</div>
+      <div class="stat-card__label">Per Passage</div>
+    </div>
+  </div>
+
+  <div class="dataset-dashboard__charts">
+    <div class="chart-card card">
+      <h3 class="chart-card__title">
+        <i class="fas fa-language"></i> English → Translation Averages
+      </h3>
+      <p class="chart-card__desc">Average overall preservation when translating from English.</p>
+      <div class="chart-card__container" #enToTransChart></div>
+    </div>
+
+    <div class="chart-card card">
+      <h3 class="chart-card__title">
+        <i class="fas fa-crown"></i> Best Translation Wins
+      </h3>
+      <p class="chart-card__desc">How often each translation ranks highest against English.</p>
+      <div class="chart-card__container" #bestTransChart></div>
+    </div>
+
+    <div class="chart-card card chart-card--wide">
+      <h3 class="chart-card__title">
+        <i class="fas fa-sliders-h"></i> Average Scores by Dimension
+      </h3>
+      <p class="chart-card__desc">Dataset-wide mean scores across all 9 evaluation dimensions.</p>
+      <div class="chart-card__container chart-card__container--tall" #dimScoresChart></div>
+    </div>
+  </div>
+</div>
+
+<div class="dataset-dashboard__empty" *ngIf="!summary">
+  <i class="fas fa-chart-bar"></i> No dataset summary available.
+</div>

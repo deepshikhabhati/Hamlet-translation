@@ -1,0 +1,122 @@
+.translation-ranking {
+  padding: 1.25rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.translation-ranking__heading {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.translation-ranking__subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-top: 0.5rem;
+}
+
+.podium__slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 100px;
+
+  &--winner .podium__medal {
+    color: #d97706;
+    transform: scale(1.2);
+  }
+}
+
+.podium__medal {
+  font-size: 1.25rem;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+  transition: transform 0.2s;
+}
+
+.podium__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #334155;
+  text-align: center;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+.podium__score {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin-bottom: 0.35rem;
+}
+
+.podium__bar {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.4s ease;
+
+  &--gold { background: linear-gradient(180deg, #fbbf24, #d97706); }
+  &--silver { background: linear-gradient(180deg, #e2e8f0, #94a3b8); }
+  &--bronze { background: linear-gradient(180deg, #fdba74, #ea580c); }
+}
+
+.podium__rank {
+  font-size: 0.625rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+.ranking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+}
+
+.ranking-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  font-size: 0.8125rem;
+
+  &--winner {
+    font-weight: 700;
+    color: #1e3a8a;
+  }
+}
+
+.ranking-list__rank {
+  width: 1.5rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.ranking-list__name {
+  flex: 1;
+}
+
+.ranking-list__score {
+  font-weight: 700;
+  color: #2563eb;
+}

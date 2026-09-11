@@ -1,0 +1,11 @@
+<div class="pdf-overlay" *ngIf="visible">
+    <div class="pdf-popup">
+      <div class="pdf-header">
+        <div class="title">PDF Viewer</div>
+        <button class="close-btn" (click)="close()">×</button>
+      </div>
+  
+      <div #pagesContainer class="pages-container"></div>
+    </div>
+  </div>
+  

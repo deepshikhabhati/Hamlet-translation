@@ -1,0 +1,110 @@
+<!-- <div class="sunburst-wrapper"> -->
+  <!-- Chart Container -->
+  <!-- <div #sunburstContainer class="sunburst-container"></div> -->
+<!-- </div> -->
+
+<!-- Q1 Draggable Card -->
+<div 
+  *ngIf="showQ1Card"
+  class="draggable-card"
+  [style.left.px]="q1CardPosition.x"
+  [style.top.px]="q1CardPosition.y"
+  [style.width.px]="q1CardSize.width"
+  [style.height.px]="q1CardExpanded ? q1CardSize.height : 40"
+  [class.expanded]="q1CardExpanded">
+  
+  <div 
+    class="card-header" 
+    [style.background-color]="q1Color"
+    (mousedown)="onCardMouseDown($event, 'q1')">
+    <span class="card-title">Q1 Sunburst</span>
+    <div class="card-controls">
+      <button class="card-button" (click)="toggleCardExpand('q1'); $event.stopPropagation()" title="Expand/Collapse">
+        {{ q1CardExpanded ? '−' : '+' }}
+      </button>
+      <button class="card-button" (click)="closeCard('q1'); $event.stopPropagation()" title="Close">×</button>
+    </div>
+  </div>
+  
+  <div class="card-content" *ngIf="q1CardExpanded">
+    <div #cardQ1SunburstContainer class="card-sunburst-container"></div>
+  </div>
+  
+  <div 
+    *ngIf="q1CardExpanded"
+    class="resize-handle"
+    (mousedown)="onResizeMouseDown($event, 'q1')"
+    title="Resize">
+  </div>
+</div>
+
+<!-- Q2 Draggable Card -->
+<div 
+  *ngIf="showQ2Card"
+  class="draggable-card"
+  [style.left.px]="q2CardPosition.x"
+  [style.top.px]="q2CardPosition.y"
+  [style.width.px]="q2CardSize.width"
+  [style.height.px]="q2CardExpanded ? q2CardSize.height : 40"
+  [class.expanded]="q2CardExpanded">
+  
+  <div 
+    class="card-header" 
+    [style.background-color]="q2Color"
+    (mousedown)="onCardMouseDown($event, 'q2')">
+    <span class="card-title">Q2 Sunburst</span>
+    <div class="card-controls">
+      <button class="card-button" (click)="toggleCardExpand('q2'); $event.stopPropagation()" title="Expand/Collapse">
+        {{ q2CardExpanded ? '−' : '+' }}
+      </button>
+      <button class="card-button" (click)="closeCard('q2'); $event.stopPropagation()" title="Close">×</button>
+    </div>
+  </div>
+  
+  <div class="card-content" *ngIf="q2CardExpanded">
+    <div #cardQ2SunburstContainer class="card-sunburst-container"></div>
+  </div>
+  
+  <div 
+    *ngIf="q2CardExpanded"
+    class="resize-handle"
+    (mousedown)="onResizeMouseDown($event, 'q2')"
+    title="Resize">
+  </div>
+</div>
+
+<!-- Q3 Draggable Card -->
+<div 
+  *ngIf="showQ3Card"
+  class="draggable-card"
+  [style.left.px]="q3CardPosition.x"
+  [style.top.px]="q3CardPosition.y"
+  [style.width.px]="q3CardSize.width"
+  [style.height.px]="q3CardExpanded ? q3CardSize.height : 40"
+  [class.expanded]="q3CardExpanded">
+  
+  <div 
+    class="card-header" 
+    [style.background-color]="q3Color"
+    (mousedown)="onCardMouseDown($event, 'q3')">
+    <span class="card-title">Q3 Sunburst</span>
+    <div class="card-controls">
+      <button class="card-button" (click)="toggleCardExpand('q3'); $event.stopPropagation()" title="Expand/Collapse">
+        {{ q3CardExpanded ? '−' : '+' }}
+      </button>
+      <button class="card-button" (click)="closeCard('q3'); $event.stopPropagation()" title="Close">×</button>
+    </div>
+  </div>
+  
+  <div class="card-content" *ngIf="q3CardExpanded">
+    <div #cardQ3SunburstContainer class="card-sunburst-container"></div>
+  </div>
+  
+  <div 
+    *ngIf="q3CardExpanded"
+    class="resize-handle"
+    (mousedown)="onResizeMouseDown($event, 'q3')"
+    title="Resize">
+  </div>
+</div>
+

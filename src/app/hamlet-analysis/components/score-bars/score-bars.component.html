@@ -1,0 +1,28 @@
+<div class="score-bars card">
+  <h3 class="score-bars__heading">
+    <i class="fas fa-sliders-h"></i> Dimension Scores
+  </h3>
+  <div class="score-bars__list">
+    <div class="score-bar" *ngFor="let dim of dimensions" [title]="dim.tooltip">
+      <div class="score-bar__header">
+        <span class="score-bar__label">{{ dim.label }}</span>
+        <span
+          class="score-bar__value"
+          [class.score-bar__value--na]="!dim.applicable"
+          [style.color]="dim.applicable ? dim.color : '#94a3b8'"
+        >
+          {{ dim.applicable ? dim.score : 'N/A' }}
+        </span>
+      </div>
+      <div class="score-bar__track">
+        <div
+          class="score-bar__fill"
+          *ngIf="dim.applicable && dim.score != null"
+          [style.width.%]="dim.score"
+          [style.background]="dim.color"
+        ></div>
+        <div class="score-bar__na" *ngIf="!dim.applicable">Not applicable</div>
+      </div>
+    </div>
+  </div>
+</div>

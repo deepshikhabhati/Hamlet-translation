@@ -1,0 +1,17 @@
+<div class="slider-container" (mousemove)="onMouseMove($event)" (mouseup)="stopDrag()">
+  <div class="slider-track"></div>
+  <div class="slider-range" [style.left.%]="minScore * 100" [style.width.%]="(maxScore - minScore) * 100"></div>
+  <div class="slider-thumb min" 
+       [style.left.%]="minScore * 100"
+       (mousedown)="startDrag('min', $event)">
+  </div>
+  <div class="slider-thumb max" 
+       [style.left.%]="maxScore * 100"
+       (mousedown)="startDrag('max', $event)">
+  </div>
+</div>
+<label>Score Range: {{ (minScore * 100) | number:'1.0-0' }} – {{ (maxScore * 100) | number:'1.0-0' }}</label>
+
+
+  <!-- UMAP Chart Container -->
+  <div id="umapChart"></div>

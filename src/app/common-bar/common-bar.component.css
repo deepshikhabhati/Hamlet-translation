@@ -1,0 +1,9 @@
+
+.bar {
+    transition: fill 0.3s ease;
+  }
+  
+  .bar:hover {
+    fill: steelblue;
+  }
+  

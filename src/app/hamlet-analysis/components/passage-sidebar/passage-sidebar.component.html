@@ -1,0 +1,67 @@
+<div class="sidebar">
+  <div class="sidebar__header">
+    <h2 class="sidebar__title"><i class="fas fa-list"></i> Passages</h2>
+    <span class="sidebar__count">{{ filteredPassages.length }} / {{ passages.length }}</span>
+  </div>
+
+  <div class="sidebar__filters">
+    <div class="sidebar__search">
+      <i class="fas fa-search sidebar__search-icon"></i>
+      <input
+        type="text"
+        class="sidebar__input"
+        placeholder="Search ID or Speaker…"
+        [(ngModel)]="localFilters.search"
+        (ngModelChange)="onFilterChange()"
+      />
+    </div>
+
+    <div class="sidebar__filter-row">
+      <select
+        class="sidebar__select"
+        [(ngModel)]="localFilters.act"
+        (ngModelChange)="onFilterChange()"
+      >
+        <option [ngValue]="null">All Acts</option>
+        <option *ngFor="let act of acts" [ngValue]="act">Act {{ act }}</option>
+      </select>
+
+      <select
+        class="sidebar__select"
+        [(ngModel)]="localFilters.scene"
+        (ngModelChange)="onFilterChange()"
+      >
+        <option [ngValue]="null">All Scenes</option>
+        <option *ngFor="let scene of scenes" [ngValue]="scene">Scene {{ scene }}</option>
+      </select>
+    </div>
+
+    <select
+      class="sidebar__select sidebar__select--full"
+      [(ngModel)]="localFilters.feature"
+      (ngModelChange)="onFilterChange()"
+    >
+      <option value="">All Features</option>
+      <option *ngFor="let f of features" [value]="f">{{ f }}</option>
+    </select>
+  </div>
+
+  <ul class="sidebar__list">
+    <li
+      *ngFor="let p of filteredPassages"
+      class="sidebar__item"
+      [class.sidebar__item--selected]="p.passage_id === selectedPassageId"
+      (click)="selectPassage(p)"
+    >
+      <div class="sidebar__item-id">{{ p.passage_id }}</div>
+      <div class="sidebar__item-speaker">{{ p.speaker }}</div>
+      <div class="sidebar__item-meta">
+        Act {{ p.act }} · Scene {{ p.scene }}
+      </div>
+      <div class="sidebar__item-feature">{{ p.primary_research_feature }}</div>
+    </li>
+    <li class="sidebar__empty" *ngIf="!filteredPassages.length">
+      No passages match filters.
+    </li>
+  </ul>
+</div>

@@ -1,0 +1,213 @@
+<div class="ha-root">
+  <header class="ha-header">
+    <div class="ha-header__brand">
+      <i class="fas fa-book-open ha-header__icon"></i>
+      <div>
+        <h1 class="ha-header__title">Hamlet Translation Analysis</h1>
+        <p class="ha-header__versions">
+          English · Human German · AI German · Context-Aware AI
+        </p>
+        <div class="ha-header__stats" *ngIf="datasetSummary || passages.length">
+          <span class="ha-stat">
+            <strong>{{ datasetSummary?.total_passages || passages.length }}</strong> Passages
+          </span>
+          <span class="ha-stat">
+            <strong>{{ datasetSummary?.total_comparisons || (passages.length * 12) }}</strong> Comparisons
+          </span>
+          <span class="ha-stat">
+            <strong>{{ datasetSummary?.comparisons_per_passage || metadata?.comparisons_per_passage || 12 }}</strong> Comparisons / Passage
+          </span>
+        </div>
+      </div>
+    </div>
+    <nav class="ha-tabs">
+      <button
+        class="ha-tabs__btn"
+        [class.ha-tabs__btn--active]="activeTab === 'passage'"
+        (click)="setTab('passage')"
+      >
+        <i class="fas fa-columns"></i> Passage Analysis
+      </button>
+      <button
+        class="ha-tabs__btn"
+        [class.ha-tabs__btn--active]="activeTab === 'dataset'"
+        (click)="setTab('dataset')"
+      >
+        <i class="fas fa-chart-bar"></i> Dataset Overview
+      </button>
+    </nav>
+    <button class="ha-sidebar-toggle" (click)="toggleSidebar()" aria-label="Toggle sidebar">
+      <i class="fas" [class.fa-bars]="!sidebarOpen" [class.fa-times]="sidebarOpen"></i>
+    </button>
+  </header>
+
+  <div class="ha-loading" *ngIf="loading">
+    <i class="fas fa-spinner fa-spin"></i> Loading analysis data…
+  </div>
+
+  <div class="ha-error" *ngIf="error">{{ error }}</div>
+
+  <div class="ha-body" *ngIf="!loading && !error">
+    <!-- Passage Analysis Tab -->
+    <ng-container *ngIf="activeTab === 'passage'">
+      <aside class="ha-sidebar" [class.ha-sidebar--collapsed]="!sidebarOpen">
+        <app-ha-passage-sidebar
+          [passages]="passages"
+          [selectedPassageId]="selectedPassage?.passage_id"
+          [filters]="filters"
+          (passageSelect)="selectPassage($event)"
+          (filtersChange)="onFiltersChange($event)"
+        ></app-ha-passage-sidebar>
+      </aside>
+
+      <main class="ha-main" *ngIf="selectedPassage">
+        <section class="ha-passage-header card">
+          <div class="ha-passage-header__top">
+            <div class="ha-passage-header__identity">
+              <h2 class="ha-passage-header__id">{{ selectedPassage.passage_id }}</h2>
+              <span class="ha-passage-header__act">
+                Act {{ selectedPassage.act }} · Scene {{ selectedPassage.scene }}
+              </span>
+            </div>
+            <div class="ha-pdf-actions">
+              <button
+                type="button"
+                class="ha-pdf-btn"
+                [class.ha-pdf-btn--active]="pdfPanelOpen && activePdfBook === 'english'"
+                (click)="openPdfBook('english')"
+                title="Open English Hamlet PDF and highlight this passage">
+                <i class="fas fa-file-pdf"></i>
+                <span>English PDF</span>
+              </button>
+              <button
+                type="button"
+                class="ha-pdf-btn ha-pdf-btn--de"
+                [class.ha-pdf-btn--active]="pdfPanelOpen && activePdfBook === 'german'"
+                (click)="openPdfBook('german')"
+                title="Open German Hamlet PDF and highlight this passage">
+                <i class="fas fa-file-pdf"></i>
+                <span>German PDF</span>
+              </button>
+            </div>
+          </div>
+          <div class="ha-passage-header__meta">
+            <span><strong>Speaker:</strong> {{ selectedPassage.speaker }}</span>
+            <span><strong>FTLN</strong> {{ selectedPassage.ftln_start }}–{{ selectedPassage.ftln_end }}</span>
+          </div>
+          <p class="ha-passage-header__feature">
+            <strong>Primary Feature:</strong>
+            {{ selectedPassage.primary_research_feature }}
+          </p>
+        </section>
+
+        <app-ha-version-cards
+          [texts]="selectedPassage.texts"
+          [selectedSource]="selectedSource"
+          [selectedTarget]="selectedTarget"
+          (sourceChange)="onSourceChange($event)"
+          (targetChange)="onTargetChange($event)"
+        ></app-ha-version-cards>
+
+        <div class="ha-comparison-row">
+          <app-ha-comparison-selector
+            [selectedSource]="selectedSource"
+            [selectedTarget]="selectedTarget"
+            (sourceChange)="onSourceChange($event)"
+            (targetChange)="onTargetChange($event)"
+          ></app-ha-comparison-selector>
+        </div>
+
+        <div class="ha-scores-grid" *ngIf="selectedComparison">
+          <app-ha-overall-score
+            [score]="selectedComparison.overall_preservation_score"
+          ></app-ha-overall-score>
+
+          <app-ha-score-bars
+            [comparison]="selectedComparison"
+          ></app-ha-score-bars>
+
+          <app-ha-radar-chart
+            [comparison]="selectedComparison"
+          ></app-ha-radar-chart>
+        </div>
+
+        <app-ha-comparison-diff
+          *ngIf="selectedComparison"
+          [comparison]="selectedComparison"
+          [selectedCategory]="selectedDiffCategory"
+          (categoryChange)="onDiffCategoryChange($event)"
+        ></app-ha-comparison-diff>
+
+        <app-ha-dimension-details
+          *ngIf="selectedComparison"
+          [comparison]="selectedComparison"
+          [highlightCategory]="selectedDiffCategory"
+        ></app-ha-dimension-details>
+
+        <div class="ha-bottom-grid">
+          <app-ha-comparison-matrix
+            [matrix]="selectedPassage.overall_score_matrix"
+            [selectedSource]="selectedSource"
+            [selectedTarget]="selectedTarget"
+            (selectComparison)="onComparisonSelect($event)"
+          ></app-ha-comparison-matrix>
+
+          <app-ha-translation-ranking
+            [ranking]="selectedPassage.translation_ranking_against_english"
+          ></app-ha-translation-ranking>
+        </div>
+      </main>
+    </ng-container>
+
+    <!-- Dataset Overview Tab -->
+    <main class="ha-main ha-main--full" *ngIf="activeTab === 'dataset'">
+      <app-ha-dataset-dashboard
+        [summary]="datasetSummary"
+      ></app-ha-dataset-dashboard>
+    </main>
+  </div>
+
+  <!-- PDF book viewer (fullscreen) -->
+  <aside
+    class="ha-pdf-panel"
+    *ngIf="pdfPanelOpen"
+    [attr.aria-label]="getPdfPanelTitle() + ' PDF viewer'">
+    <div class="ha-pdf-panel__header">
+      <div class="ha-pdf-panel__title-group">
+        <i class="fas fa-file-pdf"></i>
+        <div>
+          <h3>{{ getPdfPanelTitle() }}</h3>
+          <p *ngIf="selectedPassage">
+            Highlighting {{ selectedPassage.passage_id }}
+            · Act {{ selectedPassage.act }} · Scene {{ selectedPassage.scene }}
+          </p>
+        </div>
+      </div>
+      <div class="ha-pdf-panel__switchers">
+        <button
+          type="button"
+          class="ha-pdf-btn ha-pdf-btn--sm"
+          [class.ha-pdf-btn--active]="activePdfBook === 'english'"
+          (click)="openPdfBook('english')">
+          EN
+        </button>
+        <button
+          type="button"
+          class="ha-pdf-btn ha-pdf-btn--sm ha-pdf-btn--de"
+          [class.ha-pdf-btn--active]="activePdfBook === 'german'"
+          (click)="openPdfBook('german')">
+          DE
+        </button>
+        <button type="button" class="ha-pdf-close" (click)="closePdfPanel()" aria-label="Close PDF">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div class="ha-pdf-panel__body">
+      <app-pdf-highlighter
+        [text]="pdfHighlightText"
+        [pdfSource]="pdfSource">
+      </app-pdf-highlighter>
+    </div>
+  </aside>
+</div>

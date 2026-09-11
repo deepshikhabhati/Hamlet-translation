@@ -1,0 +1,19 @@
+<ul class="tree">
+    <li *ngFor="let topic of topics">
+      <div class="folder" (click)="toggleTopic(topic)">
+        🔹 {{ topic.name }}
+        <span class="arrow">{{ topic.expanded ? '▾' : '▸' }}</span>
+      </div>
+  
+      <ul *ngIf="topic.expanded">
+        <li *ngFor="let subtopic of topic.children">
+          <div class="query" (click)="onQueryClick(subtopic, $event)">
+            - {{ subtopic.name }}
+          </div>
+  
+        
+        </li>
+      </ul>
+    </li>
+  </ul>
+  

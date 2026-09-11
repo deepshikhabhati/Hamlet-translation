@@ -1,0 +1,239 @@
+.panel {
+    width: 40%; /* Left panel takes 30% of the width */
+    border-right: 2px solid #ddd; /* Optional: Adds a divider */
+  }
+  
+
+  .main-content {
+    display: flex;
+    height: 100%;
+    width: 100%;
+  }
+  
+  .keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px; /* Space between tags */
+    padding: 10px;
+  }
+  
+  .keyword-tag {
+    background-color: #007bff; /* Blue background */
+    color: #ffffff; /* White text */
+    padding: 6px 12px;
+    border-radius: 16px; /* Rounded corners */
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-block;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .keyword-tag:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+    cursor: pointer;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    background-color: #ccc;
+  }
+  button.active {
+    background-color: green;
+    color: white;
+  }
+
+  .chat-container {
+ 
+    width: 100%;
+  }
+
+  .chat-box {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+    height: 40vh;
+    background-color: #f1f1f1;
+  }
+  
+  .input-box {
+    display: flex;
+    padding: 10px;
+  }
+
+  .toggle-container {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out;
+  }
+  
+  .toggle-container.show {
+    max-height: 1000px; /* Adjust based on content */
+    opacity: 1;
+  }
+   
+  input {
+    flex-grow: 1;
+    padding: 8px;
+  }
+
+  select {
+    flex-grow: 1;
+    padding: 8px;
+  }
+  
+  button {
+    padding: 8px 16px;
+    margin-left: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+
+  .popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .popup {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .popup input {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+  }
+
+  .popup-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 15px;
+  }
+
+  .chunk-btn {
+    margin-right: 10px;
+  }
+
+  
+  .comparison-card {
+    margin-top: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .comparison-table thead {
+    background-color: #4a4ae6;
+    color: white;
+  }
+  
+  .comparison-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-size: 16px;
+  }
+  
+  .comparison-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .comparison-table .label {
+    font-weight: 600;
+    width: 150px;
+    background-color: #f8f9fa;
+    color: #495057;
+  }
+  
+  .comparison-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .comparison-table tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+  
+  /* Responsive design */
+  @media screen and (max-width: 768px) {
+    .comparison-table {
+      display: block;
+      overflow-x: auto;
+    }
+    
+    .comparison-table .label {
+      width: 120px;
+    }
+  }
+  
+  .message {
+    display: flex;
+    align-items: flex-start;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .message.user {
+    background-color: #e3f2fd;
+    margin-left: 20px;
+  }
+
+  .message.assistant {
+    background-color: #f5f5f5;
+    margin-right: 20px;
+  }
+
+  .message-icon {
+    min-width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+  }
+
+  .user .message-icon {
+    background-color: #1976d2;
+    color: white;
+  }
+
+  .assistant .message-icon {
+    background-color: #4a4ae6;
+    color: white;
+  }
+
+  .message-content {
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  .fas {
+    font-size: 14px;
+  }

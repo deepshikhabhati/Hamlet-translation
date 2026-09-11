@@ -1,0 +1,184 @@
+<!-- comp6.component.html -->
+<div class="container-fluid p-0">
+  <div class="row g-0">
+    <!-- Sidebar -->
+    <div class="col-md-3 border-end" style="height: 100%;">
+      <app-query-tree (nodeClicked)="onQuerySelected($event)"></app-query-tree>
+
+      <div class="chat-container">
+        <div class="chat-box">
+          <div *ngFor="let message of chatMessages; let i = index" class="message" [ngClass]="message.role">
+            <div class="message-icon" [ngClass]="{ 'orange-icon': i % 2 === 0, 'blue-icon': i % 2 === 1 }">
+              <i class="fas" [ngClass]="message.role === 'user' ? 'fa-user' : 'fa-robot'"></i>
+            </div>
+            <div class="message-content">{{ message.content }}</div>
+          </div>
+        </div>
+
+        <div class="input-box">
+          <input [(ngModel)]="userMessage" placeholder="Type your message" />
+          <button (click)="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="col-md-9 d-flex flex-column" style="height: 100%;">
+      <!-- Query buttons -->
+      <div class="selected-query-buttons d-flex flex-wrap justify-content-end p-2 gap-2">
+        <button
+          *ngFor="let query of selectedQueries"
+          class="btn btn-sm"
+          [class.btn-primary]="query === activeQuery"
+          [class.btn-outline-primary]="query !== activeQuery"
+          (click)="setActiveQuery(query)"
+        >
+          {{ query }}
+        </button>
+
+        <button  class="btn btn-sm" style="color: blue;" *ngIf="operationHistory.length === 2" (click)="showAnalysis = true">
+           compare 
+           <small *ngFor="let op of operationHistory.slice(-2)">
+            {{ op.label }}
+          </small>
+        </button>
+
+        <!-- Set Operation Buttons -->
+        <div *ngIf="selectedQueries.length >= 2" class="set-operations d-flex justify-content-end p-2 gap-2 flex-wrap align-items-center">
+          <label>Select Query A:</label>
+  <select [(ngModel)]="setOpQueryA" class="form-select form-select-sm w-auto mx-1">
+    <option *ngFor="let query of selectedQueries" [value]="query">{{ query }}</option>
+  </select>
+
+  <label>Select Query B:</label>
+  <select [(ngModel)]="setOpQueryB" class="form-select form-select-sm w-auto mx-1">
+    <option *ngFor="let query of selectedQueries" [value]="query">{{ query }}</option>
+  </select>
+
+  <!-- Show + icon if more than 2 queries -->
+  <button *ngIf="selectedQueries.length > 2 && !showQueryC" class="btn btn-sm btn-outline-primary px-2 py-0" (click)="showQueryC = true">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <!-- Query C -->
+  <ng-container *ngIf="showQueryC">
+    <label>Select Query C:</label>
+    <select [(ngModel)]="setOpQueryC" class="form-select form-select-sm w-auto mx-1">
+      <option *ngFor="let query of selectedQueries" [value]="query">{{ query }}</option>
+    </select>
+  </ng-container>
+
+  <!-- Show + icon for Query D -->
+  <button *ngIf="selectedQueries.length > 3 && showQueryC && !showQueryD" class="btn btn-sm btn-outline-primary px-2 py-0" (click)="showQueryD = true">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <!-- Query D -->
+  <ng-container *ngIf="showQueryD">
+    <label>Select Query D:</label>
+    <select [(ngModel)]="setOpQueryD" class="form-select form-select-sm w-auto mx-1">
+      <option *ngFor="let query of selectedQueries" [value]="query">{{ query }}</option>
+    </select>
+  </ng-container>
+        
+          <button class="btn btn-outline-secondary btn-sm mx-1" [disabled]="!setOpQueryA || !setOpQueryB || setOpQueryA === setOpQueryB" (click)="applySetOperation('union')">A ∪ B</button>
+          <button class="btn btn-outline-secondary btn-sm mx-1" [disabled]="!setOpQueryA || !setOpQueryB || setOpQueryA === setOpQueryB" (click)="applySetOperation('intersection')">A ∩ B</button>
+          <button class="btn btn-outline-secondary btn-sm mx-1" [disabled]="!setOpQueryA || !setOpQueryB || setOpQueryA === setOpQueryB" (click)="applySetOperation('a-b')">A - B</button>
+          <button class="btn btn-outline-secondary btn-sm mx-1" [disabled]="!setOpQueryA || !setOpQueryB || setOpQueryA === setOpQueryB" (click)="applySetOperation('b-a')">B - A</button>
+
+          <button *ngIf="setOpQueryA && setOpQueryB && setOpQueryC " class="btn btn-outline-success btn-sm"
+          (click)="applyMultiSetOperation(['union', setOpQueryA, setOpQueryB, setOpQueryC])">A ∪ B ∪ C</button>
+        <button *ngIf="setOpQueryA && setOpQueryB && setOpQueryC " class="btn btn-outline-success btn-sm"
+          (click)="applyMultiSetOperation(['intersection', setOpQueryA, setOpQueryB, setOpQueryC])">A ∩ B ∩ C</button>
+    
+        <button *ngIf="setOpQueryA && setOpQueryB && setOpQueryC && setOpQueryD" class="btn btn-outline-success btn-sm"
+          (click)="applyMultiSetOperation(['union', setOpQueryA, setOpQueryB, setOpQueryC, setOpQueryD])">A ∪ B ∪ C ∪ D</button>
+        <button *ngIf="setOpQueryA && setOpQueryB && setOpQueryC && setOpQueryD" class="btn btn-outline-success btn-sm"
+          (click)="applyMultiSetOperation(['intersection', setOpQueryA, setOpQueryB, setOpQueryC, setOpQueryD])">A ∩ B ∩ C ∩ D</button>
+    
+
+        </div>
+        
+
+      </div>
+
+      <div *ngIf="showAnalysis" class="analysis-container p-2">
+        <app-clip-analysis [setA]="operationHistory[0].data" [setB]="operationHistory[1].data"></app-clip-analysis>
+      </div>
+
+
+      <!-- Score slider -->
+       <div class="slider-container" (mousemove)="onMouseMove($event)" (mouseup)="stopDrag()">
+        <div class="slider-track"></div>
+        <div class="slider-range"
+        [style.left.%]="getSliderLeft(minRank)"
+        [style.width.%]="getSliderWidth()"></div>
+   
+   <div class="slider-thumb min"
+        [style.left.%]="getSliderLeft(minRank)"
+        (mousedown)="startDrag('min', $event)"></div>
+   
+   <div class="slider-thumb max"
+        [style.left.%]="getSliderLeft(maxRank)"
+        (mousedown)="startDrag('max', $event)"></div>
+   
+      </div>
+      <label>Score Range: {{ minRank }} – {{ maxRank }}</label> 
+
+      <!-- Threshold Input Box -->
+
+
+      <!-- Scatter plot -->
+      <div *ngIf="selectedImages?.length">
+        <app-scatter-plot
+  [data]="umapData"
+  [colorMap]="queryColorMap"
+  (pointClicked)="handlePointClick($event)">
+</app-scatter-plot>
+      </div>
+
+      <div *ngIf="selectedImages?.length && !showAnalysis" class="image-grid">
+        <div *ngFor="let img of selectedImages">
+          <div class="image-box" [ngClass]="{ 'highlighted': selectedImageName === img.image }">
+            <div class="flip-card">
+              <div class="flip-card-inner">
+                <div class="flip-card-front">
+                  <img [src]="'http://localhost:8000/images' + img.image" />
+                </div>
+                <div class="flip-card-back">
+                  <div class="info-text">
+                    <p><strong>Score:</strong> {{ img.score | number: '1.2-2' }}</p>
+                    <p><strong>Folder:</strong> {{ img.folder }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div *ngIf="operationHistory.length === 2 && showAnalysis" class="image-grid">
+        <div *ngFor="let img of combinedOperationImages">
+          <div class="image-box" [ngClass]="{ 'highlighted': selectedImageName === img.image, 'disabled': !img.isCommon }">
+            <div class="flip-card">
+              <div class="flip-card-inner">
+                <div class="flip-card-front">
+                  <img [src]="'http://localhost:8000/images' + img.image" />
+                </div>
+                <div class="flip-card-back">
+                  <div class="info-text">
+                    <p><strong>Score:</strong> {{ img.score | number: '1.2-2' }}</p>
+                    <p><strong>Folder:</strong> {{ img.folder }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+</div>

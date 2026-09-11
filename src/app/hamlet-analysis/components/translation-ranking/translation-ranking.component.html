@@ -1,0 +1,40 @@
+<div class="translation-ranking card">
+  <h3 class="translation-ranking__heading">
+    <i class="fas fa-trophy"></i> Ranking vs English
+  </h3>
+  <p class="translation-ranking__subtitle">Which translation best preserves the English source?</p>
+
+  <div class="podium" *ngIf="sorted.length >= 2">
+    <div
+      *ngFor="let item of podiumOrder()"
+      class="podium__slot"
+      [class.podium__slot--winner]="item.rank === 1"
+    >
+      <div class="podium__medal">
+        <i class="fas" [ngClass]="medalIcon(item.rank)"></i>
+      </div>
+      <div class="podium__label">{{ versionLabels[item.version] || item.version }}</div>
+      <div class="podium__score">{{ item.overall_score.toFixed(1) }}</div>
+      <div
+        class="podium__bar"
+        [style.height]="podiumHeight(item.rank)"
+        [class.podium__bar--gold]="item.rank === 1"
+        [class.podium__bar--silver]="item.rank === 2"
+        [class.podium__bar--bronze]="item.rank === 3"
+      ></div>
+      <div class="podium__rank">#{{ item.rank }}</div>
+    </div>
+  </div>
+
+  <ul class="ranking-list">
+    <li
+      *ngFor="let item of sorted"
+      class="ranking-list__item"
+      [class.ranking-list__item--winner]="item.rank === 1"
+    >
+      <span class="ranking-list__rank">#{{ item.rank }}</span>
+      <span class="ranking-list__name">{{ versionLabels[item.version] || item.version }}</span>
+      <span class="ranking-list__score">{{ item.overall_score.toFixed(1) }}</span>
+    </li>
+  </ul>
+</div>

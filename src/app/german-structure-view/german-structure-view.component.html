@@ -1,0 +1,36 @@
+<div class="german-structure-page">
+  <section class="structure-card">
+    <div class="card-header">
+      <div>
+        <h2>German Hamlet Structure</h2>
+        <p>Browse the hierarchy from <code>src/assets/german.ts</code>.</p>
+      </div>
+    </div>
+
+    <div class="topic-list-shell">
+      <app-topic-list
+        [searchTerms]="selectedNodes"
+        [chunkSize]="numberOfChunks"
+        [nodeName]="nodeName"
+        [topics]="topicData"
+        [expandFirstLevel]="true"
+        (nodeClicked)="onTopicClicked($event)">
+      </app-topic-list>
+    </div>
+  </section>
+
+  <aside class="details-card" *ngIf="selectedNode">
+    <h3>{{ selectedNode.name }}</h3>
+    <p class="path" *ngIf="selectedNode.path">{{ selectedNode.path }}</p>
+
+    <div class="keyword-list" *ngIf="getKeywords().length">
+      <span *ngFor="let keyword of getKeywords()">{{ keyword }}</span>
+    </div>
+
+    <h4 *ngIf="selectedNode.summary">Summary</h4>
+    <p class="summary" *ngIf="selectedNode.summary">{{ selectedNode.summary }}</p>
+
+    <h4 *ngIf="selectedNode.content">Content</h4>
+    <pre *ngIf="selectedNode.content">{{ selectedNode.content }}</pre>
+  </aside>
+</div>

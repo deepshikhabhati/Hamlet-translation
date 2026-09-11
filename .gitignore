@@ -1,0 +1,18 @@
+# Dependencies & build
+/node_modules
+/dist
+/.angular
+*.zip
+
+# OS / IDE
+.DS_Store
+.idea
+.vscode
+
+# Secrets
+.env
+.env.*
+*.pem
+
+# Local static export (optional)
+hamlet-html

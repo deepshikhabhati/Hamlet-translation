@@ -1,0 +1,438 @@
+<!-- <div style="display: flex;height: 100%;overflow: hidden;"> -->
+  <div class="dashboard">
+    <!-- Structure View -->
+<div class="card">
+  <!-- Top Card (10%) -->
+  <h3>Table of Contents</h3>
+
+  <!-- Chart Icon Buttons -->
+  <div class="chart-icon-buttons">
+    <button 
+      class="chart-icon-button" 
+      (click)="toggleFloatingChart('circle-tree')"
+      title="Circle Tree"
+      [class.active]="showCircleTreeWindow">
+      <i class="fas fa-project-diagram"></i>
+    </button>
+    <button 
+      class="chart-icon-button" 
+      (click)="toggleFloatingChart('sunburst')"
+      title="Sunburst"
+      [class.active]="showSunburstWindow">
+      <i class="fas fa-circle-notch"></i>
+    </button>
+  </div>
+
+  <!-- Main Content Card (full height for topic-list) -->
+  <div class="main-content-card">
+    <app-topic-list
+      [searchTerms]="selectednodes"
+      [chunkSize]="numberOfChunks"
+      (nodeClicked)="onTopicClicked($event)"
+      [nodeName]="nodeName"
+      [nodePath]="nodePath"
+      [selectedRank]="selectedQueryRank"
+      [selectedColor]="selectedColor"
+      [topics]="topicData"
+      [selectedQueryNumber]="selectedQueryNumber"
+      [querySelected]="getCurrentQueryMessage()"
+      [q1Color]="q1Color"
+      [q2Color]="q2Color"
+      [q3Color]="q3Color"
+      [topicsWithNotes]="selectedTopicContents"
+      [expandFirstLevel]="true"
+    >
+    </app-topic-list>
+  </div>
+
+  <!-- Floating Circle Tree Window -->
+  <div 
+    *ngIf="showCircleTreeWindow"
+    class="floating-chart-window"
+    [style.left.px]="circleTreePosition.x"
+    [style.top.px]="circleTreePosition.y"
+    [style.width.px]="circleTreeSize.width"
+    [style.height.px]="circleTreeExpanded ? circleTreeSize.height : 40"
+    [class.expanded]="circleTreeExpanded">
+    
+    <div 
+      class="floating-window-header" 
+      (mousedown)="onWindowMouseDown($event, 'circle-tree')">
+      <span class="floating-window-title">Relevance Overview</span>
+      <div class="floating-window-controls">
+        <button class="floating-window-button" (click)="toggleWindowExpand('circle-tree'); $event.stopPropagation()" title="Expand/Collapse">
+          {{ circleTreeExpanded ? '−' : '+' }}
+        </button>
+        <button class="floating-window-button" (click)="closeFloatingChart('circle-tree'); $event.stopPropagation()" title="Close">×</button>
+      </div>
+    </div>
+    
+    <div class="floating-window-content" *ngIf="circleTreeExpanded">
+      <app-circle-tree 
+        #circleTreeChart
+        [data]="chartData"
+        [q1Color]="q1Color"
+        [isLeaf]="selectedTopicContents.length > 0 || false"
+        [sizeScale]="0.8"
+        [q2Color]="q2Color"
+        [q3Color]="q3Color"
+        (nodeClicked)="onTopicClicked($event)">
+      </app-circle-tree>
+    </div>
+    
+    <div 
+      *ngIf="circleTreeExpanded"
+      class="floating-resize-handle"
+      (mousedown)="onWindowResizeMouseDown($event, 'circle-tree')"
+      title="Resize">
+    </div>
+  </div>
+
+  <!-- Floating Sunburst Window -->
+  <div 
+    *ngIf="showSunburstWindow"
+    class="floating-chart-window"
+    [style.left.px]="sunburstPosition.x"
+    [style.top.px]="sunburstPosition.y"
+    [style.width.px]="sunburstSize.width"
+    [style.height.px]="sunburstExpanded ? sunburstSize.height : 40"
+    [class.expanded]="sunburstExpanded">
+    
+    <div 
+      class="floating-window-header" 
+      (mousedown)="onWindowMouseDown($event, 'sunburst')">
+      <span class="floating-window-title">Relevance Overview</span>
+      <div class="floating-window-controls">
+        <button class="floating-window-button" (click)="toggleWindowExpand('sunburst'); $event.stopPropagation()" title="Expand/Collapse">
+          {{ sunburstExpanded ? '−' : '+' }}
+        </button>
+        <button class="floating-window-button" (click)="closeFloatingChart('sunburst'); $event.stopPropagation()" title="Close">×</button>
+      </div>
+    </div>
+    
+    <div class="floating-window-content" *ngIf="sunburstExpanded">
+      <app-sunburst 
+        #sunburstChart
+        [data]="chartData" 
+        [isDualView]="false"
+        [sizeScale]="0.8"
+        [q1Color]="q1Color"
+        [q2Color]="q2Color"
+        [q3Color]="q3Color"
+        (nodeClicked)="onTopicClicked($event)">
+      </app-sunburst>
+    </div>
+    
+    <div 
+      *ngIf="sunburstExpanded"
+      class="floating-resize-handle"
+      (mousedown)="onWindowResizeMouseDown($event, 'sunburst')"
+      title="Resize">
+    </div>
+  </div>
+</div>
+
+  
+      <!-- Detail View -->
+      <div class="card">
+        <div class="reader-header">
+          <h3>Reader</h3>
+         
+        </div>
+        <app-pdf-highlighter *ngIf="selectedTopicContents.length > 0" [text]="paragraphToHighlight" [pdfSource]="pdfSource">
+             
+        </app-pdf-highlighter>
+      
+        
+      </div>
+  
+    <!-- Main Query View - Single Panel -->
+    <div class="card query-main-card">
+      <!-- First Half: Query Selection Table -->
+      <div class="query-selection-section">
+        <div class="query-selection-table-wrapper">
+          <h3>Query Selection Panel</h3>
+          <div class="input-box">
+            <input [(ngModel)]="userMessage" placeholder="Type your message" />
+            <button (click)="sendMessage(userMessage)">Add</button>
+          </div>
+          <table class="query-selection-table">
+            <thead>
+              <tr>
+                <th class="checkbox-header">Visible</th>
+                <th class="query-number-header">#</th>
+                <th class="query-text-header">Query</th>
+                <th class="color-header">Color</th>
+                <th class="bin-header">
+                  <div class="antenna-chart-header">
+                    <div class="antenna-bars">
+                      <div 
+                        *ngFor="let bar of getBinAntennaBars(0); let i = index"
+                        class="antenna-bar"
+                        [class.active]="bar.active"
+                        [ngStyle]="{'background-color': bar.active ? getBinAntennaColor(0) : '#e0e0e0'}"
+                      ></div>
+                    </div>
+                  </div>
+                </th>
+                <th class="bin-header">
+                  <div class="antenna-chart-header">
+                    <div class="antenna-bars">
+                      <div 
+                        *ngFor="let bar of getBinAntennaBars(1); let i = index"
+                        class="antenna-bar"
+                        [class.active]="bar.active"
+                        [ngStyle]="{'background-color': bar.active ? getBinAntennaColor(1) : '#e0e0e0'}"
+                      ></div>
+                    </div>
+                  </div>
+                </th>
+                <th class="bin-header">
+                  <div class="antenna-chart-header">
+                    <div class="antenna-bars">
+                      <div 
+                        *ngFor="let bar of getBinAntennaBars(2); let i = index"
+                        class="antenna-bar"
+                        [class.active]="bar.active"
+                        [ngStyle]="{'background-color': bar.active ? getBinAntennaColor(2) : '#e0e0e0'}"
+                      ></div>
+                    </div>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let q of predefinedQueries; let i = index" 
+                  [class.selected-row]="isQuerySelected(q)">
+                <td class="checkbox-cell">
+                  <input type="checkbox" 
+                         [checked]="isQuerySelected(q)"
+                         [disabled]="isQueryCheckboxDisabled(q)"
+                         (change)="toggleQuerySelection(q, $event)"
+                         class="query-checkbox-input" />
+                </td>
+                <td class="query-number-cell"> Q{{ i + 1 }}</td>
+                <td class="query-text-cell">{{ q }}</td>
+                <td class="color-selector-cell">
+                  <div class="color-display" (click)="toggleQueryColorPicker(i)">
+                    <div class="selected-color" [style.background-color]="getQueryColorForIndex(i)">
+                    </div>
+                  </div>
+                  <div class="color-picker-popup" *ngIf="activeQueryColorPicker === i">
+                    <div class="color-picker-grid">
+                      <button class="color-swatch" 
+                              *ngFor="let color of colorPalette" 
+                              [style.background-color]="color"
+                              [class.selected]="getQueryColorForIndex(i) === color"
+                              (click)="selectColorForQueryIndex(color, i); $event.stopPropagation()">
+                        <span class="checkmark" *ngIf="getQueryColorForIndex(i) === color">✓</span>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+                <td class="bin-cell">
+                  <div class="bin-bars-wrapper" 
+                       [class.disabled]="!isQuerySelected(q)"
+                       [class.selected]="isBinSelectedForQuery(q, 0)"
+                       [style.border-color]="isBinSelectedForQuery(q, 0) ? getQueryColor(i) : 'transparent'"
+                       [style.background-color]="isBinSelectedForQuery(q, 0) ? getQueryColorWithOpacity(i) : 'transparent'"
+                       (click)="isQuerySelected(q) && toggleBinSelectionForQuery(q, 0)"
+                       [title]="isQuerySelected(q) ? 'Click to ' + (isBinSelectedForQuery(q, 0) ? 'deselect' : 'select') + ' 50-100 range' : 'Select query first'">
+                    <div class="bin-count" [style.color]="isBinSelectedForQuery(q, 0) ? getQueryColor(i) : '#333'">{{ getBinCountForQuery(i, 0) }}</div>
+                  </div>
+                </td>
+                <td class="bin-cell">
+                  <div class="bin-bars-wrapper" 
+                       [class.disabled]="!isQuerySelected(q)"
+                       [class.selected]="isBinSelectedForQuery(q, 1)"
+                       [style.border-color]="isBinSelectedForQuery(q, 1) ? getQueryColor(i) : 'transparent'"
+                       [style.background-color]="isBinSelectedForQuery(q, 1) ? getQueryColorWithOpacity(i) : 'transparent'"
+                       (click)="isQuerySelected(q) && toggleBinSelectionForQuery(q, 1)"
+                       [title]="isQuerySelected(q) ? 'Click to ' + (isBinSelectedForQuery(q, 1) ? 'deselect' : 'select') + ' 25-50 range' : 'Select query first'">
+                    <div class="bin-count" [style.color]="isBinSelectedForQuery(q, 1) ? getQueryColor(i) : '#333'">{{ getBinCountForQuery(i, 1) }}</div>
+                  </div>
+                </td>
+                <td class="bin-cell">
+                  <div class="bin-bars-wrapper" 
+                       [class.disabled]="!isQuerySelected(q)"
+                       [class.selected]="isBinSelectedForQuery(q, 2)"
+                       [style.border-color]="isBinSelectedForQuery(q, 2) ? getQueryColor(i) : 'transparent'"
+                       [style.background-color]="isBinSelectedForQuery(q, 2) ? getQueryColorWithOpacity(i) : 'transparent'"
+                       (click)="isQuerySelected(q) && toggleBinSelectionForQuery(q, 2)"
+                       [title]="isQuerySelected(q) ? 'Click to ' + (isBinSelectedForQuery(q, 2) ? 'deselect' : 'select') + ' 0-25 range' : 'Select query first'">
+                    <div class="bin-count" [style.color]="isBinSelectedForQuery(q, 2) ? getQueryColor(i) : '#333'">{{ getBinCountForQuery(i, 2) }}</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Second Half: Query Details -->
+      <div class="query-details-section">
+        <div>
+          <h3>Module details</h3>
+        </div>
+        <div class="section-content">
+          <div class="interactive-queries-content">
+            <!-- Chat Section -->
+            <div class="chat-container">
+            <div class="chat-box">
+              <div *ngFor="let message of reversedChatMessages; let i = index" 
+                   class="message" 
+                   [ngClass]="message.role"
+                   draggable="true"
+                   (dragstart)="onDragStart($event, i)"
+                   (dragover)="onDragOver($event)"
+                   (drop)="onDrop($event, i)"
+                   (dragend)="onDragEnd($event)">
+                <div class="message-content">
+                  <!-- <div class="message-header-drag" *ngIf="message.role === 'assistant'">
+                    <span class="drag-handle">⋮⋮</span>
+                  </div> -->
+                  <h5 *ngIf="message.role === 'user'">{{ message.content }}</h5>
+                  <div [ngStyle]="{ 'color': message.no === 'Q 1' ? q1Color : (message.no === 'Q 2' ? q2Color : (message.no === 'Q 3' ? q3Color : 'black')) }">
+                         
+                    <!-- Apply details view structure to assistant messages -->
+                    <div *ngIf="message.role === 'assistant' && message.content" class="message-details">
+                      <!-- Header with Meta Info -->
+                      <div class="message-header">
+                        <div class="meta-info">
+                          <div class="meta-item">
+
+                        </div>
+                      </div>
+
+                      <!-- Tabbed Content Card -->
+                      <div class="message-content-card">
+                        <!-- Path display inside card -->
+                        <div class="message-path" *ngIf="message.path">
+                        
+                          <h5 class="path-value">{{ message.path }}</h5>
+                          <div *ngIf="nodeName === message.name" class="selected-flag-message" [style.background-color]="getCurrentQueryColor()" title="Selected: {{ nodeName }}">
+                            <span class="flag-icon">🚩</span>
+                            <span class="flag-text">{{ nodeName }}</span>
+                          </div>
+                          <button class="icon-btn" (click)="message.noteOpen = !message.noteOpen" title="Toggle Notes">
+                            📝
+                          </button>
+                        </div>
+                        <!-- Tabs -->
+                        <div class="message-tabs">
+                          <button class="message-tab" [class.active]="message.activeTab === 'summary'" (click)="message.activeTab = 'summary'">
+                            AI Summary
+                          </button>
+                          <button class="message-tab" [class.active]="message.activeTab === 'wordcloud'" (click)="activateWordCloudTab(message, i)">
+                             Module Keywords
+                          </button>
+                        </div>
+
+                        <!-- Tab Content -->
+                        <div class="message-tab-content" [class.single-query]="chatMessages.length === 1" [class.multiple-queries]="chatMessages.length > 1">
+                          <!-- Summary Tab -->
+                          <div class="tab-pane" *ngIf="message.activeTab === 'summary'">
+                            <div class="summary-notes-scroll">
+                              <div class="content-text">
+                                <div class="summary-language-tabs" *ngIf="message.summaryByLanguage">
+                                  <button
+                                    type="button"
+                                    class="summary-language-tab"
+                                    [class.active]="message.summaryLanguage !== 'german'"
+                                    (click)="message.summaryLanguage = 'english'">
+                                    English
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="summary-language-tab"
+                                    [class.active]="message.summaryLanguage === 'german'"
+                                    (click)="message.summaryLanguage = 'german'">
+                                    German
+                                  </button>
+                                </div>
+                                <!-- <p [innerHTML]="highlightMessageText(message)"></p> -->
+                                 <p *ngIf="!message.summaryByLanguage">{{ message.content }}</p>
+                                 <p *ngIf="message.summaryByLanguage && message.summaryLanguage !== 'german'">
+                                  {{ message.summaryByLanguage.english || message.content }}
+                                 </p>
+                                 <p *ngIf="message.summaryByLanguage && message.summaryLanguage === 'german'">
+                                  {{ message.summaryByLanguage.german || message.content }}
+                                 </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Word Cloud Tab -->
+                          <div class="tab-pane" *ngIf="message.activeTab === 'wordcloud'">
+                            <div class="word-cloud-content-card">
+                              <canvas 
+                                [id]="'wordcloud-canvas-message-' + (chatMessages.length - 1 - i)"
+                                class="word-cloud-canvas">
+                              </canvas>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Notes Section (always visible when note is open) -->
+                        <div class="notes-section" *ngIf="message.noteOpen">
+                          <div class="summary-notes-scroll">
+                            <div *ngFor="let note of message.notes; let j = index" class="note-item">
+                              <p>{{ note }}</p>
+                              <div class="note-actions">
+                                <button class="icon-btn" (click)="editMessageNote(message, j)" title="Edit Note">
+                                  <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="icon-btn" (click)="deleteMessageNote(message, j)" title="Delete Note">
+                                  <i class="fas fa-trash"></i>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="note-input">
+                            <input type="text" placeholder="Write note..." [(ngModel)]="message.newNote">
+                            <button class="add-btn" (click)="addMessageNote(message)">+ Add</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Simple text display for user messages -->
+                    <!-- <span *ngIf="message.role === 'user'">{{ message.content }}</span> -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  
+  </div>
+  
+ <div class="popup-overlay" *ngIf="showChunkPopup">
+  <div class="popup">
+    <h3>Select Chunks</h3>
+    <input type="number" 
+           [(ngModel)]="numberOfChunks" 
+           placeholder="Enter number of chunks"
+           min="1">
+    <div class="popup-buttons">
+      <button (click)="confirmChunks()">Confirm</button>
+      <button (click)="showChunkPopup = false">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF Popup -->
+
+
+
+<!-- </div> -->
+
+
+
+
+

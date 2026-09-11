@@ -1,0 +1,103 @@
+.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+.node circle {
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+.tree-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+.node circle {
+  fill: steelblue;
+  stroke: #333;
+  stroke-width: 2px;
+}
+.node text {
+  font-size: 12px;
+  fill: #000;
+}
+.link {
+  fill: none;
+  stroke: #999;
+  stroke-width: 2px;
+}
+.highlighted circle {
+stroke: #00f; /* Blue outline for highlight */
+stroke-width: 4px;
+}
+circle.highlighted {
+stroke: #00f !important;       /* Blue outline */
+stroke-width: 4px !important;  /* Thicker border */
+fill: #add8e6 !important;      /* Optional: light blue fill */
+}
+
+.highlighted text {
+font-weight: bold;
+fill: #00f;
+}
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: white;
+  transition: background-color 0.3s;
+}
+
+.on {
+  background-color: #4caf50;
+}
+
+.off {
+  background-color: #f44336;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  /* padding: 8px 16px; */
+  font-size: 16px;
+  border: 2px solid #000;
+  color: black;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button2.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.button3.active {
+  background-color: lightgreen;
+  color: white;
+  border-color: lightgreen;
+}
+.button4.active {
+  background-color: red;
+  color: white;
+  border-color: red;
+}
+
+.button1.active {
+  background-color: #ff5733;
+  color: white;
+  border-color: #007bff;
+}
+button:hover {
+  background-color: #f0f0f0;
+  border-color: #aaa;
+}

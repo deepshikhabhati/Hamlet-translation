@@ -1,0 +1,140 @@
+<main class="main-content">
+    <div class="panel">
+      <h1>Shakespere Biography</h1>
+      <h3>Version 1</h3>
+        <app-tree-chart [data]="version1" [type]="this.selectedmessage ? 'query' : ''" (cardSelected)="handleCardSelection($event)" (nodeClicked)="nodeSelected($event)"></app-tree-chart>
+    
+        <div class="card" *ngIf="selectedVersion1">
+          <div class="card-header">
+            <h2>{{ selectedVersion1.topic }}</h2>
+          </div>
+          <div class="card-body">
+            <div class="summary-section">
+              <div class="keyword-tags">
+                <span class="keyword-tag" *ngFor="let keyword of selectedVersion1.keywords">
+                  {{ keyword }}
+                </span>
+              </div>
+              <div>{{ selectedVersion1.content }}</div>
+            </div>
+            </div>
+            </div>
+      </div>
+
+      <div class="panel">
+        <div style="display: flex;">
+        <h4>Compare with version 2</h4>
+        <button (click)="isToggled = !isToggled" [ngClass]="{ 'active': isToggled }">
+          {{ isToggled ? 'ON' : 'OFF' }}
+        </button>
+      </div>
+        
+        <div  class="toggle-container" *ngIf="isToggled" [ngClass]="{ 'show': isToggled }">
+        <h3>Version 2</h3>
+        <app-tree-chart [data]="version2" (cardSelected)="handleCardSelection($event)" (nodeClicked)="nodeSelected2($event)"></app-tree-chart>
+        <div class="card"  *ngIf="selectedVersion2">
+          <div class="card-header">
+            <h2>{{ selectedVersion2?.topic }}</h2>
+          </div>
+          <div class="card-body">
+            <div class="summary-section">
+              <div class="keyword-tags">
+                <span class="keyword-tag" *ngFor="let keyword of selectedVersion2?.keywords">
+                  {{ keyword }}
+                </span>
+              </div>
+              <div>{{ selectedVersion2?.content }}</div>
+            </div>
+            </div>
+            </div>
+          </div>
+      </div>
+
+      <div style="width: 85;">
+        <div class="chat-container">
+          <div class="chat-box">
+            <div *ngFor="let message of chatMessages" class="message" [ngClass]="message.role">
+              <div class="message-icon">
+                <i class="fas" [ngClass]="message.role === 'user' ? 'fa-user' : 'fa-robot'"></i>
+              </div>
+              <div class="message-content">
+                {{ message.content }}
+              </div>
+            </div>
+          </div>
+        
+          <div class="input-box">
+            <input [(ngModel)]="userMessage" placeholder="Type your message" />
+            <button (click)="openChunkPopup()" class="chunk-btn">Chunks</button>
+            <button (click)="sendMessage()">Send</button>
+            <!-- <input type='file' name="file" id="file" (change)="onFileSelected($event)" hidden> -->
+            <!-- <button for="file" class="upload" (click)="showPopup()">Upload a PDF</button> -->
+            
+       </div> 
+       </div>
+       <div class="compare-container" *ngIf="selectedForComparison.length === 2">
+        <button 
+          class="compare-button" 
+          (click)="compareSummaries()"
+          [disabled]="isLoading">
+          {{ isLoading ? 'Comparing...' : 'Compare Summaries' }}
+        </button>
+      </div>
+      <div class="comparison-result" *ngIf="comparisonResult">
+        <div class="card comparison-card">
+          <div class="card-header">
+            <h2>Comparison Analysis</h2>
+          </div>
+          <div class="card-body">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th colspan="2">Commonalities</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="label">Common Theme</td>
+                  <td>{{ comparisonResult.commonalities.common_theme }}</td>
+                </tr>
+                <tr>
+                  <td class="label">Common Fact</td>
+                  <td>{{ comparisonResult.commonalities.common_fact }}</td>
+                </tr>
+              </tbody>
+              
+              <thead>
+                <tr>
+                  <th colspan="2">Differences</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="label">Summary 1</td>
+                  <td>{{ comparisonResult.differences.summary_1_unique }}</td>
+                </tr>
+                <tr>
+                  <td class="label">Summary 2</td>
+                  <td>{{ comparisonResult.differences.summary_2_unique }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="popup-overlay" *ngIf="showChunkPopup">
+        <div class="popup">
+          <h3>Select Chunks</h3>
+          <input type="number" 
+                 [(ngModel)]="numberOfChunks" 
+                 placeholder="Enter number of chunks"
+                 min="1">
+          <div class="popup-buttons">
+            <button (click)="confirmChunks()">Confirm</button>
+            <button (click)="showChunkPopup = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+  </main>

@@ -1,0 +1,328 @@
+.mind-map-container {
+  position: relative;
+  width: 100%;
+  min-height: 340px;
+  background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.minimap-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 340px;
+}
+
+.minimap-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 10px 12px 0;
+  flex-shrink: 0;
+}
+
+.minimap-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.minimap-tab:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.minimap-tab.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+}
+
+.minimap-canvas {
+  flex: 0 0 auto;
+  position: relative;
+  width: 400px;
+  height: 280px;
+  margin: 0 auto;
+}
+
+.mind-map-container.minimap-triangle {
+  min-height: 340px;
+}
+
+.minimap-dual-line {
+  pointer-events: none;
+}
+
+.mind-map-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.mind-map-svg.minimap-svg {
+  pointer-events: none;
+}
+
+.minimap-triangle-fill {
+  pointer-events: none;
+}
+
+.minimap-triangle-edge {
+  pointer-events: none;
+}
+
+.minimap-score-line {
+  pointer-events: none;
+}
+
+/* Query vertices (triangle corners) */
+.minimap-query-vertex {
+  position: absolute;
+  padding: 6px 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  max-width: 140px;
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.minimap-query-id {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.minimap-query-label {
+  display: block;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* Paragraph nodes inside triangle */
+.minimap-paragraph-node {
+  position: absolute;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 2px solid rgba(99, 102, 241, 0.5);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  font-size: 0.78rem;
+  text-align: center;
+  max-width: 160px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  color: #1e293b;
+}
+
+.minimap-paragraph-node:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.minimap-paragraph-node.selected {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.minimap-paragraph-title {
+  display: block;
+  font-weight: 600;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimap-paragraph-score {
+  display: block;
+  font-size: 0.75rem;
+  color: #475569;
+  margin-top: 2px;
+}
+
+/* Floating detail panel: moveable and resizable */
+.minimap-detail-panel-floating {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.minimap-detail-panel-floating.expanded {
+  min-height: 200px;
+}
+
+.minimap-detail-header-draggable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.minimap-detail-title-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimap-detail-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.minimap-detail-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: #e2e8f0;
+  border-radius: 6px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minimap-detail-btn:hover {
+  background: #cbd5e1;
+  color: #334155;
+}
+
+.minimap-detail-body {
+  padding: 10px 12px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.minimap-detail-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, #cbd5e1 50%, #cbd5e1 55%, transparent 55%);
+  background-size: 8px 8px;
+  border-radius: 0 0 10px 0;
+}
+
+.minimap-detail-resize-handle:hover {
+  background: linear-gradient(135deg, transparent 50%, #94a3b8 50%, #94a3b8 55%, transparent 55%);
+  background-size: 8px 8px;
+}
+
+.minimap-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.minimap-detail-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+}
+
+.minimap-detail-content {
+  margin: 0 0 10px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.minimap-detail-meta {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.minimap-detail-explanation {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.minimap-detail-themes {
+  margin-bottom: 12px;
+}
+
+.minimap-detail-themes ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: #475569;
+}
+
+.minimap-detail-by-query {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.minimap-detail-by-query h5 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+
+.minimap-detail-relevance {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.minimap-detail-reason {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.minimap-detail-by-query ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.8rem;
+  color: #475569;
+}

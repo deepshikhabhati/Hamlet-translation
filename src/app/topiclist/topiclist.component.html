@@ -1,0 +1,332 @@
+<ul class="tree" [ngClass]="{ 'expanded-columns': topics.length > 20 }">
+  <!-- Topics -->
+
+   <div class="toggle-container">
+    <!-- <span>Score Chart</span>
+    <label class="switch">
+      <input type="checkbox" [(ngModel)]="showAIBarChart" (click)="toggleAIBarChart()" />
+      <span class="slider"></span>
+    </label> -->
+     <span>{{ queryValue ? 'Shrink View' : 'Detail View' }}</span>
+  <label class="switch">
+    <input type="checkbox" [(ngModel)]="queryValue" (click)="setQueryValue()" />
+    <span class="slider"></span>
+  </label>
+</div>
+
+
+  <ng-container *ngFor="let topic of topics; let topicIndex = index">
+      <!-- <li *ngIf="(!queryValue ||  topic.expanded || topic.expanded2))"> -->
+      <li>
+      <div style="display: flex;" [ngClass]="{ 'selected-topic-container': isSelected(topic) }">
+        <div
+          (click)="toggleTopic(topic)"
+          [attr.id]="getNodeDomId(getNodePath(topic))"
+          [ngStyle]="getQueryBackgroundColor(topic) ? { 'background-color': getQueryBackgroundColor(topic), 'color': 'white' } : {}"
+        >
+          <i class="fas fa-folder icon" [ngStyle]="{ 'color': getChapterBackgroundColor(topicIndex, 0) }"></i>
+          {{ topic.name }}
+        </div>
+        <button style="border: none;font-size: x-large ;" *ngIf="hasNotes(topic.name)" title="Has Notes"> 📝</button>
+        <div class="signal-charts">
+          <!-- AI Score Donut Chart (only when toggle is on) -->
+          <div 
+            *ngIf="showAIBarChart && getAIBarChartData(topic).length > 0"
+            class="score-bar-chart"
+            [attr.title]="'Score: ' + getAIScoreForNode(topic)?.toFixed(2)"
+          >
+            <canvas [id]="getChartId(topic, 'ai', topicIndex)" width="20" height="20"></canvas>
+          </div>
+          <!-- Regular Score Bar Chart (only when toggle is on) -->
+
+          <div
+            *ngIf=" topic.similarity_score !== undefined"
+            class="antenna-chart"
+            [attr.id]="'antenna-rank1-' + topic.color"
+            [attr.title]="'Score: ' + topic.similarity_score.toFixed(2)"
+          >
+            <div class="antenna-bars">
+              <div 
+                *ngFor="let bar of getAntennaBars(topic.similarity_score, '1'); let i = index"
+                class="antenna-bar"
+                [class.active]="bar.active"
+                [ngStyle]="{'background-color': bar.active ? q1Color : '#e0e0e0'}"
+              ></div>
+            </div>
+            <span class="antenna-score-label" [style.color]="q1Color">{{ formatBracketScore(topic.similarity_score) }}</span>
+          </div>
+          <div
+            *ngIf=" topic.similarity_score2 !== undefined"
+            class="antenna-chart"
+            [attr.id]="'antenna-rank2-' + topic.color"
+            [attr.title]="'Score: ' + topic.similarity_score2.toFixed(2)"
+          >
+            <div class="antenna-bars">
+              <div 
+                *ngFor="let bar of getAntennaBars(topic.similarity_score2, '2'); let i = index"
+                class="antenna-bar"
+                [class.active]="bar.active"
+                [ngStyle]="{'background-color': bar.active ? q2Color : '#e0e0e0'}"
+              ></div>
+            </div>
+            <span class="antenna-score-label" [style.color]="q2Color">{{ formatBracketScore(topic.similarity_score2) }}</span>
+          </div>
+          <div
+            *ngIf=" topic.similarity_score3 !== undefined"
+            class="antenna-chart"
+            [attr.id]="'antenna-rank3-' + topic.color"
+            [attr.title]="'Score: ' + topic.similarity_score3.toFixed(2)"
+          >
+            <div class="antenna-bars">
+              <div 
+                *ngFor="let bar of getAntennaBars(topic.similarity_score3, '3'); let i = index"
+                class="antenna-bar"
+                [class.active]="bar.active"
+                [ngStyle]="{'background-color': bar.active ? q3Color : '#e0e0e0'}"
+              ></div>
+            </div>
+            <span class="antenna-score-label" [style.color]="q3Color">{{ formatBracketScore(topic.similarity_score3) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subtopics -->
+      <ul>
+        <ng-container *ngFor="let subtopic of topic.children; let subtopicIndex = index">
+          <li *ngIf="(!queryValue ||  subtopic.expanded || subtopic.expanded2 || subtopic.expanded3 || subtopic.rexpanded)">
+            <div style="display: flex;" [ngClass]="{ 'selected-topic-container': isSelected(subtopic, topic) }">
+              <div
+                (click)="toggleChild(topic, subtopic)"
+                [attr.id]="getNodeDomId(getNodePath(subtopic, topic))"
+                [ngStyle]="getQueryBackgroundColor(subtopic) ? { 'background-color': getQueryBackgroundColor(subtopic), 'color': 'white' } : {}"
+              >
+                <i class="fas fa-folder icon" [ngStyle]="{ 'color': getChapterBackgroundColor(topicIndex, 1) }"></i>
+                {{ subtopic.name }}
+              </div>
+              <button style="border: none;font-size: x-large ;" *ngIf="hasNotes(subtopic.name)" title="Has Notes"> 📝</button>
+              <div class="signal-charts">
+                <!-- AI Score Donut Chart (only when toggle is on) -->
+                <div 
+                  *ngIf="showAIBarChart && getAIBarChartData(subtopic).length > 0"
+                  class="score-bar-chart"
+                  [attr.title]="'Score: ' + getAIScoreForNode(subtopic)?.toFixed(2)"
+                >
+                  <canvas [id]="getChartId(subtopic, 'ai', subtopicIndex)" width="20" height="20"></canvas>
+                </div>
+                <!-- Regular Score Bar Chart (only when toggle is on) -->
+
+                <div
+                  *ngIf=" subtopic.similarity_score !== undefined"
+                  class="antenna-chart"
+                  [attr.id]="'antenna-rank1-' + subtopic.color"
+                  [attr.title]="'Score: ' + subtopic.similarity_score.toFixed(2)"
+                >
+                  <div class="antenna-bars">
+                    <div 
+                      *ngFor="let bar of getAntennaBars(subtopic.similarity_score, '1'); let i = index"
+                      class="antenna-bar"
+                      [class.active]="bar.active"
+                      [ngStyle]="{'background-color': bar.active ? q1Color : '#e0e0e0'}"
+                    ></div>
+                  </div>
+                  <span class="antenna-score-label" [style.color]="q1Color">{{ formatBracketScore(subtopic.similarity_score) }}</span>
+                </div>
+                <div
+                  *ngIf=" subtopic.similarity_score2 !== undefined"
+                  class="antenna-chart"
+                  [attr.id]="'antenna-rank2-' + subtopic.color"
+                  [attr.title]="'Score: ' + subtopic.similarity_score2.toFixed(2)"
+                >
+                  <div class="antenna-bars">
+                    <div 
+                      *ngFor="let bar of getAntennaBars(subtopic.similarity_score2, '2'); let i = index"
+                      class="antenna-bar"
+                      [class.active]="bar.active"
+                      [ngStyle]="{'background-color': bar.active ? q2Color : '#e0e0e0'}"
+                    ></div>
+                  </div>
+                  <span class="antenna-score-label" [style.color]="q2Color">{{ formatBracketScore(subtopic.similarity_score2) }}</span>
+                </div>
+                <div
+                  *ngIf=" subtopic.similarity_score3 !== undefined"
+                  class="antenna-chart"
+                  [attr.id]="'antenna-rank3-' + subtopic.color"
+                  [attr.title]="'Score: ' + subtopic.similarity_score3.toFixed(2)"
+                >
+                  <div class="antenna-bars">
+                    <div 
+                      *ngFor="let bar of getAntennaBars(subtopic.similarity_score3, '3'); let i = index"
+                      class="antenna-bar"
+                      [class.active]="bar.active"
+                      [ngStyle]="{'background-color': bar.active ? q3Color : '#e0e0e0'}"
+                    ></div>
+                  </div>
+                  <span class="antenna-score-label" [style.color]="q3Color">{{ formatBracketScore(subtopic.similarity_score3) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-subtopics -->
+            <ul>
+              <ng-container *ngFor="let subSubtopic of subtopic.children; let subSubtopicIndex = index">
+                <li *ngIf="(!queryValue ||  subSubtopic.expanded || subSubtopic.expanded2 || subSubtopic.expanded3)">
+                  <div style="display: flex;" [ngClass]="{ 'selected-topic-container': isSelected(subSubtopic, subtopic, topic) }">
+                    <div
+                      (click)="toggleSubChild(subtopic, subSubtopic, topic)"
+                      [attr.id]="getNodeDomId(getNodePath(subSubtopic, subtopic, topic))"
+                      [ngStyle]="getQueryBackgroundColor(subSubtopic) ? { 'background-color': getQueryBackgroundColor(subSubtopic), 'color': 'white' } : {}"
+                    >
+                      <i class="fas fa-folder-tree icon" [ngStyle]="{ 'color': getChapterBackgroundColor(topicIndex, 2) }"></i>
+                      {{ subSubtopic.name }}
+                    </div>
+                   
+                    <button style="border: none;font-size: x-large ;" *ngIf="hasNotes(subSubtopic.name)" title="Has Notes"> 📝</button>
+                    <div class="signal-charts">
+                      <!-- AI Score Donut Chart (only when toggle is on) -->
+                      <div 
+                        *ngIf="showAIBarChart && getAIBarChartData(subSubtopic).length > 0"
+                        class="score-bar-chart"
+                        [attr.title]="'Score: ' + getAIScoreForNode(subSubtopic)?.toFixed(2)"
+                      >
+                        <canvas [id]="getChartId(subSubtopic, 'ai', subSubtopicIndex)" width="20" height="20"></canvas>
+                      </div>
+                      <!-- Regular Score Bar Chart (only when toggle is on) -->
+   
+                      <div
+                        *ngIf="subSubtopic.similarity_score !== undefined"
+                        class="antenna-chart"
+                        [attr.id]="'antenna-rank1-' + subSubtopic.color"
+                        [attr.title]="'Score: ' + subSubtopic.similarity_score.toFixed(2)"
+                      >
+                        <div class="antenna-bars">
+                          <div 
+                            *ngFor="let bar of getAntennaBars(subSubtopic.similarity_score, '1'); let i = index"
+                            class="antenna-bar"
+                            [class.active]="bar.active"
+                            [ngStyle]="{'background-color': bar.active ? q1Color : '#e0e0e0'}"
+                          ></div>
+                        </div>
+                        <span class="antenna-score-label" [style.color]="q1Color">{{ formatBracketScore(subSubtopic.similarity_score) }}</span>
+                      </div>
+                      <div
+                        *ngIf=" subSubtopic.similarity_score2 !== undefined"
+                        class="antenna-chart"
+                        [attr.id]="'antenna-rank2-' + subSubtopic.color"
+                        [attr.title]="'Score: ' + subSubtopic.similarity_score2.toFixed(2)"
+                      >
+                        <div class="antenna-bars">
+                          <div 
+                            *ngFor="let bar of getAntennaBars(subSubtopic.similarity_score2, '2'); let i = index"
+                            class="antenna-bar"
+                            [class.active]="bar.active"
+                            [ngStyle]="{'background-color': bar.active ? q2Color : '#e0e0e0'}"
+                          ></div>
+                        </div>
+                        <span class="antenna-score-label" [style.color]="q2Color">{{ formatBracketScore(subSubtopic.similarity_score2) }}</span>
+                      </div>
+                      <div
+                        *ngIf=" subSubtopic.similarity_score3 !== undefined"
+                        class="antenna-chart"
+                        [attr.id]="'antenna-rank3-' + subSubtopic.color"
+                        [attr.title]="'Score: ' + subSubtopic.similarity_score3.toFixed(2)"
+                      >
+                        <div class="antenna-bars">
+                          <div 
+                            *ngFor="let bar of getAntennaBars(subSubtopic.similarity_score3, '3'); let i = index"
+                            class="antenna-bar"
+                            [class.active]="bar.active"
+                            [ngStyle]="{'background-color': bar.active ? q3Color : '#e0e0e0'}"
+                          ></div>
+                        </div>
+                        <span class="antenna-score-label" [style.color]="q3Color">{{ formatBracketScore(subSubtopic.similarity_score3) }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Leaves -->
+                  <ul>
+                    <ng-container *ngFor="let leaf of subSubtopic.children; let leafIndex = index">
+                      <li *ngIf="(!queryValue ||  leaf.expanded || leaf.expanded2 || leaf.expanded3)">
+                        <div style="display: flex;" [ngClass]="{ 'selected-topic-container': isSelected(leaf, subSubtopic, subtopic, topic) }">
+                        <span
+                          class="leaf"
+                          [attr.id]="getNodeDomId(getNodePath(leaf, subSubtopic, subtopic, topic))"
+                          [ngStyle]="getQueryBackgroundColor(leaf) ? { 'background-color': getQueryBackgroundColor(leaf), 'color': 'white' } : {}"
+                        >
+                          <i class="fas fa-leaf icon leaf-icon" [ngStyle]="{ 'color': getChapterBackgroundColor(topicIndex, 3) }"></i>
+                          {{ leaf.name }}
+                        </span>
+                        <button style="border: none;font-size: x-large ;" *ngIf="hasNotes(leaf.name)" title="Has Notes"> 📝</button>
+                        <div class="signal-charts">
+                          <!-- AI Score Donut Chart (only when toggle is on) -->
+                          <div 
+                            *ngIf="showAIBarChart && getAIBarChartData(leaf).length > 0"
+                            class="score-bar-chart"
+                            [attr.title]="'Score: ' + getAIScoreForNode(leaf)?.toFixed(2)"
+                          >
+                            <canvas [id]="getChartId(leaf, 'ai', leafIndex)" width="20" height="20"></canvas>
+                          </div>
+                          <!-- Regular Score Bar Chart (only when toggle is on) -->
+
+                          <div
+                            *ngIf=" leaf.similarity_score !== undefined"
+                            class="antenna-chart"
+                            [attr.id]="'antenna-rank1-' + leaf.color"
+                            [attr.title]="'Score: ' + leaf.similarity_score.toFixed(2)"
+                          >
+                            <div class="antenna-bars">
+                              <div 
+                                *ngFor="let bar of getAntennaBars(leaf.similarity_score, '1'); let i = index"
+                                class="antenna-bar"
+                                [class.active]="bar.active"
+                                [ngStyle]="{'background-color': bar.active ? q1Color : '#e0e0e0'}"
+                              ></div>
+                            </div>
+                            <span class="antenna-score-label" [style.color]="q1Color">{{ formatBracketScore(leaf.similarity_score) }}</span>
+                          </div>
+                          <div
+                            *ngIf="leaf.similarity_score2 !== undefined"
+                            class="antenna-chart"
+                            [attr.id]="'antenna-rank2-' + leaf.color"
+                            [attr.title]="'Score: ' + leaf.similarity_score2.toFixed(2)"
+                          >
+                            <div class="antenna-bars">
+                              <div 
+                                *ngFor="let bar of getAntennaBars(leaf.similarity_score2, '2'); let i = index"
+                                class="antenna-bar"
+                                [class.active]="bar.active"
+                                [ngStyle]="{'background-color': bar.active ? q2Color : '#e0e0e0'}"
+                              ></div>
+                            </div>
+                            <span class="antenna-score-label" [style.color]="q2Color">{{ formatBracketScore(leaf.similarity_score2) }}</span>
+                          </div>
+                          <div
+                            *ngIf="leaf.similarity_score3 !== undefined"
+                            class="antenna-chart"
+                            [attr.id]="'antenna-rank3-' + leaf.color"
+                            [attr.title]="'Score: ' + leaf.similarity_score3.toFixed(2)"
+                          >
+                            <div class="antenna-bars">
+                              <div 
+                                *ngFor="let bar of getAntennaBars(leaf.similarity_score3, '3'); let i = index"
+                                class="antenna-bar"
+                                [class.active]="bar.active"
+                                [ngStyle]="{'background-color': bar.active ? q3Color : '#e0e0e0'}"
+                              ></div>
+                            </div>
+                            <span class="antenna-score-label" [style.color]="q3Color">{{ formatBracketScore(leaf.similarity_score3) }}</span>
+                          </div>
+                        </div>
+                        </div>
+                      </li>
+                    </ng-container>
+                  </ul>
+                </li>
+              </ng-container>
+            </ul>
+          </li>
+        </ng-container>
+      </ul>
+    </li>
+  </ng-container>
+</ul>

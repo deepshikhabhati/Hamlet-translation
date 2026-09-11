@@ -1,0 +1,47 @@
+.comparison-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.comparison-selector__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.comparison-selector__chips {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.comparison-selector__select {
+  padding: 0.4rem 0.75rem;
+  border: 2px solid #1e3a8a;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  background: #eff6ff;
+  cursor: pointer;
+  outline: none;
+
+  &--target {
+    border-color: #059669;
+    color: #059669;
+    background: #ecfdf5;
+  }
+}
+
+.comparison-selector__arrow {
+  color: #2563eb;
+  font-size: 1.25rem;
+}

@@ -1,0 +1,37 @@
+
+<!-- <div *ngIf="!twoQuerys && !query">
+  <button (click)="isOn = !isOn;expandAll(data)" [ngClass]="{ 'on': isOn, 'off': !isOn }">
+    {{ isOn ? 'Shrink' : 'Expand' }}
+  </button>
+</div> -->
+
+<!-- <div class="toggle-group" *ngIf="twoQuerys">
+  <button 
+  class="button1"
+    (click)="select('Query1')" 
+    [class.active]="selected === 'Query1'">
+   Query1
+  </button>
+
+  <button 
+  class="button2"
+    (click)="select('Query2')" 
+    [class.active]="selected === 'Query2'">
+    Query2
+  </button>
+  <button 
+  class="button3"
+    (click)="select('Union')" 
+    [class.active]="selected === 'Union'">
+    Union
+  </button>
+  <button 
+  class="button4"
+    (click)="select('Intersection')" 
+    [class.active]="selected === 'Intersection'">
+    Intersection
+  </button> 
+</div> -->
+
+<div #treeContainer class="tree-container"></div>
+

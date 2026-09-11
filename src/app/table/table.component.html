@@ -1,0 +1,39 @@
+<div class="container mt-4">
+    <h3 class="mb-3">Table</h3>
+  
+  
+    <table class="table table-bordered table-striped">
+      <thead class="table-dark">
+        <tr>
+          <th (click)="sortTable('id')">ID</th>
+          <th (click)="sortTable('name')">Category</th>
+          <th (click)="sortTable('email')">Headline</th>
+          <th (click)="sortTable('email')">embeddings</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of filteredUsers()">
+          <td>{{ user.id }}</td>
+          <td>{{ user.category }}</td>
+          <td>{{ user.headline }}</td>
+          <td>{{ embeddings }}</td>
+        </tr>
+      </tbody>
+    </table>
+  
+    <!-- Pagination Controls -->
+    <nav>
+      <ul class="pagination">
+        <li class="page-item" [class.disabled]="currentPage === 1">
+          <a class="page-link" (click)="prevPage()">Previous</a>
+        </li>
+        <li class="page-item">
+          <span class="page-link">{{ currentPage }} / {{ totalPages() }}</span>
+        </li>
+        <li class="page-item" [class.disabled]="currentPage === totalPages()">
+          <a class="page-link" (click)="nextPage()">Next</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  

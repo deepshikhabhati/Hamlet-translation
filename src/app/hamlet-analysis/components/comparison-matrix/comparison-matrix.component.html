@@ -1,0 +1,30 @@
+<div class="comparison-matrix card">
+  <h3 class="comparison-matrix__heading">
+    <i class="fas fa-th"></i> Overall Score Matrix
+  </h3>
+  <p class="comparison-matrix__hint">Click a cell to select that comparison direction.</p>
+  <div class="comparison-matrix__scroll">
+    <table class="comparison-matrix__table">
+      <thead>
+        <tr>
+          <th class="matrix-corner">Source → Target</th>
+          <th *ngFor="let t of versions">{{ versionShortLabels[t] }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of versions">
+          <th class="matrix-row-label">{{ versionShortLabels[s] }}</th>
+          <td
+            *ngFor="let t of versions"
+            [class]="cellClass(s, t)"
+            [style.background]="cellBackground(s, t)"
+            (click)="onCellClick(s, t)"
+            [title]="s !== t ? versionShortLabels[s] + ' → ' + versionShortLabels[t] + ': ' + formatScore(s, t) : ''"
+          >
+            {{ formatScore(s, t) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

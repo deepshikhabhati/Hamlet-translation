@@ -1,0 +1,33 @@
+<!-- <div class="tabs-container">
+  <div class="tabs">
+    <button *ngFor="let model of models" [class.active]="selectedModel === model" (click)="selectModel(model)">
+      {{ model }}
+    </button>
+  </div>
+</div> -->
+
+<!-- <div class="content-container" style="display: flex; gap: 20px;"> -->
+  <!-- Left Side: Scatter Plot -->
+  <!-- <div class="left-panel" style="flex: 1;"> -->
+    <!-- <app-scatter-plot *ngIf="selectedModel" [scatterplotdata]="selectedModel" [query]="selectedmessage"></app-scatter-plot> -->
+  <!-- </div> -->
+  
+  <!-- Right Side: Table and Chatbot -->
+  <!-- <div class="right-panel" style="flex: 1; display: flex; flex-direction: column; gap: 20px;"> -->
+    <!-- <app-table></app-table> -->
+    
+    <div class="chat-container" style="flex: 1;">
+      <div class="chat-box">
+        <div *ngFor="let message of chatMessages" [ngClass]="message.role">
+          <strong *ngIf="message.role === 'user'">You: </strong>
+          <strong *ngIf="message.role === 'assistant'">AI: </strong>
+          {{ message.content }}
+        </div>
+      </div>
+      <div class="input-box">
+        <input [(ngModel)]="userMessage" placeholder="Type your message" />
+        <button (click)="sendMessage()">Send</button>
+      </div>
+    </div>
+  <!-- </div> -->
+<!-- </div> -->

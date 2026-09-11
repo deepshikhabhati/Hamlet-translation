@@ -1,0 +1,24 @@
+<div class="comparison-selector card">
+  <span class="comparison-selector__label">Comparing</span>
+  <div class="comparison-selector__chips">
+    <select
+      class="comparison-selector__select"
+      [ngModel]="selectedSource"
+      (ngModelChange)="onSourceChange($event)"
+    >
+      <option *ngFor="let v of versions" [value]="v">{{ versionShortLabels[v] }}</option>
+    </select>
+
+    <span class="comparison-selector__arrow">
+      <i class="fas fa-long-arrow-alt-right"></i>
+    </span>
+
+    <select
+      class="comparison-selector__select comparison-selector__select--target"
+      [ngModel]="selectedTarget"
+      (ngModelChange)="onTargetChange($event)"
+    >
+      <option *ngFor="let v of targetOptions" [value]="v">{{ versionShortLabels[v] }}</option>
+    </select>
+  </div>
+</div>

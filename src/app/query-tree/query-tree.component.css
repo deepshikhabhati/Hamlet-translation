@@ -1,0 +1,45 @@
+
+  .tree {
+    list-style-type: none;
+    padding-left: 10px;
+    max-height: 70vh;
+    overflow-y: auto;
+    font-family: Arial, sans-serif;
+  }
+
+  .tree li {
+    margin-bottom: 5px;
+  }
+
+  .folder {
+    cursor: pointer;
+    font-weight: bold;
+    color: #007bff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .arrow {
+    font-size: 0.9rem;
+    color: #888;
+    margin-left: 8px;
+  }
+
+  .query {
+    cursor: pointer;
+    padding-left: 16px;
+    color: #333;
+  }
+
+  .query:hover {
+    background-color: #f1f1f1;
+    color: #FF7F50;
+  }
+
+  .highlight {
+    background-color: white;
+    color: #FF7F50;
+    font-weight: bold;
+  }
+

@@ -1,0 +1,41 @@
+<div class="comparison-diff card">
+  <h3 class="comparison-diff__heading">
+    <i class="fas fa-exchange-alt"></i> Side-by-Side Text
+  </h3>
+
+  <div class="comparison-diff__categories">
+    <button
+      *ngFor="let cat of categories"
+      class="comparison-diff__cat-btn"
+      [class.comparison-diff__cat-btn--active]="isActive(cat.key)"
+      (click)="toggleCategory(cat.key)"
+    >
+      <i class="fas" [ngClass]="cat.icon"></i> {{ cat.label }}
+    </button>
+  </div>
+
+  <div class="comparison-diff__panels">
+    <div class="comparison-diff__panel">
+      <div class="comparison-diff__panel-header">
+        <span class="comparison-diff__badge comparison-diff__badge--source">Source</span>
+        {{ sourceLabel }}
+      </div>
+      <div class="comparison-diff__text">{{ comparison?.source_text }}</div>
+    </div>
+    <div class="comparison-diff__divider">
+      <i class="fas fa-arrow-right"></i>
+    </div>
+    <div class="comparison-diff__panel">
+      <div class="comparison-diff__panel-header">
+        <span class="comparison-diff__badge comparison-diff__badge--target">Target</span>
+        {{ targetLabel }}
+      </div>
+      <div class="comparison-diff__text">{{ comparison?.target_text }}</div>
+    </div>
+  </div>
+
+  <p class="comparison-diff__hint" *ngIf="selectedCategory">
+    <i class="fas fa-info-circle"></i>
+    Category <strong>{{ selectedCategory }}</strong> highlighted in dimension details below.
+  </p>
+</div>

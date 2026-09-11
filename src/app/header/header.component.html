@@ -1,0 +1,20 @@
+<header class="header">
+  <div class="header-content">
+    <div class="logo">Logo</div>
+    <div class="header-buttons">
+      <button 
+        class="header-button" 
+        [class.selected]="selectedButton === 'Summary'"
+        (click)="onButtonClick('Summary')">
+        Summary
+      </button>
+      <button 
+        class="header-button" 
+        [class.selected]="selectedButton === 'Query'"
+        (click)="onButtonClick('Query')">
+        Query
+      </button>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</header> 

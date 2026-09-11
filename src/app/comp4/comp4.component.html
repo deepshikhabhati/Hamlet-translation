@@ -1,0 +1,96 @@
+<div class="container">
+  <!-- LEFT PANEL -->
+  <div class="panel left-panel">
+    <div class="toggle-group" *ngIf="selectedUSerMessage2">
+      <button class="button1" (click)="select('query1')" [class.active]="selected === 'query1'">Query1</button>
+      <button class="button2" (click)="select('query2')" [class.active]="selected === 'query2'">Query2</button>
+      <button class="button3" (click)="select('Union')" [class.active]="selected === 'Union'">Union</button>
+      <button class="button4" (click)="select('Intersection')" [class.active]="selected === 'Intersection'">Intersection</button>
+    </div>
+
+    <app-umap-plot
+      [data]="data"
+      (minMaxemit)="filterData($event)"
+      [selectedMode]="selectedMode"
+      [selected]="selected"
+      [type]="'news'"
+      (nodeClicked)="selectedNodes($event)">
+    </app-umap-plot>
+  </div>
+
+  <!-- CENTER PANEL -->
+  <div class="panel center-panel">
+    <h3>Query View</h3>
+
+    <div class="chat-container">
+      <div class="chat-box">
+        <div *ngFor="let message of chatMessages; let i = index" class="message" [ngClass]="message.role">
+          <div class="message-icon" [ngClass]="{ 'orange-icon': i % 2 === 0, 'blue-icon': i % 2 === 1 }">
+            <i class="fas" [ngClass]="message.role === 'user' ? 'fa-user' : 'fa-robot'"></i>
+          </div>
+          <div class="message-content">{{ message.content }}</div>
+        </div>
+      </div>
+
+      <div class="input-box">
+        <input [(ngModel)]="userMessage" placeholder="Type your message" />
+        <button (click)="openChunkPopup()" class="chunk-btn">Chunks</button>
+        <button (click)="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <div class="compare-container" *ngIf="selectedForComparison.length === 2">
+      <button class="compare-button" (click)="compareSummaries()" [disabled]="isLoading">
+        {{ isLoading ? 'Comparing...' : 'Compare Summaries' }}
+      </button>
+
+      <div class="summary-card" *ngIf="summaryData">
+        <div class="summary-text">
+          <table class="highlight-table">
+            <thead>
+              <tr><th>Chunk A</th><th>Chunk B</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td [innerHTML]="summaryData.highlighted_chunk_a"></td>
+                <td [innerHTML]="summaryData.highlighted_chunk_b"></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="main-summary">{{ summaryData.summary }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel">
+    <table class="node-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Description</th>
+          <th>Select</th>
+          <th>Score 1</th>
+          <th>Score 2</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of selectednodes">
+          <td>{{ item.title }}</td>
+          <td>{{ item.text }}</td>
+          <td>
+            <button class="select-button"
+              [class.selected]="isSelectedForComparison(item)"
+              (click)="toggleSummarySelection(item)"
+              [disabled]="selectedForComparison.length >= 2 && !isSelectedForComparison(item)">
+              {{ isSelectedForComparison(item) ? 'Selected' : 'Select' }}
+            </button>
+          </td>
+          <td>{{ item.score_dense | number: '1.2-2' }}</td>
+          <td>{{ item.score_dense2 | number: '1.2-2' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

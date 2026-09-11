@@ -1,0 +1,229 @@
+<div class="comparison-dashboard">
+  <!-- Query Selection Panel - Full Width at Top -->
+  <div class="query-panel-card">
+    <div class="query-selection-section">
+      <div class="query-selection-table-wrapper">
+        <h3>Query Selection Panel</h3>
+        <div class="input-box">
+          <input [(ngModel)]="userMessage" placeholder="Type your message" />
+          <button (click)="sendMessage(userMessage)">Add</button>
+        </div>
+        <table class="query-selection-table">
+          <thead>
+            <tr>
+              <th class="checkbox-header">Visible</th>
+              <th class="query-number-header">#</th>
+              <th class="query-text-header">Query</th>
+              <th class="color-header">Color</th>
+              <th class="bin-header">
+                <div class="antenna-chart-header">
+                  <div class="antenna-bars">
+                    <div 
+                      *ngFor="let bar of getBinAntennaBars(0); let i = index"
+                      class="antenna-bar"
+                      [class.active]="bar.active"
+                      [ngStyle]="{'background-color': bar.active ? getBinAntennaColor(0) : '#e0e0e0'}"
+                    ></div>
+                  </div>
+                </div>
+              </th>
+              <th class="bin-header">
+                <div class="antenna-chart-header">
+                  <div class="antenna-bars">
+                    <div 
+                      *ngFor="let bar of getBinAntennaBars(1); let i = index"
+                      class="antenna-bar"
+                      [class.active]="bar.active"
+                      [ngStyle]="{'background-color': bar.active ? getBinAntennaColor(1) : '#e0e0e0'}"
+                    ></div>
+                  </div>
+                </div>
+              </th>
+              <th class="bin-header">
+                <div class="antenna-chart-header">
+                  <div class="antenna-bars">
+                    <div 
+                      *ngFor="let bar of getBinAntennaBars(2); let i = index"
+                      class="antenna-bar"
+                      [class.active]="bar.active"
+                      [ngStyle]="{'background-color': bar.active ? getBinAntennaColor(2) : '#e0e0e0'}"
+                    ></div>
+                  </div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let q of predefinedQueries; let i = index" 
+                [class.selected-row]="isQuerySelected(q)">
+              <td class="checkbox-cell">
+                <input type="checkbox" 
+                       [checked]="isQuerySelected(q)"
+                       [disabled]="isQueryCheckboxDisabled(q)"
+                       (change)="toggleQuerySelection(q, $event)"
+                       class="query-checkbox-input" />
+              </td>
+              <td class="query-number-cell"> Q{{ i + 1 }}</td>
+              <td class="query-text-cell">{{ q.text }}</td>
+              <td class="color-selector-cell">
+                <input type="color" 
+                       [value]="getQueryColor(i)"
+                       (change)="onColorChange(i, $event)"
+                       class="color-picker" />
+              </td>
+              <td class="bin-cell">
+                <div class="bin-bars-wrapper" 
+                     [class.disabled]="!isQuerySelected(q)"
+                     [class.selected]="isBinSelectedForQuery(q, 0)"
+                     [style.border-color]="isBinSelectedForQuery(q, 0) ? getQueryColor(i) : 'transparent'"
+                     [style.background-color]="isBinSelectedForQuery(q, 0) ? getQueryColorWithOpacity(i) : 'transparent'"
+                     (click)="isQuerySelected(q) && toggleBinSelectionForQuery(q, 0)"
+                     [title]="isQuerySelected(q) ? 'Click to ' + (isBinSelectedForQuery(q, 0) ? 'deselect' : 'select') + ' 50-100 range' : 'Select query first'">
+                  <div class="bin-count" [style.color]="isBinSelectedForQuery(q, 0) ? getQueryColor(i) : '#333'">{{ getBinCountForQuery(i, 0) }}</div>
+                </div>
+              </td>
+              <td class="bin-cell">
+                <div class="bin-bars-wrapper" 
+                     [class.disabled]="!isQuerySelected(q)"
+                     [class.selected]="isBinSelectedForQuery(q, 1)"
+                     [style.border-color]="isBinSelectedForQuery(q, 1) ? getQueryColor(i) : 'transparent'"
+                     [style.background-color]="isBinSelectedForQuery(q, 1) ? getQueryColorWithOpacity(i) : 'transparent'"
+                     (click)="isQuerySelected(q) && toggleBinSelectionForQuery(q, 1)"
+                     [title]="isQuerySelected(q) ? 'Click to ' + (isBinSelectedForQuery(q, 1) ? 'deselect' : 'select') + ' 25-50 range' : 'Select query first'">
+                  <div class="bin-count" [style.color]="isBinSelectedForQuery(q, 1) ? getQueryColor(i) : '#333'">{{ getBinCountForQuery(i, 1) }}</div>
+                </div>
+              </td>
+              <td class="bin-cell">
+                <div class="bin-bars-wrapper" 
+                     [class.disabled]="!isQuerySelected(q)"
+                     [class.selected]="isBinSelectedForQuery(q, 2)"
+                     [style.border-color]="isBinSelectedForQuery(q, 2) ? getQueryColor(i) : 'transparent'"
+                     [style.background-color]="isBinSelectedForQuery(q, 2) ? getQueryColorWithOpacity(i) : 'transparent'"
+                     (click)="isQuerySelected(q) && toggleBinSelectionForQuery(q, 2)"
+                     [title]="isQuerySelected(q) ? 'Click to ' + (isBinSelectedForQuery(q, 2) ? 'deselect' : 'select') + ' 0-25 range' : 'Select query first'">
+                  <div class="bin-count" [style.color]="isBinSelectedForQuery(q, 2) ? getQueryColor(i) : '#333'">{{ getBinCountForQuery(i, 2) }}</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Comparison Area - Side by Side -->
+  <div class="comparison-main-area">
+    <!-- Version 1 (Left Side) -->
+    <div class="version-panel version-1">
+      <div class="version-header">
+        <h3>Version 1 - Britannica</h3>
+      </div>
+      
+      <div class="version-content">
+        <!-- Topic List for Version 1 -->
+        <div class="topic-list-card">
+          <h4>Table of Contents</h4>
+          <div class="topic-list-wrapper">
+            <app-topic-list
+              [searchTerms]="selectednodes"
+              [chunkSize]="numberOfChunks"
+              (nodeClicked)="onTopicClickedVersion1($event)"
+              [nodeName]="nodeName"
+              [selectedRank]="selectedQueryRank"
+              [selectedColor]="selectedColor"
+              [topics]="topicDataVersion1"
+              [querySelected]="getCurrentQueryMessage()"
+              [q1Color]="q1Color"
+              [q2Color]="q2Color"
+              [q3Color]="q3Color"
+              [topicsWithNotes]="selectedTopicContentsVersion1"
+            >
+            </app-topic-list>
+          </div>
+        </div>
+
+        <!-- PDF Viewer for Version 1 -->
+        <div class="pdf-viewer-card">
+          <div class="pdf-controls">
+            <button (click)="onPrevPage1()" [disabled]="pageNum1 <= 1">Previous</button>
+            <span>Page {{ pageNum1 }} of {{ pdfDoc1?.numPages || 0 }}</span>
+            <button (click)="onNextPage1()" [disabled]="pageNum1 >= pdfDoc1?.numPages">Next</button>
+          </div>
+          <div class="pdf-canvas-container">
+            <canvas #pdfCanvas1 class="pdf-canvas"></canvas>
+          </div>
+          <div class="pdf-highlighter-container" *ngIf="selectedTopicContentsVersion1.length > 0">
+            <app-pdf-highlighter [text]="paragraphToHighlightVersion1"></app-pdf-highlighter>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Version 2 (Right Side) -->
+    <div class="version-panel version-2">
+      <div class="version-header">
+        <h3>Version 2 - Original</h3>
+      </div>
+      
+      <div class="version-content">
+        <!-- Topic List for Version 2 -->
+        <div class="topic-list-card">
+          <h4>Table of Contents</h4>
+          <div class="topic-list-wrapper">
+            <app-topic-list
+              [searchTerms]="selectednodes"
+              [chunkSize]="numberOfChunks"
+              (nodeClicked)="onTopicClickedVersion2($event)"
+              [nodeName]="nodeName"
+              [selectedRank]="selectedQueryRank"
+              [selectedColor]="selectedColor"
+              [topics]="topicDataVersion2"
+              [querySelected]="getCurrentQueryMessage()"
+              [q1Color]="q1Color"
+              [q2Color]="q2Color"
+              [q3Color]="q3Color"
+              [topicsWithNotes]="selectedTopicContentsVersion2"
+            >
+            </app-topic-list>
+          </div>
+        </div>
+
+        <!-- PDF Viewer for Version 2 -->
+        <div class="pdf-viewer-card">
+          <div class="pdf-controls">
+            <button (click)="onPrevPage2()" [disabled]="pageNum2 <= 1">Previous</button>
+            <span>Page {{ pageNum2 }} of {{ pdfDoc2?.numPages || 0 }}</span>
+            <button (click)="onNextPage2()" [disabled]="pageNum2 >= pdfDoc2?.numPages">Next</button>
+          </div>
+          <div class="pdf-canvas-container">
+            <canvas #pdfCanvas2 class="pdf-canvas"></canvas>
+          </div>
+          <div class="pdf-highlighter-container" *ngIf="selectedTopicContentsVersion2.length > 0">
+            <app-pdf-highlighter [text]="paragraphToHighlightVersion2"></app-pdf-highlighter>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Query Details Section (Similar to main-content) -->
+  <div class="query-details-card" *ngIf="reversedChatMessages.length > 0">
+    <h3>Query Details</h3>
+    <div class="chat-container">
+      <div class="chat-box">
+        <div *ngFor="let message of reversedChatMessages; let i = index" 
+             class="message" 
+             [ngClass]="message.role"
+             draggable="true">
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-role">{{ message.role }}</span>
+              <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+            </div>
+            <div class="message-text">{{ message.content }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

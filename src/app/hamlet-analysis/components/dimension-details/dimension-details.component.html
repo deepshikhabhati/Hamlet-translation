@@ -1,0 +1,230 @@
+<div class="dimension-details" *ngIf="comparison">
+  <h3 class="dimension-details__heading">
+    <i class="fas fa-microscope"></i> Dimension Analysis Details
+  </h3>
+
+  <!-- Semantic Preservation -->
+  <section [class]="sectionClass('semantic_preservation')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-brain"></i> Semantic Preservation</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('semantic_preservation')">
+        {{ formatScore('semantic_preservation') }}
+      </span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.semantic_preservation?.explanation }}</p>
+    <div class="dim-section__columns">
+      <div class="dim-col dim-col--preserved">
+        <h5>Preserved</h5>
+        <ul>
+          <li *ngFor="let item of comparison.semantic_preservation?.preserved_elements">{{ item }}</li>
+          <li *ngIf="!comparison.semantic_preservation?.preserved_elements?.length" class="dim-empty">None listed</li>
+        </ul>
+      </div>
+      <div class="dim-col dim-col--changed">
+        <h5>Changed</h5>
+        <ul>
+          <li *ngFor="let item of comparison.semantic_preservation?.changed_elements">{{ item }}</li>
+          <li *ngIf="!comparison.semantic_preservation?.changed_elements?.length" class="dim-empty">None listed</li>
+        </ul>
+      </div>
+      <div class="dim-col dim-col--lost">
+        <h5>Lost</h5>
+        <ul>
+          <li *ngFor="let item of comparison.semantic_preservation?.lost_elements">{{ item }}</li>
+          <li *ngIf="!comparison.semantic_preservation?.lost_elements?.length" class="dim-empty">None listed</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Emotion -->
+  <section [class]="sectionClass('emotion')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-heart"></i> Emotion</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('emotion')">{{ formatScore('emotion') }}</span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.emotion?.explanation }}</p>
+    <div class="dim-chips-row">
+      <div class="dim-chips-group">
+        <span class="dim-chips-label">Source</span>
+        <span class="dim-chip" *ngFor="let e of comparison.emotion?.source_emotion">{{ e }}</span>
+        <span class="dim-empty" *ngIf="!comparison.emotion?.source_emotion?.length">None detected</span>
+      </div>
+      <div class="dim-chips-group">
+        <span class="dim-chips-label">Target</span>
+        <span class="dim-chip dim-chip--target" *ngFor="let e of comparison.emotion?.target_emotion">{{ e }}</span>
+        <span class="dim-empty" *ngIf="!comparison.emotion?.target_emotion?.length">None detected</span>
+      </div>
+    </div>
+    <div class="dim-flag" *ngIf="comparison.emotion?.intensity_preserved === false">
+      <i class="fas fa-exclamation-triangle"></i> Intensity not preserved
+    </div>
+  </section>
+
+  <!-- Metaphor & Imagery -->
+  <section [class]="sectionClass('metaphor_imagery')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-feather-alt"></i> Metaphor & Imagery</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('metaphor_imagery')">
+        {{ comparison.metaphor_imagery?.applicable === false ? 'N/A' : formatScore('metaphor_imagery') }}
+      </span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.metaphor_imagery?.explanation }}</p>
+    <div class="dim-section__columns" *ngIf="comparison.metaphor_imagery?.applicable !== false">
+      <div class="dim-col">
+        <h5>Source Devices</h5>
+        <span class="dim-chip" *ngFor="let d of comparison.metaphor_imagery?.source_devices">{{ d }}</span>
+      </div>
+      <div class="dim-col">
+        <h5>Target Devices</h5>
+        <span class="dim-chip dim-chip--target" *ngFor="let d of comparison.metaphor_imagery?.target_devices">{{ d }}</span>
+      </div>
+      <div class="dim-col dim-col--preserved">
+        <h5>Preserved</h5>
+        <span class="dim-chip dim-chip--good" *ngFor="let d of comparison.metaphor_imagery?.preserved">{{ d }}</span>
+      </div>
+      <div class="dim-col dim-col--lost">
+        <h5>Lost</h5>
+        <span class="dim-chip dim-chip--bad" *ngFor="let d of comparison.metaphor_imagery?.lost">{{ d }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tone -->
+  <section [class]="sectionClass('tone')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-volume-up"></i> Tone</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('tone')">{{ formatScore('tone') }}</span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.tone?.explanation }}</p>
+    <div class="dim-chips-row">
+      <div class="dim-chips-group">
+        <span class="dim-chips-label">Source Tone</span>
+        <span class="dim-chip" *ngFor="let t of comparison.tone?.source_tone">{{ t }}</span>
+      </div>
+      <div class="dim-chips-group">
+        <span class="dim-chips-label">Target Tone</span>
+        <span class="dim-chip dim-chip--target" *ngFor="let t of comparison.tone?.target_tone">{{ t }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Character Voice -->
+  <section [class]="sectionClass('character_voice')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-user"></i> Character Voice</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('character_voice')">{{ formatScore('character_voice') }}</span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.character_voice?.explanation }}</p>
+    <div class="dim-meta-row">
+      <span class="dim-meta-item"><strong>Speaker:</strong> {{ comparison.character_voice?.speaker }}</span>
+      <span class="dim-meta-item" [class.dim-meta-item--warn]="!comparison.character_voice?.voice_preserved">
+        <i class="fas" [class.fa-check-circle]="comparison.character_voice?.voice_preserved" [class.fa-times-circle]="!comparison.character_voice?.voice_preserved"></i>
+        Voice {{ comparison.character_voice?.voice_preserved ? 'preserved' : 'not preserved' }}
+      </span>
+    </div>
+  </section>
+
+  <!-- Wordplay -->
+  <section [class]="sectionClass('wordplay')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-puzzle-piece"></i> Wordplay</h4>
+      <span class="dim-section__score" *ngIf="isWordplayApplicable()" [style.color]="scoreColor('wordplay')">
+        {{ formatScore('wordplay') }}
+      </span>
+      <span class="dim-section__score dim-section__score--na" *ngIf="!isWordplayApplicable()">N/A</span>
+    </div>
+    <div *ngIf="!isWordplayApplicable()" class="dim-na-collapse">
+      <p>{{ comparison.wordplay?.explanation }}</p>
+      <span class="dim-na-badge"><i class="fas fa-ban"></i> Not applicable for this passage</span>
+    </div>
+    <ng-container *ngIf="isWordplayApplicable()">
+      <p class="dim-section__explanation">{{ comparison.wordplay?.explanation }}</p>
+      <div class="dim-section__columns">
+        <div class="dim-col">
+          <h5>Source Wordplay</h5>
+          <span class="dim-chip" *ngFor="let w of comparison.wordplay?.source_wordplay">{{ w }}</span>
+        </div>
+        <div class="dim-col">
+          <h5>Target Wordplay</h5>
+          <span class="dim-chip dim-chip--target" *ngFor="let w of comparison.wordplay?.target_wordplay">{{ w }}</span>
+        </div>
+        <div class="dim-col dim-col--lost">
+          <h5>Lost Wordplay</h5>
+          <span class="dim-chip dim-chip--bad" *ngFor="let w of comparison.wordplay?.lost_wordplay">{{ w }}</span>
+        </div>
+      </div>
+    </ng-container>
+  </section>
+
+  <!-- Cultural & Archaic Language -->
+  <section [class]="sectionClass('cultural_archaic_language')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-landmark"></i> Cultural & Archaic Language</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('cultural_archaic_language')">
+        {{ formatScore('cultural_archaic_language') }}
+      </span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.cultural_archaic_language?.explanation }}</p>
+    <div class="dim-badges-row">
+      <div class="dim-badges-group">
+        <span class="dim-badges-label">Source Features</span>
+        <span class="dim-badge" *ngFor="let f of comparison.cultural_archaic_language?.source_features">{{ f }}</span>
+        <span class="dim-empty" *ngIf="!comparison.cultural_archaic_language?.source_features?.length">None</span>
+      </div>
+      <div class="dim-badges-group">
+        <span class="dim-badges-label">Target Features</span>
+        <span class="dim-badge dim-badge--target" *ngFor="let f of comparison.cultural_archaic_language?.target_features">{{ f }}</span>
+        <span class="dim-empty" *ngIf="!comparison.cultural_archaic_language?.target_features?.length">None</span>
+      </div>
+    </div>
+    <div class="dim-flag dim-flag--warn" *ngIf="comparison.cultural_archaic_language?.modernized_elements?.length">
+      <i class="fas fa-info-circle"></i> Modernized: {{ comparison.cultural_archaic_language.modernized_elements.join(', ') }}
+    </div>
+    <div class="dim-flag dim-flag--danger" *ngIf="comparison.cultural_archaic_language?.lost_cultural_elements?.length">
+      <i class="fas fa-exclamation-circle"></i> Lost: {{ comparison.cultural_archaic_language.lost_cultural_elements.join(', ') }}
+    </div>
+  </section>
+
+  <!-- Omissions & Additions -->
+  <section [class]="sectionClass('omissions_additions')">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-cut"></i> Omissions & Additions</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('omissions_additions')">
+        {{ formatScore('omissions_additions') }}
+      </span>
+    </div>
+    <p class="dim-section__explanation">{{ comparison.omissions_additions?.explanation }}</p>
+    <div class="dim-section__columns dim-section__columns--omissions">
+      <div class="dim-col dim-col--lost">
+        <h5><i class="fas fa-minus-circle"></i> Omissions</h5>
+        <div class="dim-oa-item" *ngFor="let o of comparison.omissions_additions?.omissions">
+          <span class="dim-oa-text">{{ o.target_element || o.source_element || o }}</span>
+          <span class="dim-importance" [ngClass]="importanceClass(o.importance)" *ngIf="o.importance">
+            {{ o.importance }}
+          </span>
+        </div>
+        <p class="dim-empty" *ngIf="!comparison.omissions_additions?.omissions?.length">No omissions</p>
+      </div>
+      <div class="dim-col dim-col--preserved">
+        <h5><i class="fas fa-plus-circle"></i> Additions</h5>
+        <div class="dim-oa-item" *ngFor="let a of comparison.omissions_additions?.additions">
+          <span class="dim-oa-text">{{ a.target_element || a.source_element || a }}</span>
+          <span class="dim-importance" [ngClass]="importanceClass(a.importance)" *ngIf="a.importance">
+            {{ a.importance }}
+          </span>
+        </div>
+        <p class="dim-empty" *ngIf="!comparison.omissions_additions?.additions?.length">No additions</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Human Preference -->
+  <section [class]="sectionClass('human_preference')" class="dim-section dim-section--preference">
+    <div class="dim-section__header">
+      <h4><i class="fas fa-thumbs-up"></i> Human Preference</h4>
+      <span class="dim-section__score" [style.color]="scoreColor('human_preference')">{{ formatScore('human_preference') }}</span>
+    </div>
+    <p class="dim-preference-reason">{{ comparison.human_preference?.reason }}</p>
+  </section>
+</div>

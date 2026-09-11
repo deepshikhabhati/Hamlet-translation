@@ -1,0 +1,192 @@
+<div style="display: flex;">
+
+
+    <div style="width: 40%;">
+      <!-- <div class="toggle-group" >
+        <button 
+        class="button1"
+          (click)="selctMode('dense')" 
+          [class.active]="selectedMode === 'dense'">
+          Dense
+        </button>
+      
+        <button 
+        class="button2"
+          (click)="selctMode('sparse')" 
+          [class.active]="selectedMode === 'sparse'">
+          Sparse
+        </button>
+    
+        <button 
+        class="button2"
+          (click)="selctMode('fulltext')" 
+          [class.active]="selectedMode === 'fulltext'">
+          Full Text
+        </button>
+        
+        <button 
+        class="button2"
+          (click)="selctMode('ReRank')" 
+          [class.active]="selectedMode === 'ReRank'">
+          ReRank Model
+        </button>
+        </div> -->
+        <div class="toggle-group" *ngIf="selectedUSerMessage2">
+            <button 
+            class="button1"
+              (click)="select('query1')" 
+              [class.active]="selected === 'query1'">
+             Query1
+            </button>
+          
+            <button 
+            class="button2"
+              (click)="select('query2')" 
+              [class.active]="selected === 'query2'">
+              Query2
+            </button>
+            <button 
+            class="button3"
+              (click)="select('Union')" 
+              [class.active]="selected === 'Union'">
+              Union
+            </button>
+            <button 
+            class="button4"
+              (click)="select('Intersection')" 
+              [class.active]="selected === 'Intersection'">
+              Intersection
+            </button>
+            <button 
+            class="button4"
+              (click)="select('FzIntersection')" 
+              [class.active]="selected === 'FzIntersection'">
+             Fuzzy Intersection
+            </button>
+    
+            <span>Apply Rank</span>
+<input type="number" style="width: 10%;" [(ngModel)]="rank" (change)="filterData(minMaxData)">
+          </div>
+        <app-umap-plot [data]="data" (minMaxemit)="filterData($event)" [rank]="rank" [selectedMode]="selectedMode" [type]="'tsvg'" [selected]="selected" (nodeClicked)="selectedNodes($event)"></app-umap-plot>
+    </div>
+    
+    <div style="display: block;overflow: auto;">
+    <div style="display: flex; justify-content: space-between; width: 100%;">
+      <!-- Left Side: Chat Section -->
+      <div style="width: 48%; height: 100%; overflow-y: auto;">
+        <div style="display: block;width: 100%;">
+          <h3> Query View</h3>
+          <div>
+            <div style="width: 100%;height: 100%;">
+              <div class="chat-container">
+                <div class="chat-box">
+                  <div *ngFor="let message of chatMessages; let i = index" class="message" [ngClass]="message.role">
+                    <div class="message-icon" [ngClass]="{ 'orange-icon': i % 2 === 0, 'blue-icon': i % 2 === 1}">
+                      <i class="fas" [ngClass]="message.role === 'user' ? 'fa-user' : 'fa-robot'"></i>
+                    </div>
+                    <div class="message-content">
+                      {{ message.content }}
+                    </div>
+                  </div>
+                </div>
+              
+                <div class="input-box">
+                  <input [(ngModel)]="userMessage" placeholder="Type your message" />
+                  <button (click)="sendMessage()">Send</button>
+                </div>
+              </div>
+            </div>
+            <div style="height: 50%;"></div>
+          </div>
+        </div>
+      </div>
+    
+      <!-- Right Side: Table Section -->
+      <div style="width: 48%; height: 100%; overflow-y: auto;">
+        <div class="input-box2">
+        <input [(ngModel)]="weight1" placeholder="weight for Score 1" />
+        <input [(ngModel)]="weight2" placeholder="weight for Score 2" />
+        <button (click)="applyWeight()">Apply Weight</button>
+        <button (click)="exportAsExcelFile(selectednodes)">Dwonload</button>
+      </div>
+        <div class="panel right-panel">
+          <table class="node-table">
+            <thead>
+              <tr>
+                <th style="width: 15%;">Title</th>
+                <th style="width: 40%;">Description</th>
+                <th style="width: 15%;">Select</th>
+                <th style="width: 15%; cursor: pointer;" (click)="sortBy('score_dense')">
+                  Score 1
+                  <span *ngIf="sortKey === 'score_dense'">{{ sortAsc ? '▲' : '▼' }}</span>
+                </th>
+                <th style="width: 15%; cursor: pointer;" (click)="sortBy('score_dense2')">
+                  Score 2
+                  <span *ngIf="sortKey === 'score_dense2'">{{ sortAsc ? '▲' : '▼' }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of sortedNodes">
+                <td>{{ item.title }}</td>
+                <td>{{ item.text }}</td>
+                <td>
+                  <button class="select-button"
+                          [class.selected]="isSelectedForComparison(item)"
+                          (click)="toggleSummarySelection(item)"
+                          [disabled]="selectedForComparison.length >= 2 && !isSelectedForComparison(item)">
+                    {{ isSelectedForComparison(item) ? 'Selected' : 'Select' }}
+                  </button>
+                </td>
+                <td>{{ item.score_dense | number: '1.2-2' }}</td>
+                <td>{{ item.score_dense2 | number: '1.2-2' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+    </div>
+    
+    <!-- Below Chat and Table: Summary Comparison -->
+    <div class="compare-container" *ngIf="selectedForComparison.length === 2" style="width: 100%; margin-top: 20px;">
+      <button 
+        class="compare-button" 
+        (click)="compareSummaries()"
+        *ngIf="!summaryData"
+        [disabled]="isLoading">
+        {{ isLoading ? 'Comparing...' : 'Compare Summaries' }}
+      </button>
+    
+      <div class="semantic-summary-container" *ngIf="summaryData">
+        <!-- Summary Section -->
+        <!-- Similarity Scores -->
+        <div class="similarity-section">
+          <h3>Summary Table</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Query Explanation</th>
+                <th>More Related to</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{summaryData.explanations.query1.explanation}}</td>
+                <td>{{ summaryData.explanations.query1.related_to }}</td>
+                <td>{{ summaryData.explanations.query1.reason }}</td>
+              </tr>
+              <tr>
+                <td>{{summaryData.explanations.query2.explanation}}</td>
+                <td>{{ summaryData.explanations.query2.related_to }}</td>
+                <td>{{ summaryData.explanations.query2.reason }}</td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>

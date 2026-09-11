@@ -1,0 +1,15 @@
+<div class="pdf-viewer-shell" *ngIf="showPdf">
+  <div class="pdf-loading" *ngIf="isLoading">
+    <span class="pdf-loading-spinner"></span>
+    <span>Loading PDF…</span>
+  </div>
+  <div class="pdf-error" *ngIf="loadError">{{ loadError }}</div>
+  <iframe
+    *ngIf="pdfUrl"
+    class="pdf-frame"
+    [src]="sanitizer.bypassSecurityTrustResourceUrl(pdfUrl)"
+    (load)="onIframeLoad()"
+    (error)="onIframeError()"
+    title="PDF reader"
+  ></iframe>
+</div>

@@ -1,0 +1,13 @@
+export { HamletAnalysisComponent } from './hamlet-analysis.component';
+export { HamletDataService, PassageFilters, VERSIONS, versionLabels, versionShortLabels, DIMENSION_META } from './services/hamlet-data.service';
+export { PassageSidebarComponent } from './components/passage-sidebar/passage-sidebar.component';
+export { VersionCardsComponent } from './components/version-cards/version-cards.component';
+export { ComparisonSelectorComponent } from './components/comparison-selector/comparison-selector.component';
+export { OverallScoreComponent } from './components/overall-score/overall-score.component';
+export { ScoreBarsComponent } from './components/score-bars/score-bars.component';
+export { RadarChartComponent } from './components/radar-chart/radar-chart.component';
+export { DimensionDetailsComponent } from './components/dimension-details/dimension-details.component';
+export { ComparisonMatrixComponent } from './components/comparison-matrix/comparison-matrix.component';
+export { TranslationRankingComponent } from './components/translation-ranking/translation-ranking.component';
+export { ComparisonDiffComponent } from './components/comparison-diff/comparison-diff.component';
+export { DatasetDashboardComponent } from './components/dataset-dashboard/dataset-dashboard.component';
