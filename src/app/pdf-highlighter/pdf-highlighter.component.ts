@@ -97,8 +97,9 @@ export class PdfHighlighterComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   openPdf(text: string): void {
-    const pdfPath = (this.pdfSource || '/assets/History_of_artificial_intelligence.pdf').split('#')[0];
-    const viewerHtml = '/assets/pdfjs/web/viewer.html';
+    const rawPdf = (this.pdfSource || 'assets/History_of_artificial_intelligence.pdf').split('#')[0];
+    const pdfPath = this.resolveAssetUrl(rawPdf);
+    const viewerHtml = this.resolveAssetUrl('assets/pdfjs/web/viewer.html');
     const cleaned = this.prepareSearchText(text);
 
     const encodedPdfPath = encodeURIComponent(pdfPath);
@@ -123,6 +124,25 @@ export class PdfHighlighterComponent implements OnInit, OnChanges, OnDestroy {
       this.pdfUrl = newUrl;
       this.cdr.detectChanges();
     }, 0);
+  }
+
+  /**
+   * Resolve asset paths against the document base href so GitHub Pages
+   * deployments under /Hamlet-translation/ load assets correctly.
+   */
+  private resolveAssetUrl(path: string): string {
+    if (!path) {
+      return path;
+    }
+    if (/^https?:\/\//i.test(path) || path.startsWith('blob:')) {
+      return path;
+    }
+    const normalized = path.replace(/^\//, '');
+    try {
+      return new URL(normalized, document.baseURI).href;
+    } catch {
+      return normalized;
+    }
   }
 
   onIframeLoad(): void {

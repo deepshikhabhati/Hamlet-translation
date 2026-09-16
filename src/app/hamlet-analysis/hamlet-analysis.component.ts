@@ -82,8 +82,8 @@ export class HamletAnalysisComponent implements OnInit {
   activePdfBook: 'english' | 'german' | null = null;
   pdfSource = '';
   pdfHighlightText = '';
-  readonly englishPdfPath = '/assets/Hamlet.pdf';
-  readonly germanPdfPath = '/assets/GermanHamlet.pdf';
+  readonly englishPdfPath = 'assets/Hamlet.pdf';
+  readonly germanPdfPath = 'assets/GermanHamlet.pdf';
 
   readonly versions = VERSIONS;
 

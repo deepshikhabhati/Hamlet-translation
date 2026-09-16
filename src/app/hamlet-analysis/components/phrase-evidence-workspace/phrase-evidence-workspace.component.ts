@@ -44,8 +44,8 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   @Input() phraseData: any = null;
   @Input() evidenceLoadError: string | null = null;
   @Input() externalDimension: string | null = null;
-  @Input() englishPdfPath = '/assets/Hamlet.pdf';
-  @Input() germanPdfPath = '/assets/GermanHamlet.pdf';
+  @Input() englishPdfPath = 'assets/Hamlet.pdf';
+  @Input() germanPdfPath = 'assets/GermanHamlet.pdf';
 
   @Output() dimensionActivated = new EventEmitter<string>();
 
