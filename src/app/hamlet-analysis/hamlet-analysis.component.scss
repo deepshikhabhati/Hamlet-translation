@@ -511,6 +511,17 @@
   gap: 1.25rem;
 }
 
+.ha-heatmap-fallback {
+  margin-top: 1rem;
+  color: var(--ha-slate-500);
+  font-size: 0.9rem;
+}
+
+app-ha-phrase-evidence-workspace {
+  display: block;
+  margin: 0.25rem 0 0.5rem;
+}
+
 @media (max-width: 1200px) {
   .ha-scores-grid {
     grid-template-columns: 1fr 1fr;

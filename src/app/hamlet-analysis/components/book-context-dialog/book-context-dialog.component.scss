@@ -1,0 +1,120 @@
+.ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 1300;
+}
+
+.ctx-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(640px, calc(100vw - 2rem));
+  max-height: min(80vh, 720px);
+  z-index: 1301;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ctx-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.ctx-dialog__header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1e3a8a;
+}
+
+.ctx-close {
+  border: none;
+  background: transparent;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #64748b;
+}
+
+.ctx-dialog__body {
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.ctx-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 0.85rem;
+}
+
+.ctx-block {
+  margin-bottom: 0.85rem;
+}
+
+.ctx-block h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.ctx-text {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.55;
+  font-size: 0.95rem;
+}
+
+.ctx-text--muted {
+  color: #64748b;
+}
+
+.ctx-text--highlight,
+.ctx-block--current .ctx-text {
+  background: #fef9c3;
+  border-left: 3px solid #ca8a04;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0 8px 8px 0;
+  color: #0f172a;
+}
+
+.ctx-warning {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.ctx-note {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.ctx-pdf-path {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.ctx-empty {
+  color: #64748b;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,40 @@
+<section class="validation card-inner" aria-label="Human expert validation">
+  <h4><i class="fas fa-user-check"></i> Expert Validation</h4>
+  <p class="validation__hint">
+    Phrase-and-dimension review. Original analysis scores are never overwritten.
+  </p>
+
+  <div class="validation__options" role="radiogroup" aria-label="Validation decision">
+    <label *ngFor="let opt of options" class="validation__opt">
+      <input type="radio" name="decision" [value]="opt" [(ngModel)]="decision" />
+      {{ opt }}
+    </label>
+  </div>
+
+  <label class="validation__field">
+    Corrected score (0–100)
+    <input
+      type="number"
+      min="0"
+      max="100"
+      [(ngModel)]="correctedScore"
+      placeholder="Optional"
+    />
+  </label>
+
+  <label class="validation__field">
+    Comment
+    <textarea rows="3" [(ngModel)]="comment" placeholder="Notes for this phrase evidence…"></textarea>
+  </label>
+
+  <label class="validation__field">
+    Reviewer name
+    <input type="text" [(ngModel)]="reviewer" placeholder="Your name" />
+  </label>
+
+  <div class="validation__actions">
+    <button type="button" class="btn btn--primary" (click)="save()">Save validation</button>
+    <button type="button" class="btn" (click)="clear()">Clear</button>
+  </div>
+  <p class="validation__msg" *ngIf="message" role="status">{{ message }}</p>
+</section>

@@ -1,0 +1,86 @@
+.heatmap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.heatmap__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e3a8a;
+}
+
+.heatmap__header p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.heatmap__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
+.heatmap__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.heatmap__filters select,
+.heatmap__filters input {
+  font: inherit;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+}
+
+.heatmap__chart-wrap {
+  overflow-x: auto;
+  position: relative;
+}
+
+.heatmap__chart {
+  position: relative;
+  min-height: 200px;
+}
+
+.heatmap-empty {
+  padding: 1.5rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.heatmap-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  max-width: 240px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+}
+
+@media (max-width: 700px) {
+  .heatmap__chart-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

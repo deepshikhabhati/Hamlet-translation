@@ -1,0 +1,6 @@
+<ul class="status-legend" aria-label="Phrase status legend">
+  <li *ngFor="let item of items" [class]="item.className">
+    <i class="fas" [ngClass]="item.icon" aria-hidden="true"></i>
+    <span>{{ item.label }}</span>
+  </li>
+</ul>

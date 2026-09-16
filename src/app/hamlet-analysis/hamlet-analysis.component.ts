@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   HamletDataService,
   PassageFilters,
@@ -17,6 +19,8 @@ import { ComparisonMatrixComponent } from './components/comparison-matrix/compar
 import { TranslationRankingComponent } from './components/translation-ranking/translation-ranking.component';
 import { ComparisonDiffComponent } from './components/comparison-diff/comparison-diff.component';
 import { DatasetDashboardComponent } from './components/dataset-dashboard/dataset-dashboard.component';
+import { PhraseEvidenceWorkspaceComponent } from './components/phrase-evidence-workspace/phrase-evidence-workspace.component';
+import { EvidenceHeatmapComponent } from './components/evidence-heatmap/evidence-heatmap.component';
 import { PdfHighlighterComponent } from '../pdf-highlighter/pdf-highlighter.component';
 
 @Component({
@@ -36,19 +40,28 @@ import { PdfHighlighterComponent } from '../pdf-highlighter/pdf-highlighter.comp
     TranslationRankingComponent,
     ComparisonDiffComponent,
     DatasetDashboardComponent,
+    PhraseEvidenceWorkspaceComponent,
+    EvidenceHeatmapComponent,
     PdfHighlighterComponent,
   ],
   templateUrl: './hamlet-analysis.component.html',
   styleUrls: ['./hamlet-analysis.component.scss'],
 })
 export class HamletAnalysisComponent implements OnInit {
+  @ViewChild(PhraseEvidenceWorkspaceComponent)
+  phraseWorkspace?: PhraseEvidenceWorkspaceComponent;
+
   passages: any[] = [];
   datasetSummary: any = null;
   metadata: any = null;
   loading = true;
   error: string | null = null;
 
-  activeTab: 'passage' | 'dataset' = 'passage';
+  phraseData: any = null;
+  evidenceLoadError: string | null = null;
+  heatmapDimension: string | null = null;
+
+  activeTab: 'passage' | 'dataset' | 'heatmap' = 'passage';
   selectedPassage: any = null;
   selectedSource = 'english';
   selectedTarget = 'context_ai_german';
@@ -77,11 +90,21 @@ export class HamletAnalysisComponent implements OnInit {
   constructor(private dataService: HamletDataService) {}
 
   ngOnInit(): void {
-    this.dataService.getData().subscribe({
-      next: (data) => {
-        this.passages = data.passages ?? [];
-        this.datasetSummary = data.dataset_summary ?? null;
-        this.metadata = data.metadata ?? null;
+    forkJoin({
+      comparison: this.dataService.getData(),
+      phrase: this.dataService.getPhraseEvidenceData().pipe(
+        catchError(() => of(null))
+      ),
+    }).subscribe({
+      next: ({ comparison, phrase }) => {
+        this.passages = comparison.passages ?? [];
+        this.datasetSummary = comparison.dataset_summary ?? null;
+        this.metadata = comparison.metadata ?? null;
+        this.phraseData = phrase;
+        if (!phrase) {
+          this.evidenceLoadError =
+            'Phrase-alignment evidence JSON could not be loaded. Passage comparison still works.';
+        }
         if (this.passages.length) {
           this.selectPassage(this.passages[0]);
         }
@@ -134,7 +157,6 @@ export class HamletAnalysisComponent implements OnInit {
     if (book === 'english') {
       return String(texts.english || '').trim();
     }
-    // German book is the human translation source
     return String(texts.human_german || texts.ai_german || texts.context_ai_german || '').trim();
   }
 
@@ -195,11 +217,24 @@ export class HamletAnalysisComponent implements OnInit {
     this.selectedDiffCategory = category;
   }
 
-  setTab(tab: 'passage' | 'dataset'): void {
+  setTab(tab: 'passage' | 'dataset' | 'heatmap'): void {
     this.activeTab = tab;
   }
 
   toggleSidebar(): void {
     this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  openHeatmapCell(passageId: string, dimension: string): void {
+    const passage = this.passages.find((p) => p.passage_id === passageId);
+    if (!passage) {
+      return;
+    }
+    this.selectPassage(passage);
+    this.heatmapDimension = dimension;
+    this.activeTab = 'passage';
+    setTimeout(() => {
+      this.phraseWorkspace?.activateFromHeatmap(dimension);
+    }, 80);
   }
 }

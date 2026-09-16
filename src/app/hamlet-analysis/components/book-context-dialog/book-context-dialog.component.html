@@ -1,0 +1,63 @@
+<div class="ctx-backdrop" *ngIf="open" (click)="closeDialog.emit()"></div>
+<aside
+  class="ctx-dialog"
+  *ngIf="open"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="title"
+  (click)="$event.stopPropagation()"
+>
+  <div class="ctx-dialog__header">
+    <h3><i class="fas fa-book"></i> {{ title }}</h3>
+    <button type="button" class="ctx-close" (click)="closeDialog.emit()" aria-label="Close">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="ctx-dialog__body" *ngIf="ctx; else missing">
+    <ng-container *ngIf="lang === 'english'; else germanBlock">
+      <div class="ctx-meta">
+        <span>Act {{ ctx.act }} · Scene {{ ctx.scene }}</span>
+        <span>FTLN {{ ctx.ftln_start }}–{{ ctx.ftln_end }}</span>
+        <span>PDF page {{ ctx.pdf_page }}</span>
+      </div>
+
+      <section class="ctx-block" *ngIf="ctx.surrounding_text?.before">
+        <h4>Previous</h4>
+        <p class="ctx-text ctx-text--muted">{{ ctx.surrounding_text.before }}</p>
+      </section>
+
+      <section class="ctx-block ctx-block--current">
+        <h4>Current passage</h4>
+        <p class="ctx-text ctx-text--highlight">{{ ctx.surrounding_text?.passage || ctx.highlight_text }}</p>
+      </section>
+
+      <section class="ctx-block" *ngIf="ctx.surrounding_text?.after">
+        <h4>Following</h4>
+        <p class="ctx-text ctx-text--muted">{{ ctx.surrounding_text.after }}</p>
+      </section>
+    </ng-container>
+
+    <ng-template #germanBlock>
+      <div class="ctx-meta">
+        <span>PDF page {{ ctx.pdf_page }}</span>
+      </div>
+      <div class="ctx-warning" role="note">
+        The German edition uses different scene segmentation. Page number and aligned passage text are used for navigation.
+      </div>
+      <p class="ctx-note" *ngIf="ctx.act_alignment_note">{{ ctx.act_alignment_note }}</p>
+      <section class="ctx-block ctx-block--current">
+        <h4>Aligned Human German passage</h4>
+        <p class="ctx-text ctx-text--highlight">{{ ctx.highlight_text }}</p>
+      </section>
+    </ng-template>
+
+    <p class="ctx-pdf-path" *ngIf="pdfPath">
+      Configurable PDF asset: <code>{{ pdfPath }}</code>
+    </p>
+  </div>
+
+  <ng-template #missing>
+    <p class="ctx-empty">Book context is not available for this passage.</p>
+  </ng-template>
+</aside>

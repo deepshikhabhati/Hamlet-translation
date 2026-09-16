@@ -1,0 +1,140 @@
+<section
+  #workspaceAnchor
+  id="phrase-level-evidence"
+  class="phrase-workspace card"
+  aria-labelledby="phrase-evidence-heading"
+>
+  <div class="phrase-workspace__header">
+    <div>
+      <h3 id="phrase-evidence-heading">
+        <i class="fas fa-link"></i> Phrase-Level Evidence
+      </h3>
+      <p class="phrase-workspace__sub">
+        Hover to link aligned phrases · Click to inspect evidence, rules, and expert validation
+      </p>
+    </div>
+    <div class="phrase-workspace__actions">
+      <button type="button" class="book-btn" (click)="openBook('english')">
+        <i class="fas fa-book-open"></i> View in English Book
+      </button>
+      <button type="button" class="book-btn book-btn--de" (click)="openBook('german')">
+        <i class="fas fa-book"></i> View in German Book
+      </button>
+      <button type="button" class="util-btn" (click)="exportValidations()" title="Export validations JSON">
+        <i class="fas fa-download"></i> Export
+      </button>
+      <label class="util-btn util-btn--file">
+        <i class="fas fa-upload"></i> Import
+        <input type="file" accept="application/json,.json" hidden (change)="importValidations($event)" />
+      </label>
+    </div>
+  </div>
+
+  <div class="phrase-workspace__error" *ngIf="evidenceLoadError" role="alert">
+    {{ evidenceLoadError }}
+  </div>
+
+  <div class="phrase-workspace__empty" *ngIf="!evidenceLoadError && !evidencePassage">
+    <i class="fas fa-info-circle"></i>
+    No phrase-alignment evidence found for this passage.
+  </div>
+
+  <ng-container *ngIf="evidencePassage">
+    <div class="dim-summary" aria-label="Passage dimension summary">
+      <button
+        type="button"
+        class="dim-summary__card"
+        *ngFor="let key of dimKeys"
+        [class.dim-summary__card--active]="selectedDimension === key"
+        (click)="onSummaryClick(key)"
+        [attr.aria-label]="dimLabels[key] + ' summary ' + formatSummary(key)"
+      >
+        <span class="dim-summary__label">{{ dimLabels[key] }}</span>
+        <strong class="dim-summary__score">{{ formatSummary(key) }}</strong>
+        <span class="dim-summary__bar" aria-hidden="true">
+          <span [style.width.%]="summaryBarWidth(key)"></span>
+        </span>
+      </button>
+    </div>
+
+    <app-ha-dimension-toolbar
+      [selectedDimension]="selectedDimension"
+      [showPhraseScores]="showPhraseScores"
+      [dimensionSummary]="dimensionSummary"
+      (dimensionChange)="onDimensionChange($event)"
+      (showScoresChange)="onShowScoresChange($event)"
+    ></app-ha-dimension-toolbar>
+
+    <div class="phrase-workspace__legend">
+      <app-ha-phrase-status-legend></app-ha-phrase-status-legend>
+    </div>
+
+    <!-- Mobile version selector -->
+    <label class="mobile-version">
+      Show version
+      <select [(ngModel)]="mobileVersion" [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let v of columnVersions" [value]="v">{{ labels[v] }}</option>
+      </select>
+    </label>
+
+    <div class="phrase-columns phrase-columns--desktop">
+      <app-ha-aligned-phrase-column
+        *ngFor="let v of columnVersions"
+        [versionKey]="v"
+        [alignments]="alignments"
+        [selectedDimension]="selectedDimension"
+        [hoveredAlignmentId]="hoveredAlignmentId"
+        [selectedAlignmentId]="selectedAlignmentId"
+        [showPhraseScores]="showPhraseScores"
+        [validatedIds]="validatedIds"
+        (phraseHover)="onPhraseHover($event)"
+        (phraseSelect)="selectPhrase($event)"
+      ></app-ha-aligned-phrase-column>
+    </div>
+
+    <div class="phrase-columns phrase-columns--mobile">
+      <app-ha-aligned-phrase-column
+        versionKey="english"
+        [alignments]="alignments"
+        [selectedDimension]="selectedDimension"
+        [hoveredAlignmentId]="hoveredAlignmentId"
+        [selectedAlignmentId]="selectedAlignmentId"
+        [showPhraseScores]="showPhraseScores"
+        [validatedIds]="validatedIds"
+        (phraseHover)="onPhraseHover($event)"
+        (phraseSelect)="selectPhrase($event)"
+      ></app-ha-aligned-phrase-column>
+      <app-ha-aligned-phrase-column
+        *ngIf="mobileVersion !== 'english'"
+        [versionKey]="mobileVersion"
+        [alignments]="alignments"
+        [selectedDimension]="selectedDimension"
+        [hoveredAlignmentId]="hoveredAlignmentId"
+        [selectedAlignmentId]="selectedAlignmentId"
+        [showPhraseScores]="showPhraseScores"
+        [validatedIds]="validatedIds"
+        (phraseHover)="onPhraseHover($event)"
+        (phraseSelect)="selectPhrase($event)"
+      ></app-ha-aligned-phrase-column>
+    </div>
+  </ng-container>
+
+  <app-ha-phrase-evidence-panel
+    [open]="panelOpen"
+    [passage]="evidencePassage"
+    [alignment]="selectedAlignment"
+    [selectedDimension]="selectedDimension"
+    [selectedPhraseVersion]="selectedPhraseVersion"
+    [validationOptions]="validationOptions"
+    (closePanel)="closePanel()"
+    (validationChanged)="onValidationChanged()"
+  ></app-ha-phrase-evidence-panel>
+
+  <app-ha-book-context-dialog
+    [open]="bookDialogOpen"
+    [lang]="bookDialogLang"
+    [bookContext]="evidencePassage?.book_context"
+    [pdfPath]="bookDialogLang === 'english' ? englishPdfPath : germanPdfPath"
+    (closeDialog)="closeBook()"
+  ></app-ha-book-context-dialog>
+</section>

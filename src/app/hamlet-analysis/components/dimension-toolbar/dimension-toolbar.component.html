@@ -1,0 +1,24 @@
+<div class="dim-toolbar" role="toolbar" aria-label="Evaluation dimensions">
+  <div class="dim-toolbar__chips">
+    <button
+      type="button"
+      *ngFor="let key of keys"
+      class="dim-chip"
+      [class.dim-chip--active]="selectedDimension === key"
+      [attr.aria-pressed]="selectedDimension === key"
+      [attr.aria-label]="labels[key] + ' dimension, summary ' + formatSummary(key)"
+      (click)="select(key)"
+    >
+      <span class="dim-chip__label">{{ labels[key] }}</span>
+      <span class="dim-chip__score">{{ formatSummary(key) }}</span>
+    </button>
+  </div>
+  <label class="dim-toolbar__toggle">
+    <input
+      type="checkbox"
+      [checked]="showPhraseScores"
+      (change)="toggleScores()"
+    />
+    Show Phrase Scores
+  </label>
+</div>

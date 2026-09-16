@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, shareReplay } from 'rxjs';
+import { Observable, map, shareReplay, of, catchError } from 'rxjs';
 
 export const VERSIONS = [
   'english',
@@ -10,6 +10,12 @@ export const VERSIONS = [
 ] as const;
 
 export type VersionKey = (typeof VERSIONS)[number];
+
+export const TARGET_VERSIONS = [
+  'human_german',
+  'ai_german',
+  'context_ai_german',
+] as const;
 
 export const versionLabels: Record<string, string> = {
   english: 'Original English',
@@ -36,6 +42,48 @@ export interface PassageFilters {
   act: number | null;
   scene: number | null;
   feature: string;
+}
+
+/** Phrase-evidence dimension keys (from hamlet_phrase_alignment_ui.json) */
+export const PHRASE_DIMENSION_LABELS: Record<string, string> = {
+  semantic: 'Semantic',
+  emotion: 'Emotion',
+  metaphor: 'Metaphor / Imagery',
+  tone: 'Tone',
+  character_voice: 'Character Voice',
+  wordplay: 'Wordplay',
+  cultural_archaic: 'Cultural / Archaic',
+  omissions_additions: 'Omissions / Additions',
+};
+
+export const PHRASE_DIMENSION_KEYS = Object.keys(PHRASE_DIMENSION_LABELS);
+
+export const STATUS_META: Record<
+  string,
+  { className: string; icon: string; label: string }
+> = {
+  Preserved: { className: 'status-preserved', icon: 'fa-check-circle', label: 'Preserved' },
+  Changed: { className: 'status-changed', icon: 'fa-exchange-alt', label: 'Changed' },
+  Lost: { className: 'status-lost', icon: 'fa-times-circle', label: 'Lost' },
+  Added: { className: 'status-added', icon: 'fa-plus-circle', label: 'Added' },
+  'Not Applicable': {
+    className: 'status-not-applicable',
+    icon: 'fa-ban',
+    label: 'Not Applicable',
+  },
+};
+
+export interface PhraseValidationRecord {
+  passage_id: string;
+  alignment_id: string;
+  target_version: string;
+  dimension: string;
+  decision: 'Agree' | 'Partially Agree' | 'Disagree' | null;
+  original_score: number | null;
+  corrected_score: number | null;
+  comment: string;
+  reviewer: string;
+  reviewed_at: string | null;
 }
 
 export const DIMENSION_META: DimensionMeta[] = [
@@ -89,10 +137,15 @@ export const DIMENSION_META: DimensionMeta[] = [
   },
 ];
 
+const VALIDATION_STORAGE_KEY = 'hamlet_phrase_evidence_validations';
+
 @Injectable({ providedIn: 'root' })
 export class HamletDataService {
   private readonly url = 'assets/data/hamlet_4x3_comparison.json';
+  private readonly phraseUrl = 'assets/data/hamlet_phrase_alignment_ui.json';
   private cache$?: Observable<any>;
+  private phraseCache$?: Observable<any>;
+  private phraseDataSnapshot: any = null;
 
   constructor(private http: HttpClient) {}
 
@@ -101,6 +154,203 @@ export class HamletDataService {
       this.cache$ = this.http.get<any>(this.url).pipe(shareReplay(1));
     }
     return this.cache$;
+  }
+
+  getPhraseEvidenceData(): Observable<any> {
+    if (!this.phraseCache$) {
+      this.phraseCache$ = this.http.get<any>(this.phraseUrl).pipe(
+        map((data) => {
+          this.phraseDataSnapshot = data;
+          return data;
+        }),
+        catchError(() => {
+          this.phraseDataSnapshot = null;
+          return of(null);
+        }),
+        shareReplay(1)
+      );
+    }
+    return this.phraseCache$;
+  }
+
+  getPhrasePassageById(passageId: string): any | null {
+    const passages = this.phraseDataSnapshot?.passages;
+    if (!passages || !passageId) {
+      return null;
+    }
+    return passages.find((p: any) => p.passage_id === passageId) ?? null;
+  }
+
+  getAlignment(passage: any, alignmentId: string): any | null {
+    if (!passage?.phrase_alignments || !alignmentId) {
+      return null;
+    }
+    return (
+      passage.phrase_alignments.find((a: any) => a.alignment_id === alignmentId) ??
+      null
+    );
+  }
+
+  getEvidence(
+    alignment: any,
+    targetVersion: string,
+    dimension: string
+  ): any | null {
+    if (!alignment?.targets || !targetVersion || !dimension) {
+      return null;
+    }
+    const target = alignment.targets[targetVersion];
+    if (!target?.evidence?.length) {
+      return null;
+    }
+    return (
+      target.evidence.find((e: any) => e.dimension === dimension) ?? null
+    );
+  }
+
+  getTargetPhrase(alignment: any, targetVersion: string): any | null {
+    return alignment?.targets?.[targetVersion] ?? null;
+  }
+
+  getHeatmapCells(): any[] {
+    return this.phraseDataSnapshot?.overview_heatmap?.cells ?? [];
+  }
+
+  getValidationOptions(): string[] {
+    return (
+      this.phraseDataSnapshot?.validation_options ?? [
+        'Agree',
+        'Partially Agree',
+        'Disagree',
+      ]
+    );
+  }
+
+  formatScore(score: number | null | undefined): string {
+    if (score === null || score === undefined || Number.isNaN(Number(score))) {
+      return 'N/A';
+    }
+    const n = Number(score);
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  }
+
+  getStatusClass(status: string | null | undefined): string {
+    return STATUS_META[status || '']?.className || 'status-not-applicable';
+  }
+
+  getStatusIcon(status: string | null | undefined): string {
+    return STATUS_META[status || '']?.icon || 'fa-ban';
+  }
+
+  /* ---------- Human validation (localStorage) ---------- */
+
+  private validationKey(
+    passageId: string,
+    alignmentId: string,
+    targetVersion: string,
+    dimension: string
+  ): string {
+    return `${passageId}::${alignmentId}::${targetVersion}::${dimension}`;
+  }
+
+  loadAllValidations(): Record<string, PhraseValidationRecord> {
+    try {
+      const raw = localStorage.getItem(VALIDATION_STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      return JSON.parse(raw) as Record<string, PhraseValidationRecord>;
+    } catch {
+      return {};
+    }
+  }
+
+  getValidation(
+    passageId: string,
+    alignmentId: string,
+    targetVersion: string,
+    dimension: string
+  ): PhraseValidationRecord | null {
+    const all = this.loadAllValidations();
+    return (
+      all[this.validationKey(passageId, alignmentId, targetVersion, dimension)] ??
+      null
+    );
+  }
+
+  saveValidation(record: PhraseValidationRecord): void {
+    const all = this.loadAllValidations();
+    const key = this.validationKey(
+      record.passage_id,
+      record.alignment_id,
+      record.target_version,
+      record.dimension
+    );
+    all[key] = {
+      ...record,
+      reviewed_at: record.reviewed_at || new Date().toISOString(),
+    };
+    localStorage.setItem(VALIDATION_STORAGE_KEY, JSON.stringify(all));
+  }
+
+  clearValidation(
+    passageId: string,
+    alignmentId: string,
+    targetVersion: string,
+    dimension: string
+  ): void {
+    const all = this.loadAllValidations();
+    delete all[this.validationKey(passageId, alignmentId, targetVersion, dimension)];
+    localStorage.setItem(VALIDATION_STORAGE_KEY, JSON.stringify(all));
+  }
+
+  exportValidationsJson(): string {
+    return JSON.stringify(Object.values(this.loadAllValidations()), null, 2);
+  }
+
+  importValidationsJson(json: string): { ok: boolean; count: number; error?: string } {
+    try {
+      const parsed = JSON.parse(json);
+      const list = Array.isArray(parsed) ? parsed : Object.values(parsed);
+      const all = this.loadAllValidations();
+      let count = 0;
+      for (const item of list) {
+        if (!item?.passage_id || !item?.alignment_id || !item?.dimension) {
+          continue;
+        }
+        const key = this.validationKey(
+          item.passage_id,
+          item.alignment_id,
+          item.target_version || 'context_ai_german',
+          item.dimension
+        );
+        all[key] = item as PhraseValidationRecord;
+        count++;
+      }
+      localStorage.setItem(VALIDATION_STORAGE_KEY, JSON.stringify(all));
+      return { ok: true, count };
+    } catch (e: any) {
+      return { ok: false, count: 0, error: e?.message || 'Invalid JSON' };
+    }
+  }
+
+  isPhraseValidated(
+    passageId: string,
+    alignmentId: string,
+    targetVersion?: string | null,
+    dimension?: string | null
+  ): boolean {
+    const all = this.loadAllValidations();
+    if (targetVersion && dimension) {
+      return !!all[this.validationKey(passageId, alignmentId, targetVersion, dimension)]
+        ?.decision;
+    }
+    return Object.values(all).some(
+      (v) =>
+        v.passage_id === passageId &&
+        v.alignment_id === alignmentId &&
+        !!v.decision
+    );
   }
 
   getPassages(): Observable<any[]> {

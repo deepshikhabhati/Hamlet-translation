@@ -1,0 +1,58 @@
+<section class="heatmap card">
+  <header class="heatmap__header">
+    <div>
+      <h2><i class="fas fa-th"></i> Evidence Heatmap</h2>
+      <p>Passage × dimension phrase-evidence scores. Click a cell to open that passage and dimension.</p>
+    </div>
+  </header>
+
+  <div class="heatmap__filters">
+    <label>
+      Act
+      <select [(ngModel)]="filterAct" (ngModelChange)="onFilterChange()">
+        <option value="">All</option>
+        <option *ngFor="let a of acts" [value]="a">{{ a }}</option>
+      </select>
+    </label>
+    <label>
+      Scene
+      <select [(ngModel)]="filterScene" (ngModelChange)="onFilterChange()">
+        <option value="">All</option>
+        <option *ngFor="let s of scenes" [value]="s">{{ s }}</option>
+      </select>
+    </label>
+    <label>
+      Speaker
+      <select [(ngModel)]="filterSpeaker" (ngModelChange)="onFilterChange()">
+        <option value="">All</option>
+        <option *ngFor="let sp of speakers" [value]="sp">{{ sp }}</option>
+      </select>
+    </label>
+    <label>
+      Feature
+      <select [(ngModel)]="filterFeature" (ngModelChange)="onFilterChange()">
+        <option value="">All</option>
+        <option *ngFor="let f of features" [value]="f">{{ f }}</option>
+      </select>
+    </label>
+    <label>
+      Dimension
+      <select [(ngModel)]="filterDimension" (ngModelChange)="onFilterChange()">
+        <option value="">All</option>
+        <option *ngFor="let d of dimKeys" [value]="d">{{ dimLabels[d] }}</option>
+      </select>
+    </label>
+    <label>
+      Min score
+      <input type="number" min="0" max="100" [(ngModel)]="scoreMin" (ngModelChange)="onFilterChange()" />
+    </label>
+    <label>
+      Max score
+      <input type="number" min="0" max="100" [(ngModel)]="scoreMax" (ngModelChange)="onFilterChange()" />
+    </label>
+  </div>
+
+  <div class="heatmap__chart-wrap">
+    <div #chart class="heatmap__chart"></div>
+  </div>
+</section>

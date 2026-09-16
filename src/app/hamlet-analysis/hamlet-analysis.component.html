@@ -35,6 +35,13 @@
       >
         <i class="fas fa-chart-bar"></i> Dataset Overview
       </button>
+      <button
+        class="ha-tabs__btn"
+        [class.ha-tabs__btn--active]="activeTab === 'heatmap'"
+        (click)="setTab('heatmap')"
+      >
+        <i class="fas fa-th"></i> Evidence Heatmap
+      </button>
     </nav>
     <button class="ha-sidebar-toggle" (click)="toggleSidebar()" aria-label="Toggle sidebar">
       <i class="fas" [class.fa-bars]="!sidebarOpen" [class.fa-times]="sidebarOpen"></i>
@@ -108,6 +115,15 @@
           (targetChange)="onTargetChange($event)"
         ></app-ha-version-cards>
 
+        <app-ha-phrase-evidence-workspace
+          [comparisonPassageId]="selectedPassage.passage_id"
+          [phraseData]="phraseData"
+          [evidenceLoadError]="evidenceLoadError"
+          [externalDimension]="heatmapDimension"
+          [englishPdfPath]="englishPdfPath"
+          [germanPdfPath]="germanPdfPath"
+        ></app-ha-phrase-evidence-workspace>
+
         <div class="ha-comparison-row">
           <app-ha-comparison-selector
             [selectedSource]="selectedSource"
@@ -164,6 +180,18 @@
       <app-ha-dataset-dashboard
         [summary]="datasetSummary"
       ></app-ha-dataset-dashboard>
+    </main>
+
+    <!-- Evidence Heatmap Tab -->
+    <main class="ha-main ha-main--full" *ngIf="activeTab === 'heatmap'">
+      <app-ha-evidence-heatmap
+        [phraseData]="phraseData"
+        [comparisonPassages]="passages"
+        (cellSelect)="openHeatmapCell($event.passageId, $event.dimension)"
+      ></app-ha-evidence-heatmap>
+      <p class="ha-heatmap-fallback" *ngIf="!phraseData">
+        Phrase evidence data is unavailable, so the heatmap cannot be rendered.
+      </p>
     </main>
   </div>
 

@@ -1,0 +1,36 @@
+<div class="phrase-col">
+  <h4 class="phrase-col__title">{{ labels[versionKey] || versionKey }}</h4>
+  <div class="phrase-col__body" role="list">
+    <span
+      *ngFor="let alignment of alignments; trackBy: trackByAlignment"
+      class="phrase"
+      role="listitem"
+      tabindex="0"
+      [attr.data-phrase-id]="getPhrase(alignment)?.phrase_id"
+      [attr.data-alignment-id]="alignment.alignment_id"
+      [attr.aria-label]="ariaLabel(alignment)"
+      [class.phrase--highlighted]="isHighlighted(alignment.alignment_id)"
+      [class.phrase--dimmed]="isDimmed(alignment.alignment_id)"
+      [class.phrase--selected]="isSelected(alignment.alignment_id)"
+      [ngClass]="statusClass(alignment)"
+      (mouseenter)="onEnter(alignment.alignment_id)"
+      (mouseleave)="onLeave()"
+      (click)="onSelect(alignment)"
+      (keydown)="onKey($event, alignment)"
+    >
+      <span class="phrase__text">{{ getPhrase(alignment)?.text }}</span>
+      <span
+        *ngIf="showPhraseScores && versionKey !== 'english'"
+        class="phrase__badge"
+        [attr.title]="scoreBadge(alignment)"
+      >
+        <i class="fas" [ngClass]="statusIcon(alignment)" aria-hidden="true"></i>
+        {{ scoreBadge(alignment) }}
+      </span>
+      <span *ngIf="isValidated(alignment.alignment_id)" class="phrase__validated" title="Validated">
+        <i class="fas fa-user-check" aria-hidden="true"></i>
+        Validated
+      </span>
+    </span>
+  </div>
+</div>

@@ -1,0 +1,114 @@
+<aside
+  class="evidence-panel"
+  *ngIf="open && alignment"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="evidence-panel-title"
+>
+  <div class="evidence-panel__header">
+    <h3 id="evidence-panel-title"><i class="fas fa-search"></i> Phrase Evidence</h3>
+    <button type="button" class="evidence-panel__close" (click)="closePanel.emit()" aria-label="Close evidence panel">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="evidence-panel__body">
+    <div class="meta-block">
+      <span class="meta-label">Source Version</span>
+      <strong>Original English</strong>
+    </div>
+    <div class="meta-block">
+      <span class="meta-label">Source Phrase</span>
+      <p class="quote">“{{ sourcePhrase }}”</p>
+    </div>
+
+    <div class="meta-block">
+      <span class="meta-label">Target Version</span>
+      <div class="target-switch">
+        <button
+          type="button"
+          *ngFor="let v of targetVersions"
+          class="target-btn"
+          [class.target-btn--active]="targetVersion === v"
+          (click)="setTarget(v)"
+        >
+          {{ labels[v] }}
+        </button>
+      </div>
+    </div>
+
+    <div class="meta-block">
+      <span class="meta-label">Target Phrase</span>
+      <p class="quote">“{{ targetPhrase }}”</p>
+    </div>
+
+    <div class="meta-row">
+      <div class="meta-block">
+        <span class="meta-label">Dimension</span>
+        <strong>{{ dimLabels[selectedDimension] || selectedDimension }}</strong>
+      </div>
+      <div class="meta-block">
+        <span class="meta-label">Score</span>
+        <strong *ngIf="evidence?.applicable !== false && evidence?.score != null">
+          {{ formatScore(evidence.score) }} / 100
+        </strong>
+        <strong *ngIf="evidence?.applicable === false || evidence?.score == null">N/A</strong>
+      </div>
+    </div>
+
+    <div class="meta-block" *ngIf="evidence">
+      <span class="meta-label">Status</span>
+      <span class="status-pill" [ngClass]="statusClass()">
+        <i class="fas" [ngClass]="statusIcon()" aria-hidden="true"></i>
+        {{ evidence.status || 'Not Applicable' }}
+      </span>
+    </div>
+
+    <ng-container *ngIf="evidence?.applicable === false; else applicableBlock">
+      <div class="na-box" role="status">
+        <p><strong>Not applicable for this phrase.</strong></p>
+        <p>No reliable feature cue was detected.</p>
+        <p class="na-explain" *ngIf="evidence?.explanation">{{ evidence.explanation }}</p>
+      </div>
+    </ng-container>
+
+    <ng-template #applicableBlock>
+      <div class="meta-block" *ngIf="evidence?.rules?.length">
+        <span class="meta-label">Rules</span>
+        <ul class="chip-list">
+          <li *ngFor="let rule of evidence.rules">{{ rule }}</li>
+        </ul>
+      </div>
+      <div class="meta-block" *ngIf="evidence">
+        <span class="meta-label">Source Features</span>
+        <ul class="chip-list" *ngIf="evidence.source_features?.length; else noneSrc">
+          <li *ngFor="let f of evidence.source_features">{{ f }}</li>
+        </ul>
+        <ng-template #noneSrc><span class="muted">None listed</span></ng-template>
+      </div>
+      <div class="meta-block" *ngIf="evidence">
+        <span class="meta-label">Target Features</span>
+        <ul class="chip-list" *ngIf="evidence.target_features?.length; else noneTgt">
+          <li *ngFor="let f of evidence.target_features">{{ f }}</li>
+        </ul>
+        <ng-template #noneTgt><span class="muted">None listed</span></ng-template>
+      </div>
+      <div class="meta-block" *ngIf="evidence?.explanation">
+        <span class="meta-label">Explanation</span>
+        <p class="explain">{{ evidence.explanation }}</p>
+      </div>
+    </ng-template>
+
+    <app-ha-human-validation
+      *ngIf="passage && alignment"
+      [passageId]="passage.passage_id"
+      [alignmentId]="alignment.alignment_id"
+      [targetVersion]="targetVersion"
+      [dimension]="selectedDimension"
+      [originalScore]="originalScore"
+      [options]="validationOptions"
+      (saved)="onValidationSaved()"
+      (cleared)="onValidationCleared()"
+    ></app-ha-human-validation>
+  </div>
+</aside>

@@ -1,5 +1,14 @@
 export { HamletAnalysisComponent } from './hamlet-analysis.component';
-export { HamletDataService, PassageFilters, VERSIONS, versionLabels, versionShortLabels, DIMENSION_META } from './services/hamlet-data.service';
+export {
+  HamletDataService,
+  PassageFilters,
+  VERSIONS,
+  versionLabels,
+  versionShortLabels,
+  DIMENSION_META,
+  PHRASE_DIMENSION_LABELS,
+  PHRASE_DIMENSION_KEYS,
+} from './services/hamlet-data.service';
 export { PassageSidebarComponent } from './components/passage-sidebar/passage-sidebar.component';
 export { VersionCardsComponent } from './components/version-cards/version-cards.component';
 export { ComparisonSelectorComponent } from './components/comparison-selector/comparison-selector.component';
@@ -11,3 +20,5 @@ export { ComparisonMatrixComponent } from './components/comparison-matrix/compar
 export { TranslationRankingComponent } from './components/translation-ranking/translation-ranking.component';
 export { ComparisonDiffComponent } from './components/comparison-diff/comparison-diff.component';
 export { DatasetDashboardComponent } from './components/dataset-dashboard/dataset-dashboard.component';
+export { PhraseEvidenceWorkspaceComponent } from './components/phrase-evidence-workspace/phrase-evidence-workspace.component';
+export { EvidenceHeatmapComponent } from './components/evidence-heatmap/evidence-heatmap.component';
