@@ -109,6 +109,8 @@
 
         <app-ha-version-cards
           [texts]="selectedPassage.texts"
+          [selectedPassage]="selectedPassage"
+          [evidencePassage]="getEvidencePassage(selectedPassage.passage_id)"
           [selectedSource]="selectedSource"
           [selectedTarget]="selectedTarget"
           (sourceChange)="onSourceChange($event)"

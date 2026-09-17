@@ -9,15 +9,38 @@
       class="version-card"
       [class.version-card--source]="v === selectedSource"
       [class.version-card--target]="v === selectedTarget"
+      [class.translation-active]="isTranslationActive(v)"
       (click)="onCardClick(v)"
     >
       <div class="version-card__header">
-        <span class="version-card__label">{{ versionLabels[v] }}</span>
+        <div class="version-card__title-group">
+          <span class="version-card__label">{{ versionLabels[v] }}</span>
+          <span
+            class="language-badge"
+            *ngIf="canToggleTranslation(v)"
+          >
+            {{ isTranslationActive(v) ? 'EN Translation' : 'DE Original' }}
+          </span>
+        </div>
         <div class="version-card__badges">
           <span class="version-card__badge version-card__badge--source" *ngIf="v === selectedSource">Source</span>
           <span class="version-card__badge version-card__badge--target" *ngIf="v === selectedTarget">Target</span>
         </div>
         <div class="version-card__actions">
+          <button
+            *ngIf="hasEnglishTranslation(v)"
+            type="button"
+            class="translation-button"
+            (click)="toggleTranslation(v, $event)"
+            [attr.aria-pressed]="isTranslationActive(v)"
+            [attr.aria-label]="translationAriaLabel(v)"
+            [attr.title]="translationAriaLabel(v)"
+          >
+            <i class="fas fa-language" aria-hidden="true"></i>
+            <span class="translation-language">
+              {{ isTranslationActive(v) ? 'DE' : 'EN' }}
+            </span>
+          </button>
           <button class="version-card__btn" (click)="copyText(v, $event)" title="Copy text">
             <i class="fas fa-copy"></i>
           </button>
@@ -30,7 +53,7 @@
         class="version-card__text"
         [class.version-card__text--expanded]="isExpanded(v)"
       >
-        {{ isExpanded(v) ? texts[v] : truncate(texts[v]) }}
+        {{ isExpanded(v) ? getDisplayedVersionText(v) : truncate(getDisplayedVersionText(v)) }}
       </div>
     </div>
   </div>

@@ -20,9 +20,11 @@ export class AlignedPhraseColumnComponent {
   @Input() selectedAlignmentId: string | null = null;
   @Input() showPhraseScores = true;
   @Input() validatedIds: Set<string> = new Set();
+  @Input() phraseTranslationView: Record<string, 'german' | 'english_translation'> = {};
 
   @Output() phraseHover = new EventEmitter<string | null>();
   @Output() phraseSelect = new EventEmitter<{ alignment: any; version: string }>();
+  @Output() phraseTranslationToggle = new EventEmitter<{ phraseId: string; event: Event }>();
 
   readonly labels = versionLabels;
 
@@ -121,5 +123,52 @@ export class AlignedPhraseColumnComponent {
       event.preventDefault();
       this.onSelect(alignment);
     }
+  }
+
+  canShowPhraseTranslation(target: any): boolean {
+    if (this.versionKey !== 'ai_german' && this.versionKey !== 'context_ai_german') {
+      return false;
+    }
+    const translation = target?.english_translation;
+    return (
+      target?.translation_available === true &&
+      typeof translation === 'string' &&
+      translation.trim().length > 0
+    );
+  }
+
+  getDisplayedPhrase(target: any): string {
+    if (!target) {
+      return '';
+    }
+    if (
+      this.phraseTranslationView[target.phrase_id] === 'english_translation' &&
+      this.canShowPhraseTranslation(target)
+    ) {
+      return target.english_translation;
+    }
+    return target.text || '';
+  }
+
+  isPhraseTranslationActive(phraseId: string | undefined): boolean {
+    return !!phraseId && this.phraseTranslationView[phraseId] === 'english_translation';
+  }
+
+  phraseTranslationLabel(target: any): string {
+    return this.isPhraseTranslationActive(target?.phrase_id)
+      ? 'Show German phrase'
+      : 'Show English translation';
+  }
+
+  togglePhraseTranslation(target: any, event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+    if (!this.canShowPhraseTranslation(target)) {
+      return;
+    }
+    this.phraseTranslationToggle.emit({
+      phraseId: target.phrase_id,
+      event,
+    });
   }
 }

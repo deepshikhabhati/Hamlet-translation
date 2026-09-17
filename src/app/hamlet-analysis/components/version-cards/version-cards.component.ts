@@ -1,4 +1,11 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   VERSIONS,
@@ -12,19 +19,83 @@ import {
   templateUrl: './version-cards.component.html',
   styleUrls: ['./version-cards.component.scss'],
 })
-export class VersionCardsComponent {
+export class VersionCardsComponent implements OnChanges {
   @Input() texts: Record<string, string> = {};
   @Input() selectedSource = 'english';
   @Input() selectedTarget = 'context_ai_german';
+  @Input() evidencePassage: any = null;
+  @Input() selectedPassage: any = null;
 
   @Output() sourceChange = new EventEmitter<string>();
   @Output() targetChange = new EventEmitter<string>();
 
   readonly versions = VERSIONS;
   readonly versionLabels = versionLabels;
+  readonly translatableVersions = ['ai_german', 'context_ai_german'];
+
+  translationView: Record<string, 'german' | 'english_translation'> = {
+    ai_german: 'german',
+    context_ai_german: 'german',
+  };
 
   expanded: Record<string, boolean> = {};
   clickStep: 'source' | 'target' = 'source';
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['selectedPassage'] || changes['evidencePassage']) {
+      this.resetTranslationViews();
+    }
+  }
+
+  resetTranslationViews(): void {
+    this.translationView = {
+      ai_german: 'german',
+      context_ai_german: 'german',
+    };
+  }
+
+  canToggleTranslation(version: string): boolean {
+    return this.translatableVersions.includes(version);
+  }
+
+  hasEnglishTranslation(version: string): boolean {
+    if (!this.canToggleTranslation(version)) {
+      return false;
+    }
+    const value = this.evidencePassage?.english_back_translations?.[version];
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  isTranslationActive(version: string): boolean {
+    return this.translationView[version] === 'english_translation';
+  }
+
+  toggleTranslation(version: string, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.hasEnglishTranslation(version)) {
+      return;
+    }
+    this.translationView[version] =
+      this.translationView[version] === 'german'
+        ? 'english_translation'
+        : 'german';
+  }
+
+  getDisplayedVersionText(version: string): string {
+    if (
+      this.translationView[version] === 'english_translation' &&
+      this.hasEnglishTranslation(version)
+    ) {
+      return this.evidencePassage.english_back_translations[version];
+    }
+    return this.selectedPassage?.texts?.[version] || this.texts?.[version] || '';
+  }
+
+  translationAriaLabel(version: string): string {
+    return this.isTranslationActive(version)
+      ? 'Show German original'
+      : 'Show English translation';
+  }
 
   onCardClick(version: string): void {
     if (this.clickStep === 'source') {
@@ -51,7 +122,7 @@ export class VersionCardsComponent {
 
   copyText(version: string, event: Event): void {
     event.stopPropagation();
-    const text = this.texts[version] ?? '';
+    const text = this.getDisplayedVersionText(version);
     navigator.clipboard?.writeText(text);
   }
 

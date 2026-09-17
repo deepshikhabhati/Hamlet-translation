@@ -18,7 +18,21 @@
       (click)="onSelect(alignment)"
       (keydown)="onKey($event, alignment)"
     >
-      <span class="phrase__text">{{ getPhrase(alignment)?.text }}</span>
+      <span class="phrase__text aligned-phrase-text">{{ getDisplayedPhrase(getPhrase(alignment)) }}</span>
+      <button
+        *ngIf="canShowPhraseTranslation(getPhrase(alignment))"
+        type="button"
+        class="phrase-translation-button"
+        (click)="togglePhraseTranslation(getPhrase(alignment), $event)"
+        [attr.aria-label]="phraseTranslationLabel(getPhrase(alignment))"
+        [attr.title]="phraseTranslationLabel(getPhrase(alignment))"
+        [attr.aria-pressed]="isPhraseTranslationActive(getPhrase(alignment)?.phrase_id)"
+      >
+        <i class="fas fa-language" aria-hidden="true"></i>
+        <span>
+          {{ isPhraseTranslationActive(getPhrase(alignment)?.phrase_id) ? 'DE' : 'EN' }}
+        </span>
+      </button>
       <span
         *ngIf="showPhraseScores && versionKey !== 'english'"
         class="phrase__badge"

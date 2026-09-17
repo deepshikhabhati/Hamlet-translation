@@ -87,8 +87,10 @@
         [selectedAlignmentId]="selectedAlignmentId"
         [showPhraseScores]="showPhraseScores"
         [validatedIds]="validatedIds"
+        [phraseTranslationView]="phraseTranslationView"
         (phraseHover)="onPhraseHover($event)"
         (phraseSelect)="selectPhrase($event)"
+        (phraseTranslationToggle)="togglePhraseTranslation($event.phraseId, $event.event)"
       ></app-ha-aligned-phrase-column>
     </div>
 
@@ -101,8 +103,10 @@
         [selectedAlignmentId]="selectedAlignmentId"
         [showPhraseScores]="showPhraseScores"
         [validatedIds]="validatedIds"
+        [phraseTranslationView]="phraseTranslationView"
         (phraseHover)="onPhraseHover($event)"
         (phraseSelect)="selectPhrase($event)"
+        (phraseTranslationToggle)="togglePhraseTranslation($event.phraseId, $event.event)"
       ></app-ha-aligned-phrase-column>
       <app-ha-aligned-phrase-column
         *ngIf="mobileVersion !== 'english'"
@@ -113,8 +117,10 @@
         [selectedAlignmentId]="selectedAlignmentId"
         [showPhraseScores]="showPhraseScores"
         [validatedIds]="validatedIds"
+        [phraseTranslationView]="phraseTranslationView"
         (phraseHover)="onPhraseHover($event)"
         (phraseSelect)="selectPhrase($event)"
+        (phraseTranslationToggle)="togglePhraseTranslation($event.phraseId, $event.event)"
       ></app-ha-aligned-phrase-column>
     </div>
   </ng-container>

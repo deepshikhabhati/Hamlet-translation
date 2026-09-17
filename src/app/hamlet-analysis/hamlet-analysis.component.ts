@@ -126,6 +126,15 @@ export class HamletAnalysisComponent implements OnInit {
     }
   }
 
+  getEvidencePassage(passageId: string | null | undefined): any | null {
+    if (!passageId || !this.phraseData?.passages) {
+      return null;
+    }
+    return (
+      this.phraseData.passages.find((p: any) => p.passage_id === passageId) ?? null
+    );
+  }
+
   openPdfBook(book: 'english' | 'german'): void {
     if (!this.selectedPassage) {
       return;

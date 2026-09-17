@@ -75,6 +75,12 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   readonly dimLabels = PHRASE_DIMENSION_LABELS;
   readonly dimKeys = PHRASE_DIMENSION_KEYS;
 
+  phraseTranslationView: Record<string, 'german' | 'english_translation'> = {};
+  translationView: Record<string, 'german' | 'english_translation'> = {
+    ai_german: 'german',
+    context_ai_german: 'german',
+  };
+
   constructor(private dataService: HamletDataService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -106,7 +112,16 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
 
     this.alignments = this.evidencePassage?.phrase_alignments ?? [];
     this.dimensionSummary = this.evidencePassage?.dimension_summary ?? null;
+    this.resetTranslationViews();
     this.refreshValidatedIds();
+  }
+
+  resetTranslationViews(): void {
+    this.translationView = {
+      ai_german: 'german',
+      context_ai_german: 'german',
+    };
+    this.phraseTranslationView = {};
   }
 
   refreshValidatedIds(): void {
@@ -247,5 +262,19 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
 
   get validationOptions(): string[] {
     return this.phraseData?.validation_options ?? this.dataService.getValidationOptions();
+  }
+
+  togglePhraseTranslation(phraseId: string, event?: Event): void {
+    event?.stopPropagation();
+    if (!phraseId) {
+      return;
+    }
+    this.phraseTranslationView = {
+      ...this.phraseTranslationView,
+      [phraseId]:
+        this.phraseTranslationView[phraseId] === 'english_translation'
+          ? 'german'
+          : 'english_translation',
+    };
   }
 }
