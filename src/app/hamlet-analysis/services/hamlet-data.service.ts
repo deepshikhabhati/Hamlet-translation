@@ -48,7 +48,7 @@ export interface PassageFilters {
 export const PHRASE_DIMENSION_LABELS: Record<string, string> = {
   semantic: 'Semantic',
   emotion: 'Emotion',
-  metaphor: 'Metaphor / Imagery',
+  metaphor: 'Metaphor & Imagery',
   tone: 'Tone',
   character_voice: 'Character Voice',
   wordplay: 'Wordplay',
@@ -92,6 +92,23 @@ export interface AlignedSpan {
   end?: number;
 }
 
+export interface EvidenceSpanItem {
+  span_id?: string;
+  text: string;
+  start?: number;
+  end?: number;
+  concept_id?: string;
+  concept_label?: string;
+}
+
+export interface EvidenceConcept {
+  concept_id: string;
+  label: string;
+  dimension: string;
+  phrases?: Record<string, string[]>;
+  evidence_spans?: Record<string, EvidenceSpanItem[]>;
+}
+
 export interface DimensionEvidenceRecord {
   applicable: boolean;
   feature_label?: string;
@@ -115,12 +132,17 @@ export interface AlignedPhraseGroup {
   missing: Record<string, boolean>;
   raw_targets: Record<string, any>;
   dimensions: Record<string, DimensionEvidenceRecord>;
+  dimension_evidence?: Record<string, any>;
+  semantic_concept_links?: any[];
+  concepts?: Record<string, EvidenceConcept[]>;
 }
 
 export interface TextSegment {
   text: string;
   highlighted: boolean;
-  spanId?: string;
+  concept_id?: string;
+  concept_label?: string;
+  evidence_span_id?: string;
   isMissingPlaceholder?: boolean;
 }
 
@@ -201,7 +223,8 @@ const VALIDATION_STORAGE_KEY = 'hamlet_phrase_evidence_validations';
 @Injectable({ providedIn: 'root' })
 export class HamletDataService {
   private readonly url = 'assets/data/hamlet_4x3_comparison.json';
-  private readonly phraseUrl = 'assets/data/hamlet_phrase_alignment_ui.json';
+  private readonly phraseUrl = 'assets/data/hamlet_phrase_alignment_semantic_emotion_tone_aligned.json';
+  private readonly phraseFallbackUrl = 'assets/data/hamlet_phrase_alignment_ui.json';
   private cache$?: Observable<any>;
   private phraseCache$?: Observable<any>;
   private phraseDataSnapshot: any = null;
@@ -222,9 +245,18 @@ export class HamletDataService {
           this.phraseDataSnapshot = data;
           return data;
         }),
-        catchError(() => {
-          this.phraseDataSnapshot = null;
-          return of(null);
+        catchError((err) => {
+          console.warn('Failed to load primary aligned dataset, falling back to legacy UI json:', err);
+          return this.http.get<any>(this.phraseFallbackUrl).pipe(
+            map((data) => {
+              this.phraseDataSnapshot = data;
+              return data;
+            }),
+            catchError(() => {
+              this.phraseDataSnapshot = null;
+              return of(null);
+            })
+          );
         }),
         shareReplay(1)
       );
@@ -308,42 +340,21 @@ export class HamletDataService {
     let anyNeedsReview = item.review_status === 'needs_review';
 
     for (const dimKey of PHRASE_DIMENSION_KEYS) {
-      // Check if item already has direct dimensions mapping
+      const dev = item.dimension_evidence?.[dimKey];
       const directDim = item.dimensions?.[dimKey];
-      if (directDim) {
-        dimensions[dimKey] = {
-          applicable: directDim.applicable !== false,
-          feature_label: directDim.feature_label || item.label || PHRASE_DIMENSION_LABELS[dimKey],
-          classifications: directDim.classifications || {
-            human_german: 'Changed',
-            ai_german: 'Preserved',
-            context_ai_german: 'Preserved',
-          },
-          relevant_spans: directDim.relevant_spans || { english: [], human_german: [], ai_german: [], context_ai_german: [] },
-          computed_rule_evidence: (directDim.computed_rule_evidence || []).map((r: any) =>
-            typeof r === 'string' ? { rule_id: r, description: this.describeRule(r) } : r
-          ),
-          explanation: directDim.explanation || 'Analyzed literary dimension.',
-          technical_score: directDim.technical_score ?? 80,
-          confidence: directDim.confidence ?? 0.9,
-        };
-        continue;
-      }
 
       const humanEv = item.targets?.human_german?.evidence?.find((e: any) => e.dimension === dimKey);
       const aiEv = item.targets?.ai_german?.evidence?.find((e: any) => e.dimension === dimKey);
       const ctxEv = item.targets?.context_ai_german?.evidence?.find((e: any) => e.dimension === dimKey);
 
-      const applicable = !!(
-        (humanEv && humanEv.applicable !== false) ||
-        (aiEv && aiEv.applicable !== false) ||
-        (ctxEv && ctxEv.applicable !== false)
-      );
+      const applicable = dev
+        ? !!(dev.targets?.human_german?.applicable !== false || dev.targets?.ai_german?.applicable !== false || dev.targets?.context_ai_german?.applicable !== false)
+        : !!(directDim ? directDim.applicable !== false : ((humanEv && humanEv.applicable !== false) || (aiEv && aiEv.applicable !== false) || (ctxEv && ctxEv.applicable !== false)));
 
       const classifications: Record<string, string> = {
-        human_german: this.normalizeStatus(humanEv?.status, applicable),
-        ai_german: this.normalizeStatus(aiEv?.status, applicable),
-        context_ai_german: this.normalizeStatus(ctxEv?.status, applicable),
+        human_german: this.normalizeStatus(dev?.targets?.human_german?.status || directDim?.classifications?.['human_german'] || humanEv?.status, applicable),
+        ai_german: this.normalizeStatus(dev?.targets?.ai_german?.status || directDim?.classifications?.['ai_german'] || aiEv?.status, applicable),
+        context_ai_german: this.normalizeStatus(dev?.targets?.context_ai_german?.status || directDim?.classifications?.['context_ai_german'] || ctxEv?.status, applicable),
       };
 
       if (Object.values(classifications).includes('Needs Review')) {
@@ -351,6 +362,12 @@ export class HamletDataService {
       }
 
       const rulesSet = new Set<string>();
+      if (directDim?.computed_rule_evidence) {
+        directDim.computed_rule_evidence.forEach((r: any) => {
+          if (typeof r === 'string') rulesSet.add(r);
+          else if (r?.rule_id) rulesSet.add(r.rule_id);
+        });
+      }
       [humanEv, aiEv, ctxEv].forEach((ev) => {
         if (ev?.rules) {
           ev.rules.forEach((r: any) => {
@@ -361,6 +378,10 @@ export class HamletDataService {
       });
 
       const explanation =
+        dev?.targets?.context_ai_german?.explanation ||
+        dev?.targets?.ai_german?.explanation ||
+        dev?.targets?.human_german?.explanation ||
+        directDim?.explanation ||
         ctxEv?.explanation ||
         aiEv?.explanation ||
         humanEv?.explanation ||
@@ -368,23 +389,33 @@ export class HamletDataService {
           ? `Feature correspondence analyzed across targets for ${PHRASE_DIMENSION_LABELS[dimKey]}.`
           : `N/A — No relevant ${PHRASE_DIMENSION_LABELS[dimKey].toLowerCase()} cues detected in this aligned phrase.`);
 
-      const score = ctxEv?.score ?? aiEv?.score ?? humanEv?.score ?? null;
+      const score =
+        dev?.targets?.context_ai_german?.score ??
+        dev?.targets?.ai_german?.score ??
+        dev?.targets?.human_german?.score ??
+        directDim?.technical_score ??
+        ctxEv?.score ??
+        aiEv?.score ??
+        humanEv?.score ??
+        null;
+
       if (score != null) {
         totalScore += score;
         scoreCount++;
       }
 
       const relevantSpans: Record<string, string[]> = {
-        english: humanEv?.source_features || aiEv?.source_features || ctxEv?.source_features || [],
-        human_german: humanEv?.target_features || [],
-        ai_german: aiEv?.target_features || [],
-        context_ai_german: ctxEv?.target_features || [],
+        english: dev?.source?.evidence_spans?.map((s: any) => s.text) || directDim?.relevant_spans?.['english'] || humanEv?.source_features || aiEv?.source_features || ctxEv?.source_features || [],
+        human_german: dev?.targets?.human_german?.evidence_spans?.map((s: any) => s.text) || directDim?.relevant_spans?.['human_german'] || humanEv?.target_features || [],
+        ai_german: dev?.targets?.ai_german?.evidence_spans?.map((s: any) => s.text) || directDim?.relevant_spans?.['ai_german'] || aiEv?.target_features || [],
+        context_ai_german: dev?.targets?.context_ai_german?.evidence_spans?.map((s: any) => s.text) || directDim?.relevant_spans?.['context_ai_german'] || ctxEv?.target_features || [],
       };
 
       const featureLabel =
         ctxEv?.feature_label ||
         aiEv?.feature_label ||
         humanEv?.feature_label ||
+        directDim?.feature_label ||
         item.label ||
         PHRASE_DIMENSION_LABELS[dimKey];
 
@@ -425,6 +456,8 @@ export class HamletDataService {
       missing,
       raw_targets: item.targets || {},
       dimensions,
+      dimension_evidence: item.dimension_evidence || {},
+      semantic_concept_links: item.semantic_concept_links || [],
     };
   }
 
@@ -457,6 +490,124 @@ export class HamletDataService {
     return map[ruleId] || ruleId.replace(/_/g, ' ');
   }
 
+  getActiveDimensionEvidence(alignment: any, dimension?: string): any {
+    if (!alignment) return null;
+    const dim = dimension || 'semantic';
+    if (alignment.dimension_evidence?.[dim]) {
+      return alignment.dimension_evidence[dim];
+    }
+    return alignment.dimensions?.[dim] || null;
+  }
+
+  getConceptsForDimension(alignment: AlignedPhraseGroup | any, dimension: string): EvidenceConcept[] {
+    if (!alignment) return [];
+    if (alignment.concepts?.[dimension] && alignment.concepts[dimension].length > 0) {
+      return alignment.concepts[dimension];
+    }
+
+    const concepts: EvidenceConcept[] = [];
+
+    // 1. Semantic concept links if available in JSON
+    if (
+      dimension === 'semantic' &&
+      Array.isArray(alignment.semantic_concept_links) &&
+      alignment.semantic_concept_links.length > 0
+    ) {
+      for (const link of alignment.semantic_concept_links) {
+        const cid = link.concept_id || 'concept';
+        const label = cid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+        concepts.push({
+          concept_id: cid,
+          label,
+          dimension: 'semantic',
+          phrases: {
+            english: link.english || [],
+            human_german: link.human_german || [],
+            ai_german: link.ai_german || [],
+            context_ai_german: link.context_ai_german || [],
+          },
+        });
+      }
+      return concepts;
+    }
+
+    // 2. Derive from dimension_evidence
+    const dev = alignment.dimension_evidence?.[dimension];
+    if (dev) {
+      const srcSpans = dev.source?.evidence_spans || [];
+      if (srcSpans.length > 0) {
+        for (let i = 0; i < srcSpans.length; i++) {
+          const s = srcSpans[i];
+          const cid = `${dimension}_${s.text.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+          if (concepts.some((c) => c.concept_id === cid || c.label.toLowerCase() === s.text.toLowerCase())) {
+            continue;
+          }
+          const label = s.text.replace(/\b\w/g, (c: string) => c.toUpperCase());
+          concepts.push({
+            concept_id: cid,
+            label,
+            dimension,
+            phrases: {
+              english: [s.text],
+              human_german: (dev.targets?.human_german?.evidence_spans || []).map((x: any) => x.text),
+              ai_german: (dev.targets?.ai_german?.evidence_spans || []).map((x: any) => x.text),
+              context_ai_german: (dev.targets?.context_ai_german?.evidence_spans || []).map((x: any) => x.text),
+            },
+          });
+        }
+      } else {
+        const anyTargetSpans = [
+          ...(dev.targets?.human_german?.evidence_spans || []),
+          ...(dev.targets?.ai_german?.evidence_spans || []),
+          ...(dev.targets?.context_ai_german?.evidence_spans || []),
+        ];
+        if (anyTargetSpans.length > 0) {
+          const first = anyTargetSpans[0].text;
+          const cid = `${dimension}_cue`;
+          concepts.push({
+            concept_id: cid,
+            label: `${PHRASE_DIMENSION_LABELS[dimension] || dimension} Cue`,
+            dimension,
+            phrases: {
+              english: [],
+              human_german: (dev.targets?.human_german?.evidence_spans || []).map((x: any) => x.text),
+              ai_german: (dev.targets?.ai_german?.evidence_spans || []).map((x: any) => x.text),
+              context_ai_german: (dev.targets?.context_ai_german?.evidence_spans || []).map((x: any) => x.text),
+            },
+          });
+        }
+      }
+      if (concepts.length > 0) return concepts;
+    }
+
+    // 3. Fallback from dimensions / features (for metaphor, voice, wordplay, cultural, omissions)
+    const dimRecord = alignment.dimensions?.[dimension];
+    if (dimRecord && dimRecord.applicable) {
+      const srcFeat = dimRecord.relevant_spans?.['english'] || [];
+      const humanFeat = dimRecord.relevant_spans?.['human_german'] || [];
+      const aiFeat = dimRecord.relevant_spans?.['ai_german'] || [];
+      const ctxFeat = dimRecord.relevant_spans?.['context_ai_german'] || [];
+
+      if (srcFeat.length > 0 || humanFeat.length > 0 || aiFeat.length > 0 || ctxFeat.length > 0) {
+        const featureName = dimRecord.feature_label || srcFeat[0] || PHRASE_DIMENSION_LABELS[dimension];
+        const cid = `${dimension}_feat`;
+        concepts.push({
+          concept_id: cid,
+          label: featureName,
+          dimension,
+          phrases: {
+            english: srcFeat,
+            human_german: humanFeat,
+            ai_german: aiFeat,
+            context_ai_german: ctxFeat,
+          },
+        });
+      }
+    }
+
+    return concepts;
+  }
+
   getRelevantSpans(
     alignment: AlignedPhraseGroup,
     version: string,
@@ -480,46 +631,195 @@ export class HamletDataService {
       return [{ text: 'NO CORRESPONDING SPAN', highlighted: false, isMissingPlaceholder: true }];
     }
 
-    const dimRecord = alignment.dimensions[dimension];
-    if (!dimRecord || !dimRecord.applicable) {
+    const dev = alignment.dimension_evidence?.[dimension];
+    const dimRecord = alignment.dimensions?.[dimension];
+    const applicable = dev
+      ? (version === 'english' ? true : dev.targets?.[version]?.applicable !== false)
+      : (dimRecord?.applicable !== false);
+
+    if (!applicable) {
       return [{ text: rawText, highlighted: false }];
     }
 
-    const keywords = dimRecord.relevant_spans[version] || [];
-    if (keywords.length > 0) {
-      return this.segmentByKeywords(rawText, keywords);
+    const concepts = this.getConceptsForDimension(alignment, dimension);
+
+    interface SpanCandidate {
+      text: string;
+      start: number;
+      end: number;
+      concept_id?: string;
+      concept_label?: string;
+      evidence_span_id?: string;
+    }
+    const candidates: SpanCandidate[] = [];
+
+    // Path 1: Check if dimension_evidence has exact character offsets
+    if (!isEnglishTranslation && dev) {
+      const rawSpans = version === 'english'
+        ? (dev.source?.evidence_spans || [])
+        : (dev.targets?.[version]?.evidence_spans || []);
+
+      for (const sp of rawSpans) {
+        if (typeof sp.start === 'number' && typeof sp.end === 'number' && sp.end > sp.start) {
+          const start = sp.start;
+          const end = sp.end;
+          const spanText = sp.text || rawText.substring(start, end);
+          if (end <= rawText.length && rawText.substring(start, end).toLowerCase() === spanText.toLowerCase()) {
+            const matchingConcept = this.findMatchingConcept(spanText, version, concepts);
+            candidates.push({
+              text: rawText.substring(start, end),
+              start,
+              end,
+              concept_id: matchingConcept?.concept_id || `${dimension}_cue`,
+              concept_label: matchingConcept?.label || spanText,
+              evidence_span_id: `${dimension}-${version}-${start}`,
+            });
+          } else {
+            const idx = rawText.toLowerCase().indexOf(spanText.toLowerCase());
+            if (idx >= 0) {
+              const matchingConcept = this.findMatchingConcept(spanText, version, concepts);
+              candidates.push({
+                text: rawText.substring(idx, idx + spanText.length),
+                start: idx,
+                end: idx + spanText.length,
+                concept_id: matchingConcept?.concept_id || `${dimension}_cue`,
+                concept_label: matchingConcept?.label || spanText,
+                evidence_span_id: `${dimension}-${version}-${idx}`,
+              });
+            }
+          }
+        } else if (sp.text) {
+          const idx = rawText.toLowerCase().indexOf(sp.text.toLowerCase());
+          if (idx >= 0) {
+            const matchingConcept = this.findMatchingConcept(sp.text, version, concepts);
+            candidates.push({
+              text: rawText.substring(idx, idx + sp.text.length),
+              start: idx,
+              end: idx + sp.text.length,
+              concept_id: matchingConcept?.concept_id || `${dimension}_cue`,
+              concept_label: matchingConcept?.label || sp.text,
+              evidence_span_id: `${dimension}-${version}-${idx}`,
+            });
+          }
+        }
+      }
     }
 
-    return [{ text: rawText, highlighted: true }];
-  }
-
-  private segmentByKeywords(text: string, keywords: string[]): TextSegment[] {
-    const validKeywords = keywords.filter((k) => typeof k === 'string' && k.trim().length > 0);
-    if (validKeywords.length === 0) {
-      return [{ text, highlighted: true }];
+    // Path 2: Check concept phrases if no spans found or if translated
+    if (candidates.length === 0) {
+      const matchKey = isEnglishTranslation ? 'english' : version;
+      for (const concept of concepts) {
+        const phrases = concept.phrases?.[matchKey] || [];
+        for (const p of phrases) {
+          if (!p || !p.trim()) continue;
+          const lowerText = rawText.toLowerCase();
+          const lowerP = p.toLowerCase().trim();
+          const idx = lowerText.indexOf(lowerP);
+          if (idx >= 0) {
+            candidates.push({
+              text: rawText.substring(idx, idx + lowerP.length),
+              start: idx,
+              end: idx + lowerP.length,
+              concept_id: concept.concept_id,
+              concept_label: concept.label,
+              evidence_span_id: `${dimension}-${version}-${idx}`,
+            });
+          }
+        }
+      }
     }
 
-    const escaped = validKeywords
-      .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .sort((a, b) => b.length - a.length);
+    // Path 3: Fallback to relevant_spans from dimRecord
+    if (candidates.length === 0 && dimRecord?.relevant_spans?.[version]?.length) {
+      const keywords = dimRecord.relevant_spans[version];
+      const lowerText = rawText.toLowerCase();
+      for (const kw of keywords) {
+        if (!kw || !kw.trim()) continue;
+        const lowerKw = kw.toLowerCase().trim();
+        const idx = lowerText.indexOf(lowerKw);
+        if (idx >= 0) {
+          candidates.push({
+            text: rawText.substring(idx, idx + lowerKw.length),
+            start: idx,
+            end: idx + lowerKw.length,
+            concept_id: `${dimension}_cue`,
+            concept_label: kw,
+            evidence_span_id: `${dimension}-${version}-${idx}`,
+          });
+        }
+      }
+    }
 
-    try {
-      const regex = new RegExp(`(${escaped.join('|')})`, 'gi');
-      const parts = text.split(regex);
-      const segments: TextSegment[] = [];
+    // If no evidence spans exist, do not highlight the whole aligned phrase
+    if (candidates.length === 0) {
+      return [{ text: rawText, highlighted: false }];
+    }
 
-      for (const part of parts) {
-        if (!part) continue;
-        const isMatch = validKeywords.some((k) => k.toLowerCase() === part.toLowerCase());
+    // Sort candidates: start ascending, then length descending
+    candidates.sort((a, b) => a.start !== b.start ? a.start - b.start : (b.end - b.start) - (a.end - a.start));
+
+    // Resolve overlapping spans: keep longer/enclosing span, skip overlapping sub-spans
+    const nonOverlapping: SpanCandidate[] = [];
+    let lastEnd = -1;
+    for (const c of candidates) {
+      if (c.start >= lastEnd) {
+        nonOverlapping.push(c);
+        lastEnd = c.end;
+      }
+    }
+
+    // Build segments
+    const segments: TextSegment[] = [];
+    let currentIdx = 0;
+    for (const span of nonOverlapping) {
+      if (span.start > currentIdx) {
         segments.push({
-          text: part,
-          highlighted: isMatch,
+          text: rawText.substring(currentIdx, span.start),
+          highlighted: false,
         });
       }
-      return segments.length ? segments : [{ text, highlighted: true }];
-    } catch {
-      return [{ text, highlighted: true }];
+      segments.push({
+        text: rawText.substring(span.start, span.end),
+        highlighted: true,
+        concept_id: span.concept_id,
+        concept_label: span.concept_label,
+        evidence_span_id: span.evidence_span_id,
+      });
+      currentIdx = span.end;
     }
+    if (currentIdx < rawText.length) {
+      segments.push({
+        text: rawText.substring(currentIdx),
+        highlighted: false,
+      });
+    }
+
+    return segments.length > 0 ? segments : [{ text: rawText, highlighted: false }];
+  }
+
+  private findMatchingConcept(
+    spanText: string,
+    version: string,
+    concepts: EvidenceConcept[]
+  ): EvidenceConcept | undefined {
+    const sLower = spanText.toLowerCase().trim();
+    for (const c of concepts) {
+      const phrases = c.phrases?.[version] || [];
+      for (const p of phrases) {
+        const pLower = p.toLowerCase().trim();
+        if (pLower === sLower || pLower.includes(sLower) || sLower.includes(pLower)) {
+          return c;
+        }
+      }
+      const enPhrases = c.phrases?.['english'] || [];
+      for (const ep of enPhrases) {
+        const epLower = ep.toLowerCase().trim();
+        if (epLower === sLower || epLower.includes(sLower) || sLower.includes(epLower)) {
+          return c;
+        }
+      }
+    }
+    return concepts[0];
   }
 
   getDimensionEvidence(alignment: any, dimension: string): any {

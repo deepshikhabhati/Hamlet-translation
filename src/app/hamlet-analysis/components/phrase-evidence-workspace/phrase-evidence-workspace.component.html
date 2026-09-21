@@ -115,6 +115,25 @@
           </span>
         </div>
 
+        <!-- Interactive Concept Badges for this Aligned Phrase -->
+        <div class="aligned-card__concepts-bar" *ngIf="getConcepts(phrase).length > 0">
+          <span class="concepts-bar__label"><i class="fas fa-project-diagram"></i> Concepts:</span>
+          <div class="concepts-bar__list">
+            <button
+              type="button"
+              *ngFor="let concept of getConcepts(phrase)"
+              class="concept-pill"
+              [class.concept-pill--active]="isConceptHighlighted(concept.concept_id)"
+              (mouseenter)="hoverConcept(concept.concept_id)"
+              (mouseleave)="clearHoveredConcept()"
+              (click)="onConceptBadgeClick($event, phrase, concept)"
+              [title]="'Hover to highlight \'' + concept.label + '\' across all versions; click to inspect.'"
+            >
+              <i class="fas fa-tag"></i> {{ concept.label }}
+            </button>
+          </div>
+        </div>
+
         <!-- 4 Version Columns Grid -->
         <div class="aligned-card__columns">
           <!-- 1. Original English -->
@@ -127,7 +146,14 @@
                 *ngFor="let seg of getSegments(phrase, 'english')"
                 class="phrase-segment"
                 [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
+                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
                 [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+                [attr.data-concept-id]="seg.concept_id"
+                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
+                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
+                (mouseleave)="clearHoveredConcept()"
+                (click)="onSegmentClick($event, phrase, seg)"
               >
                 {{ seg.text }}
               </span>
@@ -153,7 +179,14 @@
                 *ngFor="let seg of getSegments(phrase, 'human_german')"
                 class="phrase-segment"
                 [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
+                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
                 [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+                [attr.data-concept-id]="seg.concept_id"
+                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
+                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
+                (mouseleave)="clearHoveredConcept()"
+                (click)="onSegmentClick($event, phrase, seg)"
               >
                 {{ seg.text }}
               </span>
@@ -193,7 +226,14 @@
                 *ngFor="let seg of getSegments(phrase, 'ai_german')"
                 class="phrase-segment"
                 [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
+                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
                 [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+                [attr.data-concept-id]="seg.concept_id"
+                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
+                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
+                (mouseleave)="clearHoveredConcept()"
+                (click)="onSegmentClick($event, phrase, seg)"
               >
                 {{ seg.text }}
               </span>
@@ -233,7 +273,14 @@
                 *ngFor="let seg of getSegments(phrase, 'context_ai_german')"
                 class="phrase-segment"
                 [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
+                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
                 [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+                [attr.data-concept-id]="seg.concept_id"
+                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
+                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
+                (mouseleave)="clearHoveredConcept()"
+                (click)="onSegmentClick($event, phrase, seg)"
               >
                 {{ seg.text }}
               </span>
@@ -257,6 +304,8 @@
     [alignment]="selectedAlignment"
     [selectedDimension]="selectedDimension"
     [selectedPhraseVersion]="selectedPhraseVersion"
+    [selectedConcept]="selectedConcept"
+    [selectedConceptId]="selectedConceptId"
     [validationOptions]="validationOptions"
     (closePanel)="closePanel()"
     (validationChanged)="onValidationChanged()"

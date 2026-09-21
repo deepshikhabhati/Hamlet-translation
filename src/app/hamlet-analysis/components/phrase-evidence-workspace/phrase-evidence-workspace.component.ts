@@ -12,6 +12,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   AlignedPhraseGroup,
+  EvidenceConcept,
   EvidenceFocusContext,
   HamletDataService,
   PHRASE_DIMENSION_KEYS,
@@ -60,7 +61,11 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   hoveredAlignmentId: string | null = null;
   selectedAlignmentId: string | null = null;
   selectedPhraseVersion: string | null = null;
-  selectedDimension = 'semantic';
+  selectedEvidenceDimension = 'semantic';
+  hoveredConceptId: string | null = null;
+  selectedConceptId: string | null = null;
+  selectedConcept: EvidenceConcept | null = null;
+
   showPhraseScores = false;
   panelOpen = false;
   selectedAlignment: AlignedPhraseGroup | null = null;
@@ -81,6 +86,13 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
 
   phraseTranslationView: Record<string, 'german' | 'english_translation'> = {};
 
+  get selectedDimension(): string {
+    return this.selectedEvidenceDimension;
+  }
+  set selectedDimension(val: string) {
+    this.selectedEvidenceDimension = val;
+  }
+
   constructor(private dataService: HamletDataService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -88,7 +100,7 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
       this.resolvePassage();
     }
     if (changes['externalDimension'] && this.externalDimension) {
-      this.selectedDimension = this.externalDimension;
+      this.selectedEvidenceDimension = this.externalDimension;
     }
     if (changes['focusContext'] && this.focusContext) {
       this.handleFocusContextChange(this.focusContext);
@@ -100,11 +112,15 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     this.selectedAlignmentId = null;
     this.selectedAlignment = null;
     this.hoveredAlignmentId = null;
+    this.hoveredConceptId = null;
+    this.selectedConceptId = null;
+    this.selectedConcept = null;
     this.focusContext = null;
     this.pulsingAlignmentIds.clear();
     if (this.pulseTimer) {
       clearTimeout(this.pulseTimer);
     }
+    this.selectedEvidenceDimension = 'semantic';
 
     if (!this.comparisonPassageId) {
       this.evidencePassage = null;
@@ -165,8 +181,66 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   }
 
   onDimensionChange(dim: string): void {
-    this.selectedDimension = dim;
+    this.selectedEvidenceDimension = dim;
+    this.hoveredConceptId = null;
+    this.selectedConceptId = null;
+    this.selectedConcept = null;
     this.dimensionActivated.emit(dim);
+  }
+
+  hoverConcept(conceptId: string): void {
+    this.hoveredConceptId = conceptId;
+  }
+
+  clearHoveredConcept(): void {
+    this.hoveredConceptId = null;
+  }
+
+  selectConcept(alignment: any, dimensionEvidence: any, concept: any): void {
+    this.selectedConceptId = concept?.concept_id || null;
+    this.selectedConcept = concept || null;
+    this.selectedAlignmentId = alignment?.alignment_id || null;
+    this.selectedAlignment = alignment;
+    this.panelOpen = true;
+  }
+
+  isConceptHighlighted(conceptId: string): boolean {
+    if (!conceptId) return false;
+    return (
+      conceptId === this.hoveredConceptId ||
+      conceptId === this.selectedConceptId
+    );
+  }
+
+  isEvidenceDimmed(conceptId: string): boolean {
+    const active = this.hoveredConceptId || this.selectedConceptId;
+    if (!active) return false;
+    return conceptId !== active;
+  }
+
+  getActiveDimensionEvidence(alignment: any): any {
+    return this.dataService.getActiveDimensionEvidence(alignment, this.selectedEvidenceDimension);
+  }
+
+  getConcepts(phrase: AlignedPhraseGroup): EvidenceConcept[] {
+    return this.dataService.getConceptsForDimension(phrase, this.selectedEvidenceDimension);
+  }
+
+  onSegmentClick(event: Event, phrase: AlignedPhraseGroup, seg: TextSegment): void {
+    event.stopPropagation();
+    if (!seg.highlighted || !seg.concept_id) return;
+    const concepts = this.getConcepts(phrase);
+    const concept = concepts.find((c) => c.concept_id === seg.concept_id) || {
+      concept_id: seg.concept_id,
+      label: seg.concept_label || seg.text,
+      dimension: this.selectedEvidenceDimension,
+    };
+    this.selectConcept(phrase, this.getActiveDimensionEvidence(phrase), concept);
+  }
+
+  onConceptBadgeClick(event: Event, phrase: AlignedPhraseGroup, concept: EvidenceConcept): void {
+    event.stopPropagation();
+    this.selectConcept(phrase, this.getActiveDimensionEvidence(phrase), concept);
   }
 
   getSegments(phrase: AlignedPhraseGroup, version: string): TextSegment[] {
@@ -174,7 +248,7 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     return this.dataService.getRelevantSpans(
       phrase,
       version,
-      this.selectedDimension,
+      this.selectedEvidenceDimension,
       isTransActive
     );
   }
@@ -183,7 +257,7 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     if (version === 'english') {
       return '';
     }
-    return phrase.dimensions[this.selectedDimension]?.classifications[version] || 'N/A';
+    return phrase.dimensions[this.selectedEvidenceDimension]?.classifications[version] || 'N/A';
   }
 
   getClassificationMeta(phrase: AlignedPhraseGroup, version: string): { className: string; icon: string; label: string; color: string } {
@@ -243,6 +317,9 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     this.selectedAlignment = phrase;
     this.selectedAlignmentId = phrase.alignment_id;
     this.selectedPhraseVersion = version;
+    const concepts = this.getConcepts(phrase);
+    this.selectedConcept = concepts[0] || null;
+    this.selectedConceptId = this.selectedConcept?.concept_id || null;
     this.panelOpen = true;
   }
 
@@ -273,6 +350,8 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
 
   closePanel(): void {
     this.panelOpen = false;
+    this.selectedConceptId = null;
+    this.selectedConcept = null;
   }
 
   onValidationChanged(): void {

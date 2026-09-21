@@ -37,6 +37,33 @@
       </div>
     </div>
 
+    <!-- Selected Evidence Concept Banner -->
+    <div class="inspector-section inspector-section--concept" *ngIf="selectedConcept">
+      <div class="concept-meta">
+        <span class="concept-meta__label"><i class="fas fa-project-diagram"></i> Selected Concept</span>
+        <h4 class="concept-meta__name">{{ selectedConcept.label }}</h4>
+        <span class="concept-meta__id"><code>{{ selectedConcept.concept_id }}</code></span>
+      </div>
+      <div class="concept-linked-phrases" *ngIf="selectedConcept.phrases">
+        <div class="concept-phrase-row" *ngIf="selectedConcept.phrases['english']?.length">
+          <span class="phrase-row__ver">English:</span>
+          <span class="phrase-row__text">“{{ selectedConcept.phrases['english'].join(', ') }}”</span>
+        </div>
+        <div class="concept-phrase-row" *ngIf="selectedConcept.phrases['human_german']?.length">
+          <span class="phrase-row__ver">Human DE:</span>
+          <span class="phrase-row__text">“{{ selectedConcept.phrases['human_german'].join(', ') }}”</span>
+        </div>
+        <div class="concept-phrase-row" *ngIf="selectedConcept.phrases['ai_german']?.length">
+          <span class="phrase-row__ver">AI DE:</span>
+          <span class="phrase-row__text">“{{ selectedConcept.phrases['ai_german'].join(', ') }}”</span>
+        </div>
+        <div class="concept-phrase-row" *ngIf="selectedConcept.phrases['context_ai_german']?.length">
+          <span class="phrase-row__ver">Context AI:</span>
+          <span class="phrase-row__text">“{{ selectedConcept.phrases['context_ai_german'].join(', ') }}”</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 4 Versions Texts -->
     <div class="inspector-section">
       <h4 class="section-title"><i class="fas fa-align-left"></i> Textual Alignment (All 4 Versions)</h4>

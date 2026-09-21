@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import {
   AlignedPhraseGroup,
   DimensionEvidenceRecord,
+  EvidenceConcept,
   HamletDataService,
   PHRASE_DIMENSION_LABELS,
   STATUS_META,
@@ -32,6 +33,8 @@ export class PhraseEvidencePanelComponent implements OnChanges {
   @Input() alignment: AlignedPhraseGroup | any = null;
   @Input() selectedDimension = 'semantic';
   @Input() selectedPhraseVersion: string | null = null;
+  @Input() selectedConcept: EvidenceConcept | null = null;
+  @Input() selectedConceptId: string | null = null;
   @Input() validationOptions: string[] = [];
 
   @Output() closePanel = new EventEmitter<void>();
