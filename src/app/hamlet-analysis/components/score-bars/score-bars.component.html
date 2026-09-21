@@ -1,11 +1,27 @@
 <div class="score-bars card">
-  <h3 class="score-bars__heading">
-    <i class="fas fa-sliders-h"></i> Dimension Scores
-  </h3>
-  <div class="score-bars__list">
-    <div class="score-bar" *ngFor="let dim of dimensions" [title]="dim.tooltip">
+  <div class="score-bars__top">
+    <h3 class="score-bars__heading">
+      <i class="fas fa-sliders-h"></i> Dimension Scores
+    </h3>
+    <span class="score-bars__hint">Click a dimension to inspect phrase evidence</span>
+  </div>
+  <div class="score-bars__list" role="list">
+    <div
+      class="score-bar"
+      *ngFor="let dim of dimensions"
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="dim.label + ': ' + (dim.applicable ? dim.score : 'N/A') + '. Click to view phrase-level evidence.'"
+      [title]="dim.tooltip + ' — Click to view phrase evidence'"
+      (click)="onDimensionClick(dim.key)"
+      (keydown.enter)="onDimensionClick(dim.key)"
+      (keydown.space)="onDimensionClick(dim.key); $event.preventDefault()"
+    >
       <div class="score-bar__header">
-        <span class="score-bar__label">{{ dim.label }}</span>
+        <span class="score-bar__label">
+          {{ dim.label }}
+          <i class="fas fa-chevron-right score-bar__arrow" aria-hidden="true"></i>
+        </span>
         <span
           class="score-bar__value"
           [class.score-bar__value--na]="!dim.applicable"

@@ -7,9 +7,14 @@
   <section [class]="sectionClass('semantic_preservation')">
     <div class="dim-section__header">
       <h4><i class="fas fa-brain"></i> Semantic Preservation</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('semantic_preservation')">
-        {{ formatScore('semantic_preservation') }}
-      </span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('semantic')" title="Inspect phrase evidence for Semantic">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('semantic_preservation')">
+          {{ formatScore('semantic_preservation') }}
+        </span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.semantic_preservation?.explanation }}</p>
     <div class="dim-section__columns">
@@ -41,7 +46,12 @@
   <section [class]="sectionClass('emotion')">
     <div class="dim-section__header">
       <h4><i class="fas fa-heart"></i> Emotion</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('emotion')">{{ formatScore('emotion') }}</span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('emotion')" title="Inspect phrase evidence for Emotion">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('emotion')">{{ formatScore('emotion') }}</span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.emotion?.explanation }}</p>
     <div class="dim-chips-row">
@@ -65,9 +75,14 @@
   <section [class]="sectionClass('metaphor_imagery')">
     <div class="dim-section__header">
       <h4><i class="fas fa-feather-alt"></i> Metaphor & Imagery</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('metaphor_imagery')">
-        {{ comparison.metaphor_imagery?.applicable === false ? 'N/A' : formatScore('metaphor_imagery') }}
-      </span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('metaphor')" title="Inspect phrase evidence for Metaphor">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('metaphor_imagery')">
+          {{ comparison.metaphor_imagery?.applicable === false ? 'N/A' : formatScore('metaphor_imagery') }}
+        </span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.metaphor_imagery?.explanation }}</p>
     <div class="dim-section__columns" *ngIf="comparison.metaphor_imagery?.applicable !== false">
@@ -94,7 +109,12 @@
   <section [class]="sectionClass('tone')">
     <div class="dim-section__header">
       <h4><i class="fas fa-volume-up"></i> Tone</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('tone')">{{ formatScore('tone') }}</span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('tone')" title="Inspect phrase evidence for Tone">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('tone')">{{ formatScore('tone') }}</span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.tone?.explanation }}</p>
     <div class="dim-chips-row">
@@ -113,7 +133,12 @@
   <section [class]="sectionClass('character_voice')">
     <div class="dim-section__header">
       <h4><i class="fas fa-user"></i> Character Voice</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('character_voice')">{{ formatScore('character_voice') }}</span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('character_voice')" title="Inspect phrase evidence for Character Voice">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('character_voice')">{{ formatScore('character_voice') }}</span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.character_voice?.explanation }}</p>
     <div class="dim-meta-row">
@@ -129,10 +154,15 @@
   <section [class]="sectionClass('wordplay')">
     <div class="dim-section__header">
       <h4><i class="fas fa-puzzle-piece"></i> Wordplay</h4>
-      <span class="dim-section__score" *ngIf="isWordplayApplicable()" [style.color]="scoreColor('wordplay')">
-        {{ formatScore('wordplay') }}
-      </span>
-      <span class="dim-section__score dim-section__score--na" *ngIf="!isWordplayApplicable()">N/A</span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('wordplay')" title="Inspect phrase evidence for Wordplay">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" *ngIf="isWordplayApplicable()" [style.color]="scoreColor('wordplay')">
+          {{ formatScore('wordplay') }}
+        </span>
+        <span class="dim-section__score dim-section__score--na" *ngIf="!isWordplayApplicable()">N/A</span>
+      </div>
     </div>
     <div *ngIf="!isWordplayApplicable()" class="dim-na-collapse">
       <p>{{ comparison.wordplay?.explanation }}</p>
@@ -161,9 +191,14 @@
   <section [class]="sectionClass('cultural_archaic_language')">
     <div class="dim-section__header">
       <h4><i class="fas fa-landmark"></i> Cultural & Archaic Language</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('cultural_archaic_language')">
-        {{ formatScore('cultural_archaic_language') }}
-      </span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('cultural_archaic')" title="Inspect phrase evidence for Cultural / Archaic">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('cultural_archaic_language')">
+          {{ formatScore('cultural_archaic_language') }}
+        </span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.cultural_archaic_language?.explanation }}</p>
     <div class="dim-badges-row">
@@ -190,9 +225,14 @@
   <section [class]="sectionClass('omissions_additions')">
     <div class="dim-section__header">
       <h4><i class="fas fa-cut"></i> Omissions & Additions</h4>
-      <span class="dim-section__score" [style.color]="scoreColor('omissions_additions')">
-        {{ formatScore('omissions_additions') }}
-      </span>
+      <div class="dim-section__actions">
+        <button type="button" class="dim-inspect-btn" (click)="onDimensionClick('omissions_additions')" title="Inspect phrase evidence for Omissions / Additions">
+          Inspect Evidence <i class="fas fa-arrow-down" aria-hidden="true"></i>
+        </button>
+        <span class="dim-section__score" [style.color]="scoreColor('omissions_additions')">
+          {{ formatScore('omissions_additions') }}
+        </span>
+      </div>
     </div>
     <p class="dim-section__explanation">{{ comparison.omissions_additions?.explanation }}</p>
     <div class="dim-section__columns dim-section__columns--omissions">

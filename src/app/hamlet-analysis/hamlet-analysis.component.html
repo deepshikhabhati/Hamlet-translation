@@ -117,63 +117,104 @@
           (targetChange)="onTargetChange($event)"
         ></app-ha-version-cards>
 
-        <app-ha-phrase-evidence-workspace
-          [comparisonPassageId]="selectedPassage.passage_id"
-          [phraseData]="phraseData"
-          [evidenceLoadError]="evidenceLoadError"
-          [externalDimension]="heatmapDimension"
-          [englishPdfPath]="englishPdfPath"
-          [germanPdfPath]="germanPdfPath"
-        ></app-ha-phrase-evidence-workspace>
+        <!-- Hierarchy Level 1: Overall Score Matrix -->
+        <section class="ha-hierarchy-block" aria-labelledby="ha-level1-heading">
+          <div class="ha-hierarchy-block__header">
+            <div class="ha-hierarchy-block__badge">Level 1: Overall Matrix</div>
+            <h3 id="ha-level1-heading" class="ha-hierarchy-block__title">
+              Which versions are more or less similar?
+            </h3>
+            <p class="ha-hierarchy-block__hint">
+              Directional 4×3 preservation matrix. Click any cell to choose source and target versions for pairwise comparison.
+            </p>
+          </div>
+          <div class="ha-bottom-grid">
+            <app-ha-comparison-matrix
+              [matrix]="selectedPassage.overall_score_matrix"
+              [selectedSource]="selectedSource"
+              [selectedTarget]="selectedTarget"
+              (selectComparison)="onComparisonSelect($event)"
+            ></app-ha-comparison-matrix>
 
-        <div class="ha-comparison-row">
-          <app-ha-comparison-selector
-            [selectedSource]="selectedSource"
-            [selectedTarget]="selectedTarget"
-            (sourceChange)="onSourceChange($event)"
-            (targetChange)="onTargetChange($event)"
-          ></app-ha-comparison-selector>
-        </div>
+            <app-ha-translation-ranking
+              [ranking]="selectedPassage.translation_ranking_against_english"
+            ></app-ha-translation-ranking>
+          </div>
+        </section>
 
-        <div class="ha-scores-grid" *ngIf="selectedComparison">
-          <app-ha-overall-score
-            [score]="selectedComparison.overall_preservation_score"
-          ></app-ha-overall-score>
+        <!-- Hierarchy Level 2: Directional Pairwise Comparison -->
+        <section class="ha-hierarchy-block" aria-labelledby="ha-level2-heading">
+          <div class="ha-hierarchy-block__header">
+            <div class="ha-hierarchy-block__badge">Level 2: Pairwise Comparison</div>
+            <h3 id="ha-level2-heading" class="ha-hierarchy-block__title">
+              How much do two selected versions differ?
+            </h3>
+            <p class="ha-hierarchy-block__hint">
+              Directional evaluation across literary dimensions. Click any dimension score bar or detail card to inspect exact textual evidence below.
+            </p>
+          </div>
 
-          <app-ha-score-bars
+          <div class="ha-comparison-row">
+            <app-ha-comparison-selector
+              [selectedSource]="selectedSource"
+              [selectedTarget]="selectedTarget"
+              (sourceChange)="onSourceChange($event)"
+              (targetChange)="onTargetChange($event)"
+            ></app-ha-comparison-selector>
+          </div>
+
+          <div class="ha-scores-grid" *ngIf="selectedComparison">
+            <app-ha-overall-score
+              [score]="selectedComparison.overall_preservation_score"
+            ></app-ha-overall-score>
+
+            <app-ha-score-bars
+              [comparison]="selectedComparison"
+              (dimensionClick)="onPairwiseDimensionClick($event)"
+            ></app-ha-score-bars>
+
+            <app-ha-radar-chart
+              [comparison]="selectedComparison"
+            ></app-ha-radar-chart>
+          </div>
+
+          <app-ha-comparison-diff
+            *ngIf="selectedComparison"
             [comparison]="selectedComparison"
-          ></app-ha-score-bars>
+            [selectedCategory]="selectedDiffCategory"
+            (categoryChange)="onDiffCategoryChange($event)"
+          ></app-ha-comparison-diff>
 
-          <app-ha-radar-chart
+          <app-ha-dimension-details
+            *ngIf="selectedComparison"
             [comparison]="selectedComparison"
-          ></app-ha-radar-chart>
-        </div>
+            [highlightCategory]="selectedDiffCategory"
+            (dimensionClick)="onPairwiseDimensionClick($event)"
+          ></app-ha-dimension-details>
+        </section>
 
-        <app-ha-comparison-diff
-          *ngIf="selectedComparison"
-          [comparison]="selectedComparison"
-          [selectedCategory]="selectedDiffCategory"
-          (categoryChange)="onDiffCategoryChange($event)"
-        ></app-ha-comparison-diff>
+        <!-- Hierarchy Level 3: Phrase-Level Textual Evidence -->
+        <section class="ha-hierarchy-block" aria-labelledby="ha-level3-heading">
+          <div class="ha-hierarchy-block__header">
+            <div class="ha-hierarchy-block__badge">Level 3: Phrase-Level Evidence</div>
+            <h3 id="ha-level3-heading" class="ha-hierarchy-block__title">
+              Where and why does the difference occur?
+            </h3>
+            <p class="ha-hierarchy-block__hint">
+              Analytical reading tool displaying all 4 versions side-by-side with dimension-specific textual evidence.
+            </p>
+          </div>
 
-        <app-ha-dimension-details
-          *ngIf="selectedComparison"
-          [comparison]="selectedComparison"
-          [highlightCategory]="selectedDiffCategory"
-        ></app-ha-dimension-details>
-
-        <div class="ha-bottom-grid">
-          <app-ha-comparison-matrix
-            [matrix]="selectedPassage.overall_score_matrix"
-            [selectedSource]="selectedSource"
-            [selectedTarget]="selectedTarget"
-            (selectComparison)="onComparisonSelect($event)"
-          ></app-ha-comparison-matrix>
-
-          <app-ha-translation-ranking
-            [ranking]="selectedPassage.translation_ranking_against_english"
-          ></app-ha-translation-ranking>
-        </div>
+          <app-ha-phrase-evidence-workspace
+            [comparisonPassageId]="selectedPassage.passage_id"
+            [phraseData]="phraseData"
+            [evidenceLoadError]="evidenceLoadError"
+            [externalDimension]="heatmapDimension"
+            [focusContext]="evidenceFocusContext"
+            [englishPdfPath]="englishPdfPath"
+            [germanPdfPath]="germanPdfPath"
+          ></app-ha-phrase-evidence-workspace>
+        </section>
       </main>
     </ng-container>
 

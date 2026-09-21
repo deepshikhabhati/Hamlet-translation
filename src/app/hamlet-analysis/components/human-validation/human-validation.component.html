@@ -1,7 +1,7 @@
 <section class="validation card-inner" aria-label="Human expert validation">
   <h4><i class="fas fa-user-check"></i> Expert Validation</h4>
   <p class="validation__hint">
-    Phrase-and-dimension review. Original analysis scores are never overwritten.
+    Phrase-and-dimension review. Original computed classifications and scores are preserved.
   </p>
 
   <div class="validation__options" role="radiogroup" aria-label="Validation decision">
@@ -10,6 +10,14 @@
       {{ opt }}
     </label>
   </div>
+
+  <label class="validation__field">
+    Corrected classification
+    <select [(ngModel)]="correctedStatus">
+      <option [ngValue]="null">No correction (keep original: {{ originalStatus || 'N/A' }})</option>
+      <option *ngFor="let opt of classificationOptions" [value]="opt">{{ opt }}</option>
+    </select>
+  </label>
 
   <label class="validation__field">
     Corrected score (0–100)
@@ -24,12 +32,12 @@
 
   <label class="validation__field">
     Comment
-    <textarea rows="3" [(ngModel)]="comment" placeholder="Notes for this phrase evidence…"></textarea>
+    <textarea rows="3" [(ngModel)]="comment" placeholder="Expert notes for this textual alignment…"></textarea>
   </label>
 
   <label class="validation__field">
     Reviewer name
-    <input type="text" [(ngModel)]="reviewer" placeholder="Your name" />
+    <input type="text" [(ngModel)]="reviewer" placeholder="Your name / affiliation" />
   </label>
 
   <div class="validation__actions">

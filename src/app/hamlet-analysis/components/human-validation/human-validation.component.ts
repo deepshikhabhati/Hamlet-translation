@@ -26,16 +26,27 @@ export class HumanValidationComponent implements OnChanges {
   @Input() targetVersion = '';
   @Input() dimension = '';
   @Input() originalScore: number | null = null;
+  @Input() originalStatus = '';
   @Input() options: string[] = ['Agree', 'Partially Agree', 'Disagree'];
 
   @Output() saved = new EventEmitter<PhraseValidationRecord>();
   @Output() cleared = new EventEmitter<void>();
 
   decision: PhraseValidationRecord['decision'] = null;
+  correctedStatus: string | null = null;
   correctedScore: number | null = null;
   comment = '';
   reviewer = '';
   message = '';
+
+  readonly classificationOptions = [
+    'Preserved',
+    'Changed',
+    'Lost',
+    'Added',
+    'N/A',
+    'Needs Review',
+  ];
 
   constructor(private dataService: HamletDataService) {}
 
@@ -60,14 +71,15 @@ export class HumanValidationComponent implements OnChanges {
     );
     if (existing) {
       this.decision = existing.decision;
+      this.correctedStatus = existing.corrected_status || null;
       this.correctedScore = existing.corrected_score;
       this.comment = existing.comment || '';
       this.reviewer = existing.reviewer || '';
     } else {
       this.decision = null;
+      this.correctedStatus = null;
       this.correctedScore = null;
       this.comment = '';
-      // keep reviewer name across phrases for convenience
     }
   }
 
@@ -81,6 +93,8 @@ export class HumanValidationComponent implements OnChanges {
       target_version: this.targetVersion,
       dimension: this.dimension,
       decision: this.decision,
+      original_status: this.originalStatus,
+      corrected_status: this.correctedStatus,
       original_score: this.originalScore,
       corrected_score:
         this.correctedScore === null || this.correctedScore === ('' as any)
@@ -103,6 +117,7 @@ export class HumanValidationComponent implements OnChanges {
       this.dimension
     );
     this.decision = null;
+    this.correctedStatus = null;
     this.correctedScore = null;
     this.comment = '';
     this.message = 'Validation cleared.';

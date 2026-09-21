@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HamletDataService } from '../../services/hamlet-data.service';
 
@@ -12,8 +12,13 @@ import { HamletDataService } from '../../services/hamlet-data.service';
 export class DimensionDetailsComponent {
   @Input() comparison: any = null;
   @Input() highlightCategory: string | null = null;
+  @Output() dimensionClick = new EventEmitter<string>();
 
   constructor(private dataService: HamletDataService) {}
+
+  onDimensionClick(key: string): void {
+    this.dimensionClick.emit(key);
+  }
 
   sectionClass(key: string): string {
     const base = 'dim-section';

@@ -11,16 +11,19 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
+  AlignedPhraseGroup,
+  EvidenceFocusContext,
   HamletDataService,
   PHRASE_DIMENSION_KEYS,
   PHRASE_DIMENSION_LABELS,
+  STATUS_META,
   TARGET_VERSIONS,
+  TextSegment,
   VERSIONS,
   versionLabels,
 } from '../../services/hamlet-data.service';
 import { DimensionToolbarComponent } from '../dimension-toolbar/dimension-toolbar.component';
 import { PhraseStatusLegendComponent } from '../phrase-status-legend/phrase-status-legend.component';
-import { AlignedPhraseColumnComponent } from '../aligned-phrase-column/aligned-phrase-column.component';
 import { PhraseEvidencePanelComponent } from '../phrase-evidence-panel/phrase-evidence-panel.component';
 import { BookContextDialogComponent } from '../book-context-dialog/book-context-dialog.component';
 
@@ -32,7 +35,6 @@ import { BookContextDialogComponent } from '../book-context-dialog/book-context-
     FormsModule,
     DimensionToolbarComponent,
     PhraseStatusLegendComponent,
-    AlignedPhraseColumnComponent,
     PhraseEvidencePanelComponent,
     BookContextDialogComponent,
   ],
@@ -44,6 +46,7 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   @Input() phraseData: any = null;
   @Input() evidenceLoadError: string | null = null;
   @Input() externalDimension: string | null = null;
+  @Input() focusContext: EvidenceFocusContext | null = null;
   @Input() englishPdfPath = 'assets/Hamlet.pdf';
   @Input() germanPdfPath = 'assets/GermanHamlet.pdf';
 
@@ -52,34 +55,31 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   @ViewChild('workspaceAnchor') workspaceAnchor?: ElementRef<HTMLElement>;
 
   evidencePassage: any = null;
-  alignments: any[] = [];
-  dimensionSummary: Record<string, number | null> | null = null;
+  alignedPhrases: AlignedPhraseGroup[] = [];
 
   hoveredAlignmentId: string | null = null;
   selectedAlignmentId: string | null = null;
   selectedPhraseVersion: string | null = null;
   selectedDimension = 'semantic';
-  showPhraseScores = true;
+  showPhraseScores = false;
   panelOpen = false;
-  selectedAlignment: any = null;
+  selectedAlignment: AlignedPhraseGroup | null = null;
 
   bookDialogOpen = false;
   bookDialogLang: 'english' | 'german' = 'english';
 
-  mobileVersion: string = 'english';
   validatedIds = new Set<string>();
+  pulsingAlignmentIds = new Set<string>();
+  private pulseTimer?: any;
 
-  readonly columnVersions = [...VERSIONS];
+  readonly versions = VERSIONS;
   readonly targetVersions = TARGET_VERSIONS;
   readonly labels = versionLabels;
   readonly dimLabels = PHRASE_DIMENSION_LABELS;
   readonly dimKeys = PHRASE_DIMENSION_KEYS;
+  readonly statusMeta = STATUS_META;
 
   phraseTranslationView: Record<string, 'german' | 'english_translation'> = {};
-  translationView: Record<string, 'german' | 'english_translation'> = {
-    ai_german: 'german',
-    context_ai_german: 'german',
-  };
 
   constructor(private dataService: HamletDataService) {}
 
@@ -90,6 +90,9 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     if (changes['externalDimension'] && this.externalDimension) {
       this.selectedDimension = this.externalDimension;
     }
+    if (changes['focusContext'] && this.focusContext) {
+      this.handleFocusContextChange(this.focusContext);
+    }
   }
 
   resolvePassage(): void {
@@ -97,81 +100,68 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     this.selectedAlignmentId = null;
     this.selectedAlignment = null;
     this.hoveredAlignmentId = null;
+    this.focusContext = null;
+    this.pulsingAlignmentIds.clear();
+    if (this.pulseTimer) {
+      clearTimeout(this.pulseTimer);
+    }
 
-    if (!this.comparisonPassageId || !this.phraseData?.passages) {
+    if (!this.comparisonPassageId) {
       this.evidencePassage = null;
-      this.alignments = [];
-      this.dimensionSummary = null;
+      this.alignedPhrases = [];
       return;
     }
 
-    this.evidencePassage =
-      this.phraseData.passages.find(
-        (p: any) => p.passage_id === this.comparisonPassageId
-      ) ?? null;
-
-    this.alignments = this.evidencePassage?.phrase_alignments ?? [];
-    this.dimensionSummary = this.evidencePassage?.dimension_summary ?? null;
+    this.evidencePassage = this.dataService.getEvidencePassage(this.comparisonPassageId);
+    this.alignedPhrases = this.dataService.getAlignedPhrases(this.comparisonPassageId);
     this.resetTranslationViews();
     this.refreshValidatedIds();
   }
 
   resetTranslationViews(): void {
-    this.translationView = {
-      ai_german: 'german',
-      context_ai_german: 'german',
-    };
     this.phraseTranslationView = {};
   }
 
   refreshValidatedIds(): void {
     const ids = new Set<string>();
-    if (!this.evidencePassage) {
+    if (!this.comparisonPassageId) {
       this.validatedIds = ids;
       return;
     }
     const all = this.dataService.loadAllValidations();
     Object.values(all).forEach((v) => {
-      if (v.passage_id === this.evidencePassage.passage_id && v.decision) {
+      if (v.passage_id === this.comparisonPassageId && v.decision) {
         ids.add(v.alignment_id);
       }
     });
     this.validatedIds = ids;
   }
 
-  highlightAlignment(alignmentId: string): void {
-    this.hoveredAlignmentId = alignmentId;
-  }
-
-  clearHoveredAlignment(): void {
-    this.hoveredAlignmentId = null;
-  }
-
-  onPhraseHover(alignmentId: string | null): void {
-    if (alignmentId) {
-      this.highlightAlignment(alignmentId);
-    } else {
-      this.clearHoveredAlignment();
+  focusDimension(dimension: string, context?: EvidenceFocusContext): void {
+    this.selectedDimension = dimension;
+    this.focusContext = context ?? null;
+    if (context) {
+      this.handleFocusContextChange(context);
     }
+    this.dimensionActivated.emit(dimension);
+    this.scrollIntoView();
   }
 
-  selectPhrase(event: { alignment: any; version: string }): void {
-    this.selectedAlignment = event.alignment;
-    this.selectedAlignmentId = event.alignment.alignment_id;
-    this.selectedPhraseVersion = event.version;
-    this.panelOpen = true;
-  }
-
-  isPhraseHighlighted(alignmentId: string): boolean {
-    return (
-      alignmentId === this.hoveredAlignmentId ||
-      alignmentId === this.selectedAlignmentId
+  private handleFocusContextChange(context: EvidenceFocusContext): void {
+    if (!this.comparisonPassageId) return;
+    const contributorIds = this.dataService.getPairwiseEvidenceContributors(
+      this.comparisonPassageId,
+      context.sourceVersion,
+      context.targetVersion,
+      context.dimension
     );
-  }
-
-  isPhraseDimmed(alignmentId: string): boolean {
-    const active = this.hoveredAlignmentId || this.selectedAlignmentId;
-    return !!active && alignmentId !== active;
+    this.pulsingAlignmentIds = new Set(contributorIds);
+    if (this.pulseTimer) {
+      clearTimeout(this.pulseTimer);
+    }
+    this.pulseTimer = setTimeout(() => {
+      this.pulsingAlignmentIds.clear();
+    }, 3200);
   }
 
   onDimensionChange(dim: string): void {
@@ -179,24 +169,97 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     this.dimensionActivated.emit(dim);
   }
 
-  onShowScoresChange(show: boolean): void {
-    this.showPhraseScores = show;
+  getSegments(phrase: AlignedPhraseGroup, version: string): TextSegment[] {
+    const isTransActive = this.isTranslationActive(phrase, version);
+    return this.dataService.getRelevantSpans(
+      phrase,
+      version,
+      this.selectedDimension,
+      isTransActive
+    );
   }
 
-  onSummaryClick(dim: string): void {
-    this.onDimensionChange(dim);
-  }
-
-  formatSummary(key: string): string {
-    return this.dataService.formatScore(this.dimensionSummary?.[key] ?? null);
-  }
-
-  summaryBarWidth(key: string): number {
-    const v = this.dimensionSummary?.[key];
-    if (v == null || Number.isNaN(Number(v))) {
-      return 0;
+  getClassification(phrase: AlignedPhraseGroup, version: string): string {
+    if (version === 'english') {
+      return '';
     }
-    return Math.max(0, Math.min(100, Number(v)));
+    return phrase.dimensions[this.selectedDimension]?.classifications[version] || 'N/A';
+  }
+
+  getClassificationMeta(phrase: AlignedPhraseGroup, version: string): { className: string; icon: string; label: string; color: string } {
+    const status = this.getClassification(phrase, version);
+    return this.statusMeta[status] || this.statusMeta['N/A'];
+  }
+
+  hasTranslation(phrase: AlignedPhraseGroup, version: string): boolean {
+    if (version !== 'ai_german' && version !== 'context_ai_german') {
+      return false;
+    }
+    const raw = phrase.raw_targets?.[version];
+    return (
+      raw?.translation_available === true &&
+      typeof raw?.english_translation === 'string' &&
+      raw.english_translation.trim().length > 0
+    );
+  }
+
+  isTranslationActive(phrase: AlignedPhraseGroup, version: string): boolean {
+    const key = `${phrase.alignment_id}::${version}`;
+    return this.phraseTranslationView[key] === 'english_translation';
+  }
+
+  toggleTranslation(phrase: AlignedPhraseGroup, version: string, event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+    if (!this.hasTranslation(phrase, version)) return;
+    const key = `${phrase.alignment_id}::${version}`;
+    this.phraseTranslationView = {
+      ...this.phraseTranslationView,
+      [key]: this.isTranslationActive(phrase, version) ? 'german' : 'english_translation',
+    };
+  }
+
+  onCardHover(alignmentId: string | null): void {
+    this.hoveredAlignmentId = alignmentId;
+  }
+
+  isCardHighlighted(alignmentId: string): boolean {
+    return (
+      alignmentId === this.hoveredAlignmentId ||
+      alignmentId === this.selectedAlignmentId
+    );
+  }
+
+  isCardDimmed(alignmentId: string): boolean {
+    const active = this.hoveredAlignmentId || this.selectedAlignmentId;
+    return !!active && alignmentId !== active;
+  }
+
+  isCardPulsing(alignmentId: string): boolean {
+    return this.pulsingAlignmentIds.has(alignmentId);
+  }
+
+  onCardSelect(phrase: AlignedPhraseGroup, version: string = 'context_ai_german'): void {
+    this.selectedAlignment = phrase;
+    this.selectedAlignmentId = phrase.alignment_id;
+    this.selectedPhraseVersion = version;
+    this.panelOpen = true;
+  }
+
+  isValidated(alignmentId: string): boolean {
+    return this.validatedIds.has(alignmentId);
+  }
+
+  confidenceBadgeClass(level: string): string {
+    if (level === 'High') return 'meta-tag--high';
+    if (level === 'Medium') return 'meta-tag--med';
+    return 'meta-tag--low';
+  }
+
+  reviewStatusClass(status: string): string {
+    if (status === 'reviewed') return 'meta-tag--reviewed';
+    if (status === 'needs_review') return 'meta-tag--needs-review';
+    return 'meta-tag--auto';
   }
 
   openBook(lang: 'english' | 'german'): void {
@@ -230,9 +293,7 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   importValidations(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const result = this.dataService.importValidationsJson(String(reader.result || ''));
@@ -254,7 +315,6 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     });
   }
 
-  /** Called from parent when heatmap cell is clicked */
   activateFromHeatmap(dimension: string): void {
     this.selectedDimension = dimension;
     this.scrollIntoView();
@@ -262,19 +322,5 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
 
   get validationOptions(): string[] {
     return this.phraseData?.validation_options ?? this.dataService.getValidationOptions();
-  }
-
-  togglePhraseTranslation(phraseId: string, event?: Event): void {
-    event?.stopPropagation();
-    if (!phraseId) {
-      return;
-    }
-    this.phraseTranslationView = {
-      ...this.phraseTranslationView,
-      [phraseId]:
-        this.phraseTranslationView[phraseId] === 'english_translation'
-          ? 'german'
-          : 'english_translation',
-    };
   }
 }

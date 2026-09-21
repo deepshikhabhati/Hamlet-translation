@@ -1,4 +1,7 @@
-<div class="dim-toolbar" role="toolbar" aria-label="Evaluation dimensions">
+<div class="dim-toolbar" role="toolbar" aria-label="Evidence dimensions">
+  <div class="dim-toolbar__title-group">
+    <span class="dim-toolbar__title"><i class="fas fa-filter"></i> Evidence Dimension:</span>
+  </div>
   <div class="dim-toolbar__chips">
     <button
       type="button"
@@ -6,19 +9,20 @@
       class="dim-chip"
       [class.dim-chip--active]="selectedDimension === key"
       [attr.aria-pressed]="selectedDimension === key"
-      [attr.aria-label]="labels[key] + ' dimension, summary ' + formatSummary(key)"
+      [attr.aria-label]="labels[key] + ' dimension'"
       (click)="select(key)"
     >
       <span class="dim-chip__label">{{ labels[key] }}</span>
-      <span class="dim-chip__score">{{ formatSummary(key) }}</span>
     </button>
   </div>
-  <label class="dim-toolbar__toggle">
-    <input
-      type="checkbox"
-      [checked]="showPhraseScores"
-      (change)="toggleScores()"
-    />
-    Show Phrase Scores
-  </label>
+  <div class="dim-toolbar__actions">
+    <label class="dim-toolbar__toggle" title="Show/hide optional phrase technical scores">
+      <input
+        type="checkbox"
+        [checked]="showPhraseScores"
+        (change)="toggleScores()"
+      />
+      <span>Show Technical Scores</span>
+    </label>
+  </div>
 </div>

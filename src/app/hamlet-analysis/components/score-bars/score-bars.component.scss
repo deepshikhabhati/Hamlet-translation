@@ -6,8 +6,15 @@
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
+.score-bars__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+
 .score-bars__heading {
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: 0.8125rem;
   font-weight: 600;
   color: #64748b;
@@ -18,10 +25,38 @@
   gap: 0.5rem;
 }
 
+.score-bars__hint {
+  font-size: 0.6875rem;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
 .score-bars__list {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.score-bar {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  outline: none;
+
+  &:hover {
+    background: #f8fafc;
+    transform: translateX(2px);
+
+    .score-bar__arrow {
+      opacity: 1;
+      transform: translateX(2px);
+    }
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px #3b82f6;
+  }
 }
 
 .score-bar__header {
@@ -35,6 +70,16 @@
   font-size: 0.8125rem;
   font-weight: 500;
   color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.score-bar__arrow {
+  font-size: 0.625rem;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .score-bar__value {

@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   DIMENSION_META,
@@ -14,6 +14,7 @@ import {
 })
 export class ScoreBarsComponent implements OnChanges {
   @Input() comparison: any = null;
+  @Output() dimensionClick = new EventEmitter<string>();
 
   dimensions: {
     key: string;
@@ -51,5 +52,9 @@ export class ScoreBarsComponent implements OnChanges {
         color: this.dataService.getScoreColor(score),
       };
     });
+  }
+
+  onDimensionClick(key: string): void {
+    this.dimensionClick.emit(key);
   }
 }

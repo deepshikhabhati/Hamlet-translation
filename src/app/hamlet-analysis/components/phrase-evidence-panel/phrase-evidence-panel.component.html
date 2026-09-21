@@ -6,109 +6,191 @@
   aria-labelledby="evidence-panel-title"
 >
   <div class="evidence-panel__header">
-    <h3 id="evidence-panel-title"><i class="fas fa-search"></i> Phrase Evidence</h3>
-    <button type="button" class="evidence-panel__close" (click)="closePanel.emit()" aria-label="Close evidence panel">
+    <div class="evidence-panel__title-wrap">
+      <h3 id="evidence-panel-title">
+        <i class="fas fa-search-plus"></i> Evidence Inspector
+      </h3>
+      <span class="evidence-panel__subtitle">
+        {{ alignment.display_number || 'Aligned Phrase' }}
+      </span>
+    </div>
+    <button
+      type="button"
+      class="evidence-panel__close"
+      (click)="closePanel.emit()"
+      aria-label="Close evidence panel"
+    >
       <i class="fas fa-times"></i>
     </button>
   </div>
 
   <div class="evidence-panel__body">
-    <div class="meta-block">
-      <span class="meta-label">Source Version</span>
-      <strong>Original English</strong>
-    </div>
-    <div class="meta-block">
-      <span class="meta-label">Source Phrase</span>
-      <p class="quote">“{{ sourcePhrase }}”</p>
-    </div>
-
-    <div class="meta-block">
-      <span class="meta-label">Target Version</span>
-      <div class="target-switch">
-        <button
-          type="button"
-          *ngFor="let v of targetVersions"
-          class="target-btn"
-          [class.target-btn--active]="targetVersion === v"
-          (click)="setTarget(v)"
-        >
-          {{ labels[v] }}
-        </button>
+    <!-- Active Dimension & Feature -->
+    <div class="inspector-section inspector-section--dim">
+      <div class="dim-meta">
+        <span class="dim-meta__label">Active Evidence Dimension</span>
+        <h4 class="dim-meta__value">{{ dimLabels[selectedDimension] || selectedDimension }}</h4>
+      </div>
+      <div class="feature-meta" *ngIf="dimRecord?.feature_label">
+        <span class="dim-meta__label">Detected Feature</span>
+        <strong class="feature-meta__value">{{ dimRecord?.feature_label }}</strong>
       </div>
     </div>
 
-    <div class="meta-block">
-      <span class="meta-label">Target Phrase</span>
-      <p class="quote">“{{ targetPhrase }}”</p>
+    <!-- 4 Versions Texts -->
+    <div class="inspector-section">
+      <h4 class="section-title"><i class="fas fa-align-left"></i> Textual Alignment (All 4 Versions)</h4>
+      <div class="version-preview-list">
+        <div class="version-preview version-preview--en">
+          <div class="version-preview__head">
+            <span class="version-preview__name">{{ labels['english'] }}</span>
+          </div>
+          <p class="version-preview__text">“{{ englishText }}”</p>
+        </div>
+
+        <div class="version-preview version-preview--human">
+          <div class="version-preview__head">
+            <span class="version-preview__name">{{ labels['human_german'] }}</span>
+            <span
+              class="classification-pill"
+              [style.backgroundColor]="getClassificationStatusMeta('human_german').color + '15'"
+              [style.color]="getClassificationStatusMeta('human_german').color"
+            >
+              <i class="fas" [ngClass]="getClassificationStatusMeta('human_german').icon"></i>
+              {{ getClassification('human_german') }}
+            </span>
+          </div>
+          <p class="version-preview__text">“{{ humanText || 'No corresponding span' }}”</p>
+        </div>
+
+        <div class="version-preview version-preview--ai">
+          <div class="version-preview__head">
+            <span class="version-preview__name">{{ labels['ai_german'] }}</span>
+            <span
+              class="classification-pill"
+              [style.backgroundColor]="getClassificationStatusMeta('ai_german').color + '15'"
+              [style.color]="getClassificationStatusMeta('ai_german').color"
+            >
+              <i class="fas" [ngClass]="getClassificationStatusMeta('ai_german').icon"></i>
+              {{ getClassification('ai_german') }}
+            </span>
+          </div>
+          <p class="version-preview__text">“{{ aiText || 'No corresponding span' }}”</p>
+        </div>
+
+        <div class="version-preview version-preview--context">
+          <div class="version-preview__head">
+            <span class="version-preview__name">{{ labels['context_ai_german'] }}</span>
+            <span
+              class="classification-pill"
+              [style.backgroundColor]="getClassificationStatusMeta('context_ai_german').color + '15'"
+              [style.color]="getClassificationStatusMeta('context_ai_german').color"
+            >
+              <i class="fas" [ngClass]="getClassificationStatusMeta('context_ai_german').icon"></i>
+              {{ getClassification('context_ai_german') }}
+            </span>
+          </div>
+          <p class="version-preview__text">“{{ contextText || 'No corresponding span' }}”</p>
+        </div>
+      </div>
     </div>
 
-    <div class="meta-row">
-      <div class="meta-block">
-        <span class="meta-label">Dimension</span>
-        <strong>{{ dimLabels[selectedDimension] || selectedDimension }}</strong>
+    <!-- Computed Rule Evidence (Explicitly Separated) -->
+    <div class="inspector-section">
+      <h4 class="section-title"><i class="fas fa-cogs"></i> Computed Rule Evidence</h4>
+      <div class="rules-container" *ngIf="dimRecord?.computed_rule_evidence?.length; else noRules">
+        <div class="rule-card" *ngFor="let rule of dimRecord?.computed_rule_evidence">
+          <span class="rule-card__id">{{ rule.rule_id }}</span>
+          <span class="rule-card__desc">{{ rule.description }}</span>
+        </div>
       </div>
-      <div class="meta-block">
-        <span class="meta-label">Score</span>
-        <strong *ngIf="evidence?.applicable !== false && evidence?.score != null">
-          {{ formatScore(evidence.score) }} / 100
-        </strong>
-        <strong *ngIf="evidence?.applicable === false || evidence?.score == null">N/A</strong>
+      <ng-template #noRules>
+        <p class="empty-hint">No rule triggers fired for this alignment.</p>
+      </ng-template>
+    </div>
+
+    <!-- Human-Readable Explanation (Explicitly Separated) -->
+    <div class="inspector-section">
+      <h4 class="section-title"><i class="fas fa-comment-dots"></i> Literary Explanation</h4>
+      <div class="explanation-box" *ngIf="dimRecord?.applicable !== false; else naBox">
+        <p>{{ dimRecord?.explanation }}</p>
+      </div>
+      <ng-template #naBox>
+        <div class="na-box" role="status">
+          <i class="fas fa-ban"></i>
+          <div>
+            <strong>Not Applicable</strong>
+            <p>{{ dimRecord?.explanation || 'No relevant feature cues detected for this literary dimension.' }}</p>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Expandable Technical Details -->
+    <div class="inspector-section">
+      <button
+        type="button"
+        class="tech-toggle-btn"
+        (click)="toggleTechnical()"
+        [attr.aria-expanded]="showTechnicalDetails"
+      >
+        <span>
+          <i class="fas fa-code"></i> Technical Details
+        </span>
+        <i class="fas" [class.fa-chevron-down]="!showTechnicalDetails" [class.fa-chevron-up]="showTechnicalDetails"></i>
+      </button>
+
+      <div class="tech-details-body" *ngIf="showTechnicalDetails">
+        <div class="tech-grid">
+          <div class="tech-item">
+            <span class="tech-item__label">Alignment Confidence</span>
+            <strong class="tech-item__val">{{ alignment.confidence ? (alignment.confidence * 100 | number:'1.0-0') + '%' : 'N/A' }}</strong>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item__label">Review Status</span>
+            <strong class="tech-item__val">{{ alignment.review_status }}</strong>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item__label">Technical Score</span>
+            <strong class="tech-item__val">{{ dimRecord?.technical_score != null ? dimRecord?.technical_score + ' / 100' : 'N/A' }}</strong>
+          </div>
+          <div class="tech-item">
+            <span class="tech-item__label">Target/Source Length Ratio</span>
+            <strong class="tech-item__val">{{ lengthRatio }}</strong>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="meta-block" *ngIf="evidence">
-      <span class="meta-label">Status</span>
-      <span class="status-pill" [ngClass]="statusClass()">
-        <i class="fas" [ngClass]="statusIcon()" aria-hidden="true"></i>
-        {{ evidence.status || 'Not Applicable' }}
-      </span>
+    <!-- Expert Human Validation Section -->
+    <div class="inspector-section inspector-section--validation">
+      <div class="validation-target-selector">
+        <span class="section-title"><i class="fas fa-user-edit"></i> Expert Validation Target</span>
+        <div class="target-btns">
+          <button
+            type="button"
+            *ngFor="let v of targetVersions"
+            class="target-pill"
+            [class.target-pill--active]="targetVersion === v"
+            (click)="setTarget(v)"
+          >
+            {{ labels[v] }}
+          </button>
+        </div>
+      </div>
+
+      <app-ha-human-validation
+        *ngIf="passage && alignment"
+        [passageId]="passage.passage_id"
+        [alignmentId]="alignment.alignment_id"
+        [targetVersion]="targetVersion"
+        [dimension]="selectedDimension"
+        [originalScore]="originalScore"
+        [originalStatus]="targetClassification"
+        [options]="validationOptions"
+        (saved)="onValidationSaved()"
+        (cleared)="onValidationCleared()"
+      ></app-ha-human-validation>
     </div>
-
-    <ng-container *ngIf="evidence?.applicable === false; else applicableBlock">
-      <div class="na-box" role="status">
-        <p><strong>Not applicable for this phrase.</strong></p>
-        <p>No reliable feature cue was detected.</p>
-        <p class="na-explain" *ngIf="evidence?.explanation">{{ evidence.explanation }}</p>
-      </div>
-    </ng-container>
-
-    <ng-template #applicableBlock>
-      <div class="meta-block" *ngIf="evidence?.rules?.length">
-        <span class="meta-label">Rules</span>
-        <ul class="chip-list">
-          <li *ngFor="let rule of evidence.rules">{{ rule }}</li>
-        </ul>
-      </div>
-      <div class="meta-block" *ngIf="evidence">
-        <span class="meta-label">Source Features</span>
-        <ul class="chip-list" *ngIf="evidence.source_features?.length; else noneSrc">
-          <li *ngFor="let f of evidence.source_features">{{ f }}</li>
-        </ul>
-        <ng-template #noneSrc><span class="muted">None listed</span></ng-template>
-      </div>
-      <div class="meta-block" *ngIf="evidence">
-        <span class="meta-label">Target Features</span>
-        <ul class="chip-list" *ngIf="evidence.target_features?.length; else noneTgt">
-          <li *ngFor="let f of evidence.target_features">{{ f }}</li>
-        </ul>
-        <ng-template #noneTgt><span class="muted">None listed</span></ng-template>
-      </div>
-      <div class="meta-block" *ngIf="evidence?.explanation">
-        <span class="meta-label">Explanation</span>
-        <p class="explain">{{ evidence.explanation }}</p>
-      </div>
-    </ng-template>
-
-    <app-ha-human-validation
-      *ngIf="passage && alignment"
-      [passageId]="passage.passage_id"
-      [alignmentId]="alignment.alignment_id"
-      [targetVersion]="targetVersion"
-      [dimension]="selectedDimension"
-      [originalScore]="originalScore"
-      [options]="validationOptions"
-      (saved)="onValidationSaved()"
-      (cleared)="onValidationCleared()"
-    ></app-ha-human-validation>
   </div>
 </aside>

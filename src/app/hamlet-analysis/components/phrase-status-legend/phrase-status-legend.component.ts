@@ -10,5 +10,12 @@ import { STATUS_META } from '../../services/hamlet-data.service';
   styleUrls: ['./phrase-status-legend.component.scss'],
 })
 export class PhraseStatusLegendComponent {
-  readonly items = Object.values(STATUS_META);
+  readonly items = [
+    STATUS_META['Preserved'],
+    STATUS_META['Changed'],
+    STATUS_META['Lost'],
+    STATUS_META['Added'],
+    STATUS_META['N/A'],
+    STATUS_META['Needs Review'],
+  ];
 }

@@ -5,12 +5,12 @@
   aria-labelledby="phrase-evidence-heading"
 >
   <div class="phrase-workspace__header">
-    <div>
+    <div class="phrase-workspace__title-group">
       <h3 id="phrase-evidence-heading">
-        <i class="fas fa-link"></i> Phrase-Level Evidence
+        <i class="fas fa-microscope"></i> Phrase-Level Evidence
       </h3>
       <p class="phrase-workspace__sub">
-        Hover to link aligned phrases · Click to inspect evidence, rules, and expert validation
+        Analytical reading tool · Aligned textual spans responsible for literary dimension results
       </p>
     </div>
     <div class="phrase-workspace__actions">
@@ -30,101 +30,227 @@
     </div>
   </div>
 
+  <!-- Focus context notification banner if navigated from Pairwise score click -->
+  <div class="focus-banner" *ngIf="focusContext">
+    <div class="focus-banner__content">
+      <i class="fas fa-bullseye"></i>
+      <span>
+        Focusing evidence for
+        <strong>{{ labels[focusContext.sourceVersion] }} → {{ labels[focusContext.targetVersion] }}</strong>
+        on <strong>{{ dimLabels[focusContext.dimension] || focusContext.dimension }}</strong>.
+        Highlighting contributing phrase cards below.
+      </span>
+    </div>
+    <button type="button" class="focus-banner__dismiss" (click)="focusContext = null" title="Dismiss focus filter">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
   <div class="phrase-workspace__error" *ngIf="evidenceLoadError" role="alert">
     {{ evidenceLoadError }}
   </div>
 
-  <div class="phrase-workspace__empty" *ngIf="!evidenceLoadError && !evidencePassage">
+  <div class="phrase-workspace__empty" *ngIf="!evidenceLoadError && (!alignedPhrases || alignedPhrases.length === 0)">
     <i class="fas fa-info-circle"></i>
     No phrase-alignment evidence found for this passage.
   </div>
 
-  <ng-container *ngIf="evidencePassage">
-    <div class="dim-summary" aria-label="Passage dimension summary">
-      <button
-        type="button"
-        class="dim-summary__card"
-        *ngFor="let key of dimKeys"
-        [class.dim-summary__card--active]="selectedDimension === key"
-        (click)="onSummaryClick(key)"
-        [attr.aria-label]="dimLabels[key] + ' summary ' + formatSummary(key)"
-      >
-        <span class="dim-summary__label">{{ dimLabels[key] }}</span>
-        <strong class="dim-summary__score">{{ formatSummary(key) }}</strong>
-        <span class="dim-summary__bar" aria-hidden="true">
-          <span [style.width.%]="summaryBarWidth(key)"></span>
-        </span>
-      </button>
-    </div>
-
+  <ng-container *ngIf="alignedPhrases && alignedPhrases.length > 0">
+    <!-- Single active evidence dimension selector -->
     <app-ha-dimension-toolbar
       [selectedDimension]="selectedDimension"
       [showPhraseScores]="showPhraseScores"
-      [dimensionSummary]="dimensionSummary"
       (dimensionChange)="onDimensionChange($event)"
-      (showScoresChange)="onShowScoresChange($event)"
+      (showScoresChange)="showPhraseScores = $event"
     ></app-ha-dimension-toolbar>
 
+    <!-- Classification states legend -->
     <div class="phrase-workspace__legend">
       <app-ha-phrase-status-legend></app-ha-phrase-status-legend>
     </div>
 
-    <!-- Mobile version selector -->
-    <label class="mobile-version">
-      Show version
-      <select [(ngModel)]="mobileVersion" [ngModelOptions]="{standalone: true}">
-        <option *ngFor="let v of columnVersions" [value]="v">{{ labels[v] }}</option>
-      </select>
-    </label>
+    <!-- Dynamic Aligned Phrase Cards -->
+    <div class="phrase-cards-container" role="list" aria-label="Aligned phrase cards">
+      <article
+        *ngFor="let phrase of alignedPhrases"
+        role="listitem"
+        class="aligned-card"
+        [id]="'phrase-card-' + phrase.alignment_id"
+        [class.aligned-card--highlighted]="isCardHighlighted(phrase.alignment_id)"
+        [class.aligned-card--dimmed]="isCardDimmed(phrase.alignment_id)"
+        [class.aligned-card--selected]="phrase.alignment_id === selectedAlignmentId"
+        [class.aligned-card--pulse]="isCardPulsing(phrase.alignment_id)"
+        (mouseenter)="onCardHover(phrase.alignment_id)"
+        (mouseleave)="onCardHover(null)"
+        (click)="onCardSelect(phrase)"
+      >
+        <!-- Card Header -->
+        <header class="aligned-card__header">
+          <div class="aligned-card__identity">
+            <span class="aligned-card__num">{{ phrase.display_number }}</span>
+            <h4 class="aligned-card__label">{{ phrase.label }}</h4>
+          </div>
+          <div class="aligned-card__meta">
+            <span class="meta-tag meta-tag--confidence" [ngClass]="confidenceBadgeClass(phrase.confidence_level)">
+              <i class="fas fa-shield-alt"></i> Confidence: {{ phrase.confidence_level }}
+            </span>
+            <span class="meta-tag meta-tag--review" [ngClass]="reviewStatusClass(phrase.review_status)">
+              <i class="fas" [class.fa-check]="phrase.review_status === 'reviewed'" [class.fa-robot]="phrase.review_status === 'automatic'" [class.fa-exclamation-triangle]="phrase.review_status === 'needs_review'"></i>
+              {{ phrase.review_status === 'needs_review' ? 'Needs Review' : (phrase.review_status === 'reviewed' ? 'Reviewed' : 'Automatic') }}
+            </span>
+            <span class="meta-tag meta-tag--validated" *ngIf="isValidated(phrase.alignment_id)">
+              <i class="fas fa-user-check"></i> Validated
+            </span>
+          </div>
+        </header>
 
-    <div class="phrase-columns phrase-columns--desktop">
-      <app-ha-aligned-phrase-column
-        *ngFor="let v of columnVersions"
-        [versionKey]="v"
-        [alignments]="alignments"
-        [selectedDimension]="selectedDimension"
-        [hoveredAlignmentId]="hoveredAlignmentId"
-        [selectedAlignmentId]="selectedAlignmentId"
-        [showPhraseScores]="showPhraseScores"
-        [validatedIds]="validatedIds"
-        [phraseTranslationView]="phraseTranslationView"
-        (phraseHover)="onPhraseHover($event)"
-        (phraseSelect)="selectPhrase($event)"
-        (phraseTranslationToggle)="togglePhraseTranslation($event.phraseId, $event.event)"
-      ></app-ha-aligned-phrase-column>
-    </div>
+        <!-- Feature note / explanation if applicable -->
+        <div class="aligned-card__feature-bar" *ngIf="phrase.dimensions[selectedDimension] as dim">
+          <span class="feature-bar__dim">
+            <strong>{{ dimLabels[selectedDimension] }}:</strong>
+            {{ dim.feature_label }}
+          </span>
+          <span class="feature-bar__score" *ngIf="showPhraseScores && dim.technical_score != null">
+            Technical score: {{ dim.technical_score }}
+          </span>
+        </div>
 
-    <div class="phrase-columns phrase-columns--mobile">
-      <app-ha-aligned-phrase-column
-        versionKey="english"
-        [alignments]="alignments"
-        [selectedDimension]="selectedDimension"
-        [hoveredAlignmentId]="hoveredAlignmentId"
-        [selectedAlignmentId]="selectedAlignmentId"
-        [showPhraseScores]="showPhraseScores"
-        [validatedIds]="validatedIds"
-        [phraseTranslationView]="phraseTranslationView"
-        (phraseHover)="onPhraseHover($event)"
-        (phraseSelect)="selectPhrase($event)"
-        (phraseTranslationToggle)="togglePhraseTranslation($event.phraseId, $event.event)"
-      ></app-ha-aligned-phrase-column>
-      <app-ha-aligned-phrase-column
-        *ngIf="mobileVersion !== 'english'"
-        [versionKey]="mobileVersion"
-        [alignments]="alignments"
-        [selectedDimension]="selectedDimension"
-        [hoveredAlignmentId]="hoveredAlignmentId"
-        [selectedAlignmentId]="selectedAlignmentId"
-        [showPhraseScores]="showPhraseScores"
-        [validatedIds]="validatedIds"
-        [phraseTranslationView]="phraseTranslationView"
-        (phraseHover)="onPhraseHover($event)"
-        (phraseSelect)="selectPhrase($event)"
-        (phraseTranslationToggle)="togglePhraseTranslation($event.phraseId, $event.event)"
-      ></app-ha-aligned-phrase-column>
+        <!-- 4 Version Columns Grid -->
+        <div class="aligned-card__columns">
+          <!-- 1. Original English -->
+          <div class="version-col version-col--english">
+            <div class="version-col__header">
+              <span class="version-col__name">{{ labels['english'] }}</span>
+            </div>
+            <div class="version-col__text">
+              <span
+                *ngFor="let seg of getSegments(phrase, 'english')"
+                class="phrase-segment"
+                [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+              >
+                {{ seg.text }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 2. Human/Book German -->
+          <div class="version-col version-col--human">
+            <div class="version-col__header">
+              <span class="version-col__name">{{ labels['human_german'] }}</span>
+              <span
+                class="classification-badge"
+                [style.backgroundColor]="getClassificationMeta(phrase, 'human_german').color + '15'"
+                [style.color]="getClassificationMeta(phrase, 'human_german').color"
+                [style.borderColor]="getClassificationMeta(phrase, 'human_german').color + '40'"
+              >
+                <i class="fas" [ngClass]="getClassificationMeta(phrase, 'human_german').icon"></i>
+                {{ getClassification(phrase, 'human_german') }}
+              </span>
+            </div>
+            <div class="version-col__text">
+              <span
+                *ngFor="let seg of getSegments(phrase, 'human_german')"
+                class="phrase-segment"
+                [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+              >
+                {{ seg.text }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 3. AI German -->
+          <div class="version-col version-col--ai">
+            <div class="version-col__header">
+              <div class="version-col__title-wrap">
+                <span class="version-col__name">{{ labels['ai_german'] }}</span>
+                <button
+                  *ngIf="hasTranslation(phrase, 'ai_german')"
+                  type="button"
+                  class="phrase-trans-btn"
+                  [class.phrase-trans-btn--active]="isTranslationActive(phrase, 'ai_german')"
+                  (click)="toggleTranslation(phrase, 'ai_german', $event)"
+                  [attr.aria-label]="isTranslationActive(phrase, 'ai_german') ? 'Show German phrase' : 'Show English back-translation'"
+                  [title]="isTranslationActive(phrase, 'ai_german') ? 'Show German phrase' : 'Show English back-translation'"
+                >
+                  <i class="fas fa-language" aria-hidden="true"></i>
+                  <span>{{ isTranslationActive(phrase, 'ai_german') ? 'DE' : 'EN' }}</span>
+                </button>
+              </div>
+              <span
+                class="classification-badge"
+                [style.backgroundColor]="getClassificationMeta(phrase, 'ai_german').color + '15'"
+                [style.color]="getClassificationMeta(phrase, 'ai_german').color"
+                [style.borderColor]="getClassificationMeta(phrase, 'ai_german').color + '40'"
+              >
+                <i class="fas" [ngClass]="getClassificationMeta(phrase, 'ai_german').icon"></i>
+                {{ getClassification(phrase, 'ai_german') }}
+              </span>
+            </div>
+            <div class="version-col__text">
+              <span
+                *ngFor="let seg of getSegments(phrase, 'ai_german')"
+                class="phrase-segment"
+                [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+              >
+                {{ seg.text }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 4. Context-Aware AI German -->
+          <div class="version-col version-col--context">
+            <div class="version-col__header">
+              <div class="version-col__title-wrap">
+                <span class="version-col__name">{{ labels['context_ai_german'] }}</span>
+                <button
+                  *ngIf="hasTranslation(phrase, 'context_ai_german')"
+                  type="button"
+                  class="phrase-trans-btn"
+                  [class.phrase-trans-btn--active]="isTranslationActive(phrase, 'context_ai_german')"
+                  (click)="toggleTranslation(phrase, 'context_ai_german', $event)"
+                  [attr.aria-label]="isTranslationActive(phrase, 'context_ai_german') ? 'Show German phrase' : 'Show English back-translation'"
+                  [title]="isTranslationActive(phrase, 'context_ai_german') ? 'Show German phrase' : 'Show English back-translation'"
+                >
+                  <i class="fas fa-language" aria-hidden="true"></i>
+                  <span>{{ isTranslationActive(phrase, 'context_ai_german') ? 'DE' : 'EN' }}</span>
+                </button>
+              </div>
+              <span
+                class="classification-badge"
+                [style.backgroundColor]="getClassificationMeta(phrase, 'context_ai_german').color + '15'"
+                [style.color]="getClassificationMeta(phrase, 'context_ai_german').color"
+                [style.borderColor]="getClassificationMeta(phrase, 'context_ai_german').color + '40'"
+              >
+                <i class="fas" [ngClass]="getClassificationMeta(phrase, 'context_ai_german').icon"></i>
+                {{ getClassification(phrase, 'context_ai_german') }}
+              </span>
+            </div>
+            <div class="version-col__text">
+              <span
+                *ngFor="let seg of getSegments(phrase, 'context_ai_german')"
+                class="phrase-segment"
+                [class.phrase-segment--highlight]="seg.highlighted"
+                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
+              >
+                {{ seg.text }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="aligned-card__footer">
+          <span class="aligned-card__cta">
+            <i class="fas fa-info-circle"></i> Click to inspect rules, explanation & expert validation
+          </span>
+        </footer>
+      </article>
     </div>
   </ng-container>
 
+  <!-- Evidence Inspector Slide-out Panel -->
   <app-ha-phrase-evidence-panel
     [open]="panelOpen"
     [passage]="evidencePassage"
@@ -136,6 +262,7 @@
     (validationChanged)="onValidationChanged()"
   ></app-ha-phrase-evidence-panel>
 
+  <!-- Book Context Dialog -->
   <app-ha-book-context-dialog
     [open]="bookDialogOpen"
     [lang]="bookDialogLang"

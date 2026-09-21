@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
+  COMPARISON_TO_PHRASE_DIM_MAP,
+  EvidenceFocusContext,
   HamletDataService,
   PassageFilters,
   VERSIONS,
@@ -60,6 +62,7 @@ export class HamletAnalysisComponent implements OnInit {
   phraseData: any = null;
   evidenceLoadError: string | null = null;
   heatmapDimension: string | null = null;
+  evidenceFocusContext: EvidenceFocusContext | null = null;
 
   activeTab: 'passage' | 'dataset' | 'heatmap' = 'passage';
   selectedPassage: any = null;
@@ -120,10 +123,21 @@ export class HamletAnalysisComponent implements OnInit {
   selectPassage(passage: any): void {
     this.selectedPassage = passage;
     this.selectedDiffCategory = null;
+    this.evidenceFocusContext = null;
     this.updateComparison();
     if (this.pdfPanelOpen && this.activePdfBook) {
       this.refreshPdfHighlight();
     }
+  }
+
+  onPairwiseDimensionClick(dimKey: string): void {
+    const mappedDim = COMPARISON_TO_PHRASE_DIM_MAP[dimKey] || dimKey;
+    this.evidenceFocusContext = {
+      sourceVersion: this.selectedSource,
+      targetVersion: this.selectedTarget,
+      dimension: mappedDim,
+    };
+    this.phraseWorkspace?.focusDimension(mappedDim, this.evidenceFocusContext);
   }
 
   getEvidencePassage(passageId: string | null | undefined): any | null {
