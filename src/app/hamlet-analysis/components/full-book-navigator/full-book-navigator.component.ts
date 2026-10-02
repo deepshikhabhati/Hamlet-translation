@@ -50,6 +50,7 @@ export class FullBookNavigatorComponent implements OnChanges {
 
   acts: ActNode[] = [];
   selectedDimension: string = 'semantic';
+  selectedTarget: 'human' | 'ai' | 'context' = 'context';
   
   dimensions = [
     { value: 'semantic', label: 'Semantic Preservation' },
@@ -175,4 +176,28 @@ export class FullBookNavigatorComponent implements OnChanges {
   trackByScene(index: number, scene: SceneNode): string {
     return scene.id;
   }
+
+  getScore(scene: SceneNode): number | string {
+    return scene.scores[this.selectedTarget];
+  }
+
+  getScoreWidth(scene: SceneNode): string {
+    const score = this.getScore(scene);
+    if (score === '-') return '0%';
+    return `${score}%`;
+  }
+
+  getScoreColor(): string {
+    switch(this.selectedTarget) {
+      case 'human': return '#16a34a';
+      case 'ai': return '#ca8a04';
+      case 'context': return '#2563eb';
+      default: return '#333';
+    }
+  }
+
+  setTarget(target: 'human' | 'ai' | 'context') {
+    this.selectedTarget = target;
+  }
+
 }

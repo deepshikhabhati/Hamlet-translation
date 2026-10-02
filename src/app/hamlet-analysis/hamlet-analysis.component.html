@@ -68,7 +68,7 @@
       </aside>
 
       <main class="ha-main" *ngIf="selectedPassage">
-        <section class="ha-passage-header card">
+        <section class="ha-passage-header card" *ngIf="selectedPassage.passage_id">
           <div class="ha-passage-header__top">
             <div class="ha-passage-header__identity">
               <h2 class="ha-passage-header__id">{{ selectedPassage.passage_id || selectedPassage.scene_id }}</h2>
@@ -108,7 +108,7 @@
         </section>
 
         
-        <ng-container *ngIf="selectedPassage.scene_id && !selectedPassage.passage_id">
+        <!-- <ng-container *ngIf="selectedPassage.scene_id && !selectedPassage.passage_id">
           <section class="ha-hierarchy-block">
             <div class="ha-hierarchy-block__header">
               <div class="ha-hierarchy-block__badge">Level 2: Scene Overview</div>
@@ -147,7 +147,7 @@
               </table>
             </div>
           </section>
-        </ng-container>
+        </ng-container> -->
 
         <ng-container>
 <app-ha-version-cards
@@ -160,30 +160,6 @@
           (targetChange)="onTargetChange($event)"
         ></app-ha-version-cards>
 
-        <!-- Hierarchy Level 1: Overall Score Matrix -->
-        <section class="ha-hierarchy-block" aria-labelledby="ha-level1-heading">
-          <div class="ha-hierarchy-block__header">
-            <div class="ha-hierarchy-block__badge">Level 1: Overall Matrix</div>
-            <h3 id="ha-level1-heading" class="ha-hierarchy-block__title">
-              Which versions are more or less similar?
-            </h3>
-            <p class="ha-hierarchy-block__hint">
-              Directional 4×3 preservation matrix. Click any cell to choose source and target versions for pairwise comparison.
-            </p>
-          </div>
-          <div class="ha-bottom-grid">
-            <app-ha-comparison-matrix
-              [matrix]="selectedPassage.overall_score_matrix"
-              [selectedSource]="selectedSource"
-              [selectedTarget]="selectedTarget"
-              (selectComparison)="onComparisonSelect($event)"
-            ></app-ha-comparison-matrix>
-
-            <app-ha-translation-ranking
-              [ranking]="selectedPassage.translation_ranking_against_english"
-            ></app-ha-translation-ranking>
-          </div>
-        </section>
 
         <!-- Hierarchy Level 2: Directional Pairwise Comparison -->
         <section class="ha-hierarchy-block" aria-labelledby="ha-level2-heading">
@@ -259,6 +235,13 @@
           ></app-ha-phrase-evidence-workspace>
         </section>
         </ng-container>
+      </main>
+
+      <main class="ha-main ha-main--empty" *ngIf="!selectedPassage">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 1.1rem; text-align: center; padding: 2rem;">
+          <i class="fas fa-book-open" style="font-size: 3rem; margin-bottom: 1rem; color: var(--border-medium);"></i>
+          <p>Select a scene or dialogue from the Table of Contents<br>to view its analysis details.</p>
+        </div>
       </main>
     </ng-container>
 

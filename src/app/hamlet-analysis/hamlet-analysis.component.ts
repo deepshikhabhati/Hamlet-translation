@@ -143,7 +143,7 @@ export class HamletAnalysisComponent implements OnInit {
             'Phrase-alignment evidence JSON could not be loaded. Passage comparison still works.';
         }
         if (this.passages.length) {
-          this.selectPassage(this.passages[0]);
+          // Do not select a passage by default
         }
         this.loading = false;
       },

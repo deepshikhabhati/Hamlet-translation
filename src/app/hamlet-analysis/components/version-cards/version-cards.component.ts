@@ -98,20 +98,8 @@ export class VersionCardsComponent implements OnChanges {
   }
 
   onCardClick(version: string): void {
-    if (this.clickStep === 'source') {
-      this.sourceChange.emit(version);
-      this.clickStep = 'target';
-      if (this.selectedTarget === version) {
-        const alt = this.versions.find((v) => v !== version);
-        if (alt) {
-          this.targetChange.emit(alt);
-        }
-      }
-    } else {
-      if (version !== this.selectedSource) {
-        this.targetChange.emit(version);
-      }
-      this.clickStep = 'source';
+    if (version !== 'english' && version !== this.selectedTarget) {
+      this.targetChange.emit(version);
     }
   }
 

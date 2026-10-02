@@ -10,13 +10,11 @@
     </select>
   </div>
 
-  <div class="column-headers">
-    <span class="col-spacer"></span>
-    <div class="score-cols">
-      <span class="col-human">Human</span>
-      <span class="col-ai">AI</span>
-      <span class="col-context">Context AI</span>
-    </div>
+  
+  <div class="target-buttons">
+    <button [class.active]="selectedTarget === 'human'" (click)="setTarget('human')" class="btn-human">Human</button>
+    <button [class.active]="selectedTarget === 'ai'" (click)="setTarget('ai')" class="btn-ai">AI</button>
+    <button [class.active]="selectedTarget === 'context'" (click)="setTarget('context')" class="btn-context">Context AI</button>
   </div>
 
   <div class="act-node" *ngFor="let act of acts; trackBy: trackByAct">
@@ -34,13 +32,14 @@
             <i class="fas" (click)="toggleScene(scene, $event)" [ngClass]="scene.expanded ? 'fa-folder-open' : 'fa-folder'" style="margin-right: 8px; color: var(--text-muted);"></i>
             <span>Scene {{ scene.sceneNumber }}</span>
           </div>
-          <div class="scene-scores">
-            <span class="score score-human" [style.opacity]="scene.scores.human === '-' ? '0.3' : '1'">{{ scene.scores.human }}</span>
-            <span class="score-sep">|</span>
-            <span class="score score-ai" [style.opacity]="scene.scores.ai === '-' ? '0.3' : '1'">{{ scene.scores.ai }}</span>
-            <span class="score-sep">|</span>
-            <span class="score score-context" [style.opacity]="scene.scores.context === '-' ? '0.3' : '1'">{{ scene.scores.context }}</span>
+          
+          <div class="scene-score-bar-container" [style.opacity]="getScore(scene) === '-' ? '0.3' : '1'">
+            <div class="score-bar-bg">
+              <div class="score-bar-fill" [style.width]="getScoreWidth(scene)" [style.background-color]="getScoreColor()"></div>
+            </div>
+            <span class="score-bar-text" [style.color]="getScoreColor()">{{ getScore(scene) }}</span>
           </div>
+
         </div>
         
         <div class="dialogues-container" *ngIf="scene.expanded">

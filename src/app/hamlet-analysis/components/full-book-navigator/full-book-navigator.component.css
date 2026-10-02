@@ -207,3 +207,78 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
+
+
+.target-buttons {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1rem 1rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 0.5rem;
+}
+
+.target-buttons button {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.target-buttons button:hover {
+  background: var(--bg-body);
+}
+
+.target-buttons button.active.btn-human {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #16a34a;
+}
+.target-buttons button.active.btn-ai {
+  background: #fefce8;
+  color: #ca8a04;
+  border-color: #ca8a04;
+}
+.target-buttons button.active.btn-context {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.scene-node {
+  justify-content: space-between;
+}
+
+.scene-score-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 120px;
+}
+
+.score-bar-bg {
+  flex: 1;
+  height: 6px;
+  background-color: var(--border-medium);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.score-bar-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: right;
+}
