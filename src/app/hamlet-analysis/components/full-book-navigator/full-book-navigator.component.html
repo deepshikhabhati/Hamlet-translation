@@ -1,0 +1,62 @@
+<div class="tree-container">
+  <div class="header-branding">
+    <h2>HAMLET</h2>
+  </div>
+  
+  <div class="dimension-selector">
+    <label for="dimSelect">Dimension:</label>
+    <select id="dimSelect" [(ngModel)]="selectedDimension" (ngModelChange)="onDimensionChange()">
+      <option *ngFor="let dim of dimensions" [value]="dim.value">{{ dim.label }}</option>
+    </select>
+  </div>
+
+  <div class="column-headers">
+    <span class="col-spacer"></span>
+    <div class="score-cols">
+      <span class="col-human">Human</span>
+      <span class="col-ai">AI</span>
+      <span class="col-context">Context AI</span>
+    </div>
+  </div>
+
+  <div class="act-node" *ngFor="let act of acts; trackBy: trackByAct">
+    <div class="act-header" (click)="toggleAct(act)" [style.color]="actColors[act.actNumber]">
+      <i class="fas" [ngClass]="act.expanded ? 'fa-folder-open' : 'fa-folder'"></i>
+      <span>Act {{ act.actNumber }}</span>
+      <i class="fas" [ngClass]="act.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+    </div>
+    
+    <div class="scenes-container" *ngIf="act.expanded">
+      
+      <div class="scene-node-wrapper" *ngFor="let scene of act.scenes; trackBy: trackByScene">
+        <div class="scene-node" (click)="selectScene(scene)">
+          <div class="scene-title">
+            <i class="fas" (click)="toggleScene(scene, $event)" [ngClass]="scene.expanded ? 'fa-folder-open' : 'fa-folder'" style="margin-right: 8px; color: var(--text-muted);"></i>
+            <span>Scene {{ scene.sceneNumber }}</span>
+          </div>
+          <div class="scene-scores">
+            <span class="score score-human" [style.opacity]="scene.scores.human === '-' ? '0.3' : '1'">{{ scene.scores.human }}</span>
+            <span class="score-sep">|</span>
+            <span class="score score-ai" [style.opacity]="scene.scores.ai === '-' ? '0.3' : '1'">{{ scene.scores.ai }}</span>
+            <span class="score-sep">|</span>
+            <span class="score score-context" [style.opacity]="scene.scores.context === '-' ? '0.3' : '1'">{{ scene.scores.context }}</span>
+          </div>
+        </div>
+        
+        <div class="dialogues-container" *ngIf="scene.expanded">
+          <div class="dialogue-row" 
+               *ngFor="let dialogue of scene.dialogues; trackBy: trackByDialogue"
+               [class.selected]="dialogue.id === selectedDialogueId"
+               (click)="selectDialogue(dialogue)">
+            <i class="fas fa-comment-dots"></i>
+            <div class="dialogue-content" [title]="dialogue.textPreview">
+              <span class="speaker">{{ dialogue.speaker }}</span>
+              <span class="preview">{{ dialogue.textPreview }}</span>
+            </div>
+            <span class="ftln">{{ dialogue.ftln }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

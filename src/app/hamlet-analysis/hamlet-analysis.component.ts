@@ -1,3 +1,4 @@
+import { FullBookAdapterService } from './services/full-book-adapter.service';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +11,7 @@ import {
   PassageFilters,
   VERSIONS,
 } from './services/hamlet-data.service';
-import { PassageSidebarComponent } from './components/passage-sidebar/passage-sidebar.component';
+import { FullBookNavigatorComponent } from './components/full-book-navigator/full-book-navigator.component';
 import { VersionCardsComponent } from './components/version-cards/version-cards.component';
 import { ComparisonSelectorComponent } from './components/comparison-selector/comparison-selector.component';
 import { OverallScoreComponent } from './components/overall-score/overall-score.component';
@@ -31,7 +32,7 @@ import { PdfHighlighterComponent } from '../pdf-highlighter/pdf-highlighter.comp
   imports: [
     CommonModule,
     FormsModule,
-    PassageSidebarComponent,
+    FullBookNavigatorComponent,
     VersionCardsComponent,
     ComparisonSelectorComponent,
     OverallScoreComponent,
@@ -54,6 +55,7 @@ export class HamletAnalysisComponent implements OnInit {
   phraseWorkspace?: PhraseEvidenceWorkspaceComponent;
 
   passages: any[] = [];
+  sceneData: any[] = [];
   datasetSummary: any = null;
   metadata: any = null;
   loading = true;
@@ -70,6 +72,35 @@ export class HamletAnalysisComponent implements OnInit {
   selectedTarget = 'context_ai_german';
   selectedComparison: any = null;
   selectedDiffCategory: string | null = null;
+
+  // Add these to hamlet-analysis.component.ts
+  dimensions = [
+    { value: 'semantic', label: 'Semantic' },
+    { value: 'emotion', label: 'Emotion' },
+    { value: 'tone', label: 'Tone' },
+    { value: 'metaphor', label: 'Metaphor' },
+    { value: 'cultural', label: 'Cultural' },
+    { value: 'voice', label: 'Voice' },
+    { value: 'omission', label: 'Omission' }
+  ];
+  
+  showPairwiseForScene = false;
+
+  getSceneScore(passage: any, dim: string, target: string): string | number {
+    const comp = passage.comparisons?.find((c: any) => c.source_version === 'english' && c.target_version === target);
+    if (comp && comp.dimensions && comp.dimensions[dim]) {
+      return comp.dimensions[dim].score;
+    }
+    return '-';
+  }
+
+  selectTranslation(dim: string, target: string): void {
+    this.selectedSource = 'english';
+    this.selectedTarget = target;
+    this.showPairwiseForScene = true;
+    this.onPairwiseDimensionClick(dim);
+  }
+
 
   filters: PassageFilters = {
     search: '',
@@ -90,17 +121,20 @@ export class HamletAnalysisComponent implements OnInit {
 
   readonly versions = VERSIONS;
 
-  constructor(private dataService: HamletDataService) {}
+  constructor(private dataService: HamletDataService, private adapter: FullBookAdapterService) {}
 
   ngOnInit(): void {
     forkJoin({
       comparison: this.dataService.getData(),
+      fullBookUi: this.dataService.loadFullBookUiData().pipe(catchError(() => of(null))),
+      sceneLevelData: this.dataService.loadFullBookHierarchy().pipe(catchError(() => of(null))),
       phrase: this.dataService.getPhraseEvidenceData().pipe(
         catchError(() => of(null))
       ),
     }).subscribe({
-      next: ({ comparison, phrase }) => {
+      next: ({ comparison, phrase, sceneLevelData, fullBookUi }) => {
         this.passages = comparison.passages ?? [];
+        this.sceneData = fullBookUi?.scenes ?? sceneLevelData?.scenes ?? [];
         this.datasetSummary = comparison.dataset_summary ?? null;
         this.metadata = comparison.metadata ?? null;
         this.phraseData = phrase;
@@ -127,6 +161,16 @@ export class HamletAnalysisComponent implements OnInit {
     this.updateComparison();
     if (this.pdfPanelOpen && this.activePdfBook) {
       this.refreshPdfHighlight();
+    }
+  }
+
+  onSceneSelected(event: { act: number; scene: number }): void {
+    console.log('onSceneSelected triggered!', event, 'Scene data length:', this.sceneData?.length);
+    const sceneObj = this.sceneData.find(s => s.act === event.act && s.scene === event.scene);
+    console.log('Found scene object:', sceneObj);
+    if (sceneObj) {
+      this.selectPassage(sceneObj);
+      this.showPairwiseForScene = false;
     }
   }
 

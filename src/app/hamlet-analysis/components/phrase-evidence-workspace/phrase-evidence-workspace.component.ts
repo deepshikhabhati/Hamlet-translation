@@ -56,7 +56,14 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   @ViewChild('workspaceAnchor') workspaceAnchor?: ElementRef<HTMLElement>;
 
   evidencePassage: any = null;
-  alignedPhrases: AlignedPhraseGroup[] = [];
+  selectedAnalysisPassage: any = null;
+  
+  selectedLevel: 'scene' | 'dialogue' = 'dialogue';
+  selectedScene: any;
+  selectedPassage: any;
+  phraseAlignments: any[] = [];
+  dialoguePhraseGroups: any[] = [];
+  activeAlignmentId: string | null = null;
 
   hoveredAlignmentId: string | null = null;
   selectedAlignmentId: string | null = null;
@@ -97,7 +104,8 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['comparisonPassageId'] || changes['phraseData']) {
-      this.resolvePassage();
+      this.selectedLevel = (this.comparisonPassageId || '').includes('-D') ? 'dialogue' : 'scene';
+      this.updatePhraseEvidence();
     }
     if (changes['externalDimension'] && this.externalDimension) {
       this.selectedEvidenceDimension = this.externalDimension;
@@ -107,31 +115,82 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     }
   }
 
-  resolvePassage(): void {
-    this.panelOpen = false;
-    this.selectedAlignmentId = null;
+  updatePhraseEvidence(): void {
+    this.activeAlignmentId = null;
     this.selectedAlignment = null;
-    this.hoveredAlignmentId = null;
-    this.hoveredConceptId = null;
-    this.selectedConceptId = null;
-    this.selectedConcept = null;
-    this.focusContext = null;
-    this.pulsingAlignmentIds.clear();
-    if (this.pulseTimer) {
-      clearTimeout(this.pulseTimer);
-    }
-    this.selectedEvidenceDimension = 'semantic';
 
-    if (!this.comparisonPassageId) {
-      this.evidencePassage = null;
-      this.alignedPhrases = [];
+    if (!this.phraseData) {
+      this.phraseAlignments = [];
+      this.dialoguePhraseGroups = [];
       return;
     }
 
-    this.evidencePassage = this.dataService.getEvidencePassage(this.comparisonPassageId);
-    this.alignedPhrases = this.dataService.getAlignedPhrases(this.comparisonPassageId);
-    this.resetTranslationViews();
+    if (this.selectedLevel === 'scene') {
+      this.loadScenePhraseEvidence();
+    } else {
+      this.loadDialoguePhraseEvidence();
+    }
+
     this.refreshValidatedIds();
+  }
+
+  loadDialoguePhraseEvidence(): void {
+    const dialogueId = this.comparisonPassageId || '';
+    const dialogueEvidence = this.phraseData?.by_passage_id?.[dialogueId];
+    this.phraseAlignments = dialogueEvidence?.phrase_alignments || [];
+    this.dialoguePhraseGroups = [];
+  }
+
+  getSceneId(scene: any): string {
+    if (scene?.scene_id) {
+      return scene.scene_id;
+    }
+    if (scene?.act && scene?.scene) {
+      return `A${scene.act}-S${scene.scene}`;
+    }
+    return this.comparisonPassageId || '';
+  }
+
+  loadScenePhraseEvidence(): void {
+    const sceneId = this.comparisonPassageId || ''; // The passage ID is the scene ID in scene mode
+    const sceneEvidence = this.phraseData?.by_scene_id?.[sceneId];
+    this.phraseAlignments = sceneEvidence?.phrase_alignments || [];
+    this.dialoguePhraseGroups = sceneEvidence?.dialogue_phrase_groups || [];
+  }
+
+  getPhraseText(alignment: any, version: string): string {
+    if (version === 'english') {
+      return alignment?.english_phrase?.text?.trim() || '';
+    }
+    return alignment?.targets?.[version]?.text?.trim() || '';
+  }
+
+  getDimensionEvidence(alignment: any, version: string): any {
+    if (version === 'english') {
+      return null;
+    }
+    return alignment?.targets?.[version]?.evidence?.find(
+      (item: any) => item.dimension === this.selectedEvidenceDimension
+    ) || null;
+  }
+
+  getPhraseStatus(alignment: any, version: string): string {
+    const phraseText = this.getPhraseText(alignment, version);
+    if (!phraseText) {
+      return 'Lost';
+    }
+    const evidence = this.getDimensionEvidence(alignment, version);
+    if (!evidence) {
+      return 'Not Available';
+    }
+    if (evidence.applicable === false) {
+      return 'Not Applicable';
+    }
+    return evidence.status;
+  }
+
+  trackByAlignment(index: number, alignment: any): string {
+    return alignment?.alignment_id || String(index);
   }
 
   resetTranslationViews(): void {
@@ -243,14 +302,57 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
     this.selectConcept(phrase, this.getActiveDimensionEvidence(phrase), concept);
   }
 
-  getSegments(phrase: AlignedPhraseGroup, version: string): TextSegment[] {
-    const isTransActive = this.isTranslationActive(phrase, version);
-    return this.dataService.getRelevantSpans(
-      phrase,
-      version,
-      this.selectedEvidenceDimension,
-      isTransActive
-    );
+  getSegments(phrase: any, version: string): TextSegment[] {
+    const rawText = this.getRawText(phrase, version);
+    if (!rawText) return [{ text: 'NO CORRESPONDING SPAN', highlighted: false, isMissingPlaceholder: true }];
+
+    const dimensionData = phrase.dimension_evidence?.[this.selectedEvidenceDimension];
+    if (!dimensionData) return [{ text: rawText, highlighted: false }];
+
+    const versionData = version === 'english' ? dimensionData.source : dimensionData.targets?.[version];
+    if (!versionData || versionData.applicable === false) return [{ text: rawText, highlighted: false }];
+
+    const spans = versionData.evidence_spans || [];
+    if (spans.length === 0) return [{ text: rawText, highlighted: false }];
+
+    // Sort spans by start, handle non-overlapping
+    const sortedSpans = [...spans].sort((a, b) => a.start - b.start);
+    const nonOverlapping = [];
+    let lastEnd = -1;
+    for (const s of sortedSpans) {
+      if (s.start >= lastEnd && s.end > s.start) {
+        nonOverlapping.push(s);
+        lastEnd = s.end;
+      }
+    }
+
+    const segments: TextSegment[] = [];
+    let currentIdx = 0;
+    for (const span of nonOverlapping) {
+      if (span.start > currentIdx) {
+        segments.push({ text: rawText.slice(currentIdx, span.start), highlighted: false });
+      }
+      segments.push({
+        text: rawText.slice(span.start, span.end),
+        highlighted: true,
+        concept_id: span.concept_id,
+        concept_label: span.concept_id, // could be mapped to a friendly label
+      });
+      currentIdx = span.end;
+    }
+    if (currentIdx < rawText.length) {
+      segments.push({ text: rawText.slice(currentIdx), highlighted: false });
+    }
+
+    return segments.length > 0 ? segments : [{ text: rawText, highlighted: false }];
+  }
+
+  getRawText(phrase: any, version: string): string {
+    if (version === 'english') {
+      return phrase.english_phrase?.text || phrase.spans?.english?.[0]?.text || '';
+    }
+    const tgt = phrase.targets?.[version];
+    return typeof tgt === 'string' ? tgt : tgt?.text || '';
   }
 
   getClassification(phrase: AlignedPhraseGroup, version: string): string {

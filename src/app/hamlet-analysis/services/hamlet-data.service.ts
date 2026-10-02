@@ -222,14 +222,78 @@ const VALIDATION_STORAGE_KEY = 'hamlet_phrase_evidence_validations';
 
 @Injectable({ providedIn: 'root' })
 export class HamletDataService {
-  private readonly url = 'assets/data/hamlet_4x3_comparison.json';
-  private readonly phraseUrl = 'assets/data/hamlet_phrase_alignment_semantic_emotion_tone_aligned.json';
+  private readonly url = 'assets/data/hamlet_full_books_ui_all_phrase_evidence.json';
+  private readonly phraseUrl = 'assets/data/hamlet_all_phrase_and_scene_evidence.json';
   private readonly phraseFallbackUrl = 'assets/data/hamlet_phrase_alignment_ui.json';
   private cache$?: Observable<any>;
   private phraseCache$?: Observable<any>;
   private phraseDataSnapshot: any = null;
 
   constructor(private http: HttpClient) {}
+
+  private readonly fullBookUiUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence.json';
+  private readonly fullBookUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence.json';
+  private fullBookUiCache$?: Observable<any>;
+  private fullBookCache$?: Observable<any>;
+
+  loadFullBookUiData(): Observable<any> {
+    if (!this.fullBookUiCache$) {
+      this.fullBookUiCache$ = this.http.get<any>(this.fullBookUiUrl).pipe(shareReplay(1));
+    }
+    return this.fullBookUiCache$;
+  }
+
+  loadFullBookHierarchy(): Observable<any> {
+    if (!this.fullBookCache$) {
+      this.fullBookCache$ = this.http.get<any>(this.fullBookUrl).pipe(shareReplay(1));
+    }
+    return this.fullBookCache$;
+  }
+
+  getActs(): any[] {
+    return [1, 2, 3, 4, 5];
+  }
+
+  getEnglishScenes(act: number): any[] {
+    // Mock implementation for UI data adapter
+    return [];
+  }
+
+  getDialogues(act: number, scene: number): any[] {
+    return [];
+  }
+
+  getDialogueById(dialogueId: string): any {
+    return null;
+  }
+
+  getGermanSceneCandidates(dialogue: any): any[] {
+    return [];
+  }
+
+  getTranslationStatus(dialogue: any, version: string): string {
+    return dialogue?.generation_status?.[version] || 'unknown';
+  }
+
+  hasTranslation(dialogue: any, version: string): boolean {
+    return !!dialogue?.texts?.[version];
+  }
+
+  hasCompleteFourVersions(dialogue: any): boolean {
+    return this.hasTranslation(dialogue, 'english') &&
+           this.hasTranslation(dialogue, 'human_german') &&
+           this.hasTranslation(dialogue, 'ai_german') &&
+           this.hasTranslation(dialogue, 'context_ai_german');
+  }
+
+  hasPhraseEvidence(dialogue: any): boolean {
+    return Array.isArray(dialogue?.phrase_alignments) && dialogue.phrase_alignments.length > 0;
+  }
+
+  hasComparisonAnalysis(dialogue: any): boolean {
+    return !!dialogue?.comparisons?.length;
+  }
+
 
   getData(): Observable<any> {
     if (!this.cache$) {
@@ -242,6 +306,14 @@ export class HamletDataService {
     if (!this.phraseCache$) {
       this.phraseCache$ = this.http.get<any>(this.phraseUrl).pipe(
         map((data) => {
+          if (!data.by_passage_id && data.passages) {
+            data.by_passage_id = {};
+            data.passages.forEach((p: any) => data.by_passage_id[p.passage_id] = p);
+          }
+          if (!data.by_scene_id && data.scenes) {
+            data.by_scene_id = {};
+            data.scenes.forEach((s: any) => data.by_scene_id[s.scene_id] = s);
+          }
           this.phraseDataSnapshot = data;
           return data;
         }),
@@ -265,11 +337,13 @@ export class HamletDataService {
   }
 
   getPhrasePassageById(passageId: string): any | null {
-    const passages = this.phraseDataSnapshot?.passages;
-    if (!passages || !passageId) {
+    if (!this.phraseDataSnapshot || !passageId) {
       return null;
     }
-    return passages.find((p: any) => p.passage_id === passageId) ?? null;
+    const passage = this.phraseDataSnapshot.passages?.find((p: any) => p.passage_id === passageId);
+    if (passage) return passage;
+    
+    return this.phraseDataSnapshot.scenes?.find((s: any) => s.scene_id === passageId) ?? null;
   }
 
   getEvidencePassage(passageId: string | null | undefined): any | null {

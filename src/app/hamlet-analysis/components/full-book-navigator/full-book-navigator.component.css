@@ -1,0 +1,209 @@
+.tree-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.header-branding {
+  padding: 1.25rem 1.25rem 0.5rem;
+}
+.header-branding h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.dimension-selector {
+  padding: 0.5rem 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.dimension-selector label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dimension-selector select {
+  padding: 0.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+}
+.dimension-selector select:focus {
+  border-color: var(--primary-color);
+}
+
+.column-headers {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-body);
+}
+.col-spacer {
+  flex: 1;
+}
+.score-cols {
+  display: flex;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.col-human { width: 45px; text-align: center; }
+.col-ai { width: 45px; text-align: center; }
+.col-context { width: 75px; text-align: center; }
+
+.act-node {
+  border-bottom: 1px solid var(--border-light);
+}
+.act-header {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  background: var(--bg-surface);
+  transition: background 0.2s;
+  gap: 0.75rem;
+}
+.act-header:hover {
+  background: var(--bg-body);
+}
+.act-header span {
+  flex: 1;
+}
+.act-header i.fa-chevron-right, .act-header i.fa-chevron-down {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.scenes-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-body);
+}
+
+.scene-node {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1.25rem 0.6rem 3rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+.scene-node:hover {
+  background: #eef2ff;
+  border-left-color: var(--primary-color);
+}
+
+.scene-title {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.scene-scores {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.score {
+  display: inline-block;
+  text-align: center;
+  font-weight: 600;
+}
+.score-human { width: 45px; color: #16a34a; }
+.score-ai { width: 45px; color: #ca8a04; }
+.score-context { width: 75px; color: #2563eb; }
+
+.score-sep {
+  color: var(--border-light);
+  font-size: 0.75rem;
+}
+
+
+.scene-node-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialogues-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 3px solid var(--primary-color);
+  margin-left: 1.25rem;
+}
+
+.dialogue-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.dialogue-row:hover {
+  background: var(--bg-body);
+}
+
+.dialogue-row.selected {
+  background: #eef2ff;
+  border-left: 3px solid var(--primary-color);
+}
+
+.dialogue-row i {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.dialogue-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.speaker {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ftln {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}

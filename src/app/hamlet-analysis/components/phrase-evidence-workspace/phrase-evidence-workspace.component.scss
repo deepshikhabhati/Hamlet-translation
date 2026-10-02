@@ -521,3 +521,25 @@
     color: #2563eb;
   }
 }
+.phrase-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.phrase-version {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.phrase-version:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+.phrase-version.active-linked {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  background: #eff6ff;
+}

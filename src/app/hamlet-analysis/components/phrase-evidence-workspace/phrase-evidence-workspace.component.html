@@ -1,4 +1,6 @@
-<section
+<div class="empty-evidence" *ngIf="phraseAlignments.length === 0 && dialoguePhraseGroups.length === 0">
+  <p>Phrase-level evidence has not been generated for this dialogue.</p>
+</div><section
   #workspaceAnchor
   id="phrase-level-evidence"
   class="phrase-workspace card"
@@ -12,6 +14,15 @@
       <p class="phrase-workspace__sub">
         Analytical reading tool · Aligned textual spans responsible for literary dimension results
       </p>
+      <!-- Passage Selector -->
+      <div class="passage-selector" *ngIf="evidencePassage?.analysis_passages?.length > 1">
+        <label for="passageSelect">Select Analysis Passage: </label>
+        <select id="passageSelect" [(ngModel)]="selectedAnalysisPassage" (ngModelChange)="phraseAlignments = $event?.aligned_phrases || []">
+          <option *ngFor="let p of evidencePassage.analysis_passages" [ngValue]="p">
+            {{ p.passage_id }} (FTLN {{ p.ftln?.start }}–{{ p.ftln?.end }})
+          </option>
+        </select>
+      </div>
     </div>
     <div class="phrase-workspace__actions">
       <button type="button" class="book-btn" (click)="openBook('english')">
@@ -50,12 +61,12 @@
     {{ evidenceLoadError }}
   </div>
 
-  <div class="phrase-workspace__empty" *ngIf="!evidenceLoadError && (!alignedPhrases || alignedPhrases.length === 0)">
+  <div class="phrase-workspace__empty" *ngIf="!evidenceLoadError && phraseAlignments.length === 0 && dialoguePhraseGroups.length === 0">
     <i class="fas fa-info-circle"></i>
-    No phrase-alignment evidence found for this passage.
+    No phrase-alignment evidence found for this selection.
   </div>
 
-  <ng-container *ngIf="alignedPhrases && alignedPhrases.length > 0">
+  <ng-container *ngIf="phraseAlignments.length > 0 || dialoguePhraseGroups.length > 0">
     <!-- Single active evidence dimension selector -->
     <app-ha-dimension-toolbar
       [selectedDimension]="selectedDimension"
@@ -71,229 +82,127 @@
 
     <!-- Dynamic Aligned Phrase Cards -->
     <div class="phrase-cards-container" role="list" aria-label="Aligned phrase cards">
-      <article
-        *ngFor="let phrase of alignedPhrases"
-        role="listitem"
-        class="aligned-card"
-        [id]="'phrase-card-' + phrase.alignment_id"
-        [class.aligned-card--highlighted]="isCardHighlighted(phrase.alignment_id)"
-        [class.aligned-card--dimmed]="isCardDimmed(phrase.alignment_id)"
-        [class.aligned-card--selected]="phrase.alignment_id === selectedAlignmentId"
-        [class.aligned-card--pulse]="isCardPulsing(phrase.alignment_id)"
-        (mouseenter)="onCardHover(phrase.alignment_id)"
-        (mouseleave)="onCardHover(null)"
-        (click)="onCardSelect(phrase)"
-      >
-        <!-- Card Header -->
-        <header class="aligned-card__header">
-          <div class="aligned-card__identity">
-            <span class="aligned-card__num">{{ phrase.display_number }}</span>
-            <h4 class="aligned-card__label">{{ phrase.label }}</h4>
-          </div>
-          <div class="aligned-card__meta">
-            <span class="meta-tag meta-tag--confidence" [ngClass]="confidenceBadgeClass(phrase.confidence_level)">
-              <i class="fas fa-shield-alt"></i> Confidence: {{ phrase.confidence_level }}
-            </span>
-            <span class="meta-tag meta-tag--review" [ngClass]="reviewStatusClass(phrase.review_status)">
-              <i class="fas" [class.fa-check]="phrase.review_status === 'reviewed'" [class.fa-robot]="phrase.review_status === 'automatic'" [class.fa-exclamation-triangle]="phrase.review_status === 'needs_review'"></i>
-              {{ phrase.review_status === 'needs_review' ? 'Needs Review' : (phrase.review_status === 'reviewed' ? 'Reviewed' : 'Automatic') }}
-            </span>
-            <span class="meta-tag meta-tag--validated" *ngIf="isValidated(phrase.alignment_id)">
-              <i class="fas fa-user-check"></i> Validated
-            </span>
-          </div>
-        </header>
+      
+      <!-- Scene Mode: Grouped by Dialogue -->
+      <ng-container *ngIf="selectedLevel === 'scene' && dialoguePhraseGroups.length > 0">
+        <section *ngFor="let group of dialoguePhraseGroups" class="dialogue-evidence-group" style="margin-bottom: 2rem;">
+          <header class="dialogue-group-header" style="background: rgba(0,0,0,0.02); padding: 0.5rem 1rem; border-left: 3px solid #3b82f6; margin-bottom: 1rem; border-radius: 4px;">
+            <strong style="margin-right: 1rem; text-transform: uppercase;">{{ group.speaker }}</strong>
+            <span style="color: #64748b; font-size: 0.85rem;">{{ group.dialogue_id }}</span>
+          </header>
 
-        <!-- Feature note / explanation if applicable -->
-        <div class="aligned-card__feature-bar" *ngIf="phrase.dimensions[selectedDimension] as dim">
-          <span class="feature-bar__dim">
-            <strong>{{ dimLabels[selectedDimension] }}:</strong>
-            {{ dim.feature_label }}
-          </span>
-          <span class="feature-bar__score" *ngIf="showPhraseScores && dim.technical_score != null">
-            Technical score: {{ dim.technical_score }}
-          </span>
-        </div>
+          <article
+            *ngFor="let alignment of group.phrase_alignments; trackBy: trackByAlignment; let index = index"
+            class="alignment-card"
+            [class.alignment-card--active]="isCardHighlighted(alignment.alignment_id)"
+            [class.alignment-card--dimmed]="isCardDimmed(alignment.alignment_id)"
+            [class.pulse-border]="isCardPulsing(alignment.alignment_id)"
+          >
+            <div class="alignment-header" style="display: flex; gap: 1rem; margin-bottom: 0.5rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
+              <span>Aligned Phrase {{ index + 1 }}</span>
+              <span *ngIf="alignment.speaker">{{ alignment.speaker }}</span>
+              <span *ngIf="alignment.dialogue_id">{{ alignment.dialogue_id }}</span>
+            </div>
 
-        <!-- Interactive Concept Badges for this Aligned Phrase -->
-        <div class="aligned-card__concepts-bar" *ngIf="getConcepts(phrase).length > 0">
-          <span class="concepts-bar__label"><i class="fas fa-project-diagram"></i> Concepts:</span>
-          <div class="concepts-bar__list">
-            <button
-              type="button"
-              *ngFor="let concept of getConcepts(phrase)"
-              class="concept-pill"
-              [class.concept-pill--active]="isConceptHighlighted(concept.concept_id)"
-              (mouseenter)="hoverConcept(concept.concept_id)"
-              (mouseleave)="clearHoveredConcept()"
-              (click)="onConceptBadgeClick($event, phrase, concept)"
-              [title]="'Hover to highlight \'' + concept.label + '\' across all versions; click to inspect.'"
+            <div class="phrase-grid">
+              <div
+                class="phrase-version"
+                *ngFor="let version of versions"
+                [class.active-linked]="activeAlignmentId === alignment.alignment_id"
+                (mouseenter)="activeAlignmentId = alignment.alignment_id"
+                (mouseleave)="activeAlignmentId = null"
+                (click)="onCardSelect(alignment, version)"
+              >
+                <div class="version-label" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #94a3b8; margin-bottom: 0.25rem;">
+                  {{ labels[version] }}
+                </div>
+
+                <ng-container *ngIf="getPhraseText(alignment, version) as phraseText; else missingSpan">
+                  <div class="phrase-text" style="font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                    {{ phraseText }}
+                  </div>
+                  <span
+                    *ngIf="version !== 'english'"
+                    class="classification-badge"
+                    style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.05);"
+                  >
+                    {{ getPhraseStatus(alignment, version) }}
+                  </span>
+                </ng-container>
+
+                <ng-template #missingSpan>
+                  <div class="missing-span" style="color: #94a3b8; font-style: italic;">
+                    No corresponding span
+                  </div>
+                </ng-template>
+              </div>
+            </div>
+
+            <footer class="aligned-card__footer">
+              <span class="aligned-card__cta">
+                <i class="fas fa-info-circle"></i> Click to inspect rules, explanation & expert validation
+              </span>
+            </footer>
+          </article>
+        </section>
+      </ng-container>
+
+      <!-- Dialogue Mode: Flat Phrase Alignments -->
+      <ng-container *ngIf="selectedLevel === 'dialogue' && phraseAlignments.length > 0">
+        <article
+          *ngFor="let alignment of phraseAlignments; trackBy: trackByAlignment; let index = index"
+          class="alignment-card"
+          [class.alignment-card--active]="isCardHighlighted(alignment.alignment_id)"
+          [class.alignment-card--dimmed]="isCardDimmed(alignment.alignment_id)"
+          [class.pulse-border]="isCardPulsing(alignment.alignment_id)"
+        >
+          <div class="alignment-header" style="display: flex; gap: 1rem; margin-bottom: 0.5rem; color: #64748b; font-size: 0.8rem; font-weight: 500;">
+            <span>Aligned Phrase {{ index + 1 }}</span>
+            <span *ngIf="alignment.speaker">{{ alignment.speaker }}</span>
+            <span *ngIf="alignment.dialogue_id">{{ alignment.dialogue_id }}</span>
+          </div>
+
+          <div class="phrase-grid">
+            <div
+              class="phrase-version"
+              *ngFor="let version of versions"
+              [class.active-linked]="activeAlignmentId === alignment.alignment_id"
+              (mouseenter)="activeAlignmentId = alignment.alignment_id"
+              (mouseleave)="activeAlignmentId = null"
+              (click)="onCardSelect(alignment, version)"
             >
-              <i class="fas fa-tag"></i> {{ concept.label }}
-            </button>
-          </div>
-        </div>
-
-        <!-- 4 Version Columns Grid -->
-        <div class="aligned-card__columns">
-          <!-- 1. Original English -->
-          <div class="version-col version-col--english">
-            <div class="version-col__header">
-              <span class="version-col__name">{{ labels['english'] }}</span>
-            </div>
-            <div class="version-col__text">
-              <span
-                *ngFor="let seg of getSegments(phrase, 'english')"
-                class="phrase-segment"
-                [class.phrase-segment--highlight]="seg.highlighted"
-                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
-                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
-                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
-                [attr.data-concept-id]="seg.concept_id"
-                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
-                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
-                (mouseleave)="clearHoveredConcept()"
-                (click)="onSegmentClick($event, phrase, seg)"
-              >
-                {{ seg.text }}
-              </span>
-            </div>
-          </div>
-
-          <!-- 2. Human/Book German -->
-          <div class="version-col version-col--human">
-            <div class="version-col__header">
-              <span class="version-col__name">{{ labels['human_german'] }}</span>
-              <span
-                class="classification-badge"
-                [style.backgroundColor]="getClassificationMeta(phrase, 'human_german').color + '15'"
-                [style.color]="getClassificationMeta(phrase, 'human_german').color"
-                [style.borderColor]="getClassificationMeta(phrase, 'human_german').color + '40'"
-              >
-                <i class="fas" [ngClass]="getClassificationMeta(phrase, 'human_german').icon"></i>
-                {{ getClassification(phrase, 'human_german') }}
-              </span>
-            </div>
-            <div class="version-col__text">
-              <span
-                *ngFor="let seg of getSegments(phrase, 'human_german')"
-                class="phrase-segment"
-                [class.phrase-segment--highlight]="seg.highlighted"
-                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
-                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
-                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
-                [attr.data-concept-id]="seg.concept_id"
-                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
-                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
-                (mouseleave)="clearHoveredConcept()"
-                (click)="onSegmentClick($event, phrase, seg)"
-              >
-                {{ seg.text }}
-              </span>
-            </div>
-          </div>
-
-          <!-- 3. AI German -->
-          <div class="version-col version-col--ai">
-            <div class="version-col__header">
-              <div class="version-col__title-wrap">
-                <span class="version-col__name">{{ labels['ai_german'] }}</span>
-                <button
-                  *ngIf="hasTranslation(phrase, 'ai_german')"
-                  type="button"
-                  class="phrase-trans-btn"
-                  [class.phrase-trans-btn--active]="isTranslationActive(phrase, 'ai_german')"
-                  (click)="toggleTranslation(phrase, 'ai_german', $event)"
-                  [attr.aria-label]="isTranslationActive(phrase, 'ai_german') ? 'Show German phrase' : 'Show English back-translation'"
-                  [title]="isTranslationActive(phrase, 'ai_german') ? 'Show German phrase' : 'Show English back-translation'"
-                >
-                  <i class="fas fa-language" aria-hidden="true"></i>
-                  <span>{{ isTranslationActive(phrase, 'ai_german') ? 'DE' : 'EN' }}</span>
-                </button>
+              <div class="version-label" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #94a3b8; margin-bottom: 0.25rem;">
+                {{ labels[version] }}
               </div>
-              <span
-                class="classification-badge"
-                [style.backgroundColor]="getClassificationMeta(phrase, 'ai_german').color + '15'"
-                [style.color]="getClassificationMeta(phrase, 'ai_german').color"
-                [style.borderColor]="getClassificationMeta(phrase, 'ai_german').color + '40'"
-              >
-                <i class="fas" [ngClass]="getClassificationMeta(phrase, 'ai_german').icon"></i>
-                {{ getClassification(phrase, 'ai_german') }}
-              </span>
-            </div>
-            <div class="version-col__text">
-              <span
-                *ngFor="let seg of getSegments(phrase, 'ai_german')"
-                class="phrase-segment"
-                [class.phrase-segment--highlight]="seg.highlighted"
-                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
-                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
-                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
-                [attr.data-concept-id]="seg.concept_id"
-                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
-                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
-                (mouseleave)="clearHoveredConcept()"
-                (click)="onSegmentClick($event, phrase, seg)"
-              >
-                {{ seg.text }}
-              </span>
-            </div>
-          </div>
 
-          <!-- 4. Context-Aware AI German -->
-          <div class="version-col version-col--context">
-            <div class="version-col__header">
-              <div class="version-col__title-wrap">
-                <span class="version-col__name">{{ labels['context_ai_german'] }}</span>
-                <button
-                  *ngIf="hasTranslation(phrase, 'context_ai_german')"
-                  type="button"
-                  class="phrase-trans-btn"
-                  [class.phrase-trans-btn--active]="isTranslationActive(phrase, 'context_ai_german')"
-                  (click)="toggleTranslation(phrase, 'context_ai_german', $event)"
-                  [attr.aria-label]="isTranslationActive(phrase, 'context_ai_german') ? 'Show German phrase' : 'Show English back-translation'"
-                  [title]="isTranslationActive(phrase, 'context_ai_german') ? 'Show German phrase' : 'Show English back-translation'"
+              <ng-container *ngIf="getPhraseText(alignment, version) as phraseText; else missingSpan">
+                <div class="phrase-text" style="font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                  {{ phraseText }}
+                </div>
+                <span
+                  *ngIf="version !== 'english'"
+                  class="classification-badge"
+                  style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.05);"
                 >
-                  <i class="fas fa-language" aria-hidden="true"></i>
-                  <span>{{ isTranslationActive(phrase, 'context_ai_german') ? 'DE' : 'EN' }}</span>
-                </button>
-              </div>
-              <span
-                class="classification-badge"
-                [style.backgroundColor]="getClassificationMeta(phrase, 'context_ai_german').color + '15'"
-                [style.color]="getClassificationMeta(phrase, 'context_ai_german').color"
-                [style.borderColor]="getClassificationMeta(phrase, 'context_ai_german').color + '40'"
-              >
-                <i class="fas" [ngClass]="getClassificationMeta(phrase, 'context_ai_german').icon"></i>
-                {{ getClassification(phrase, 'context_ai_german') }}
-              </span>
-            </div>
-            <div class="version-col__text">
-              <span
-                *ngFor="let seg of getSegments(phrase, 'context_ai_german')"
-                class="phrase-segment"
-                [class.phrase-segment--highlight]="seg.highlighted"
-                [class.phrase-segment--concept-active]="seg.concept_id && isConceptHighlighted(seg.concept_id)"
-                [class.phrase-segment--dimmed]="seg.concept_id && isEvidenceDimmed(seg.concept_id)"
-                [class.phrase-segment--missing]="seg.isMissingPlaceholder"
-                [attr.data-concept-id]="seg.concept_id"
-                [title]="seg.concept_label ? 'Concept: ' + seg.concept_label : ''"
-                (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
-                (mouseleave)="clearHoveredConcept()"
-                (click)="onSegmentClick($event, phrase, seg)"
-              >
-                {{ seg.text }}
-              </span>
+                  {{ getPhraseStatus(alignment, version) }}
+                </span>
+              </ng-container>
+
+              <ng-template #missingSpan>
+                <div class="missing-span" style="color: #94a3b8; font-style: italic;">
+                  No corresponding span
+                </div>
+              </ng-template>
             </div>
           </div>
-        </div>
 
-        <footer class="aligned-card__footer">
-          <span class="aligned-card__cta">
-            <i class="fas fa-info-circle"></i> Click to inspect rules, explanation & expert validation
-          </span>
-        </footer>
-      </article>
+          <footer class="aligned-card__footer">
+            <span class="aligned-card__cta">
+              <i class="fas fa-info-circle"></i> Click to inspect rules, explanation & expert validation
+            </span>
+          </footer>
+        </article>
+      </ng-container>
     </div>
   </ng-container>
 

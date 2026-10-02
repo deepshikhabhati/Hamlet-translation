@@ -169,7 +169,8 @@
   }
 }
 
-.ha-sidebar ::ng-deep app-ha-passage-sidebar {
+.ha-sidebar ::ng-deep app-ha-passage-sidebar,
+.ha-sidebar ::ng-deep app-full-book-navigator {
   display: flex;
   flex-direction: column;
   height: 100%;
