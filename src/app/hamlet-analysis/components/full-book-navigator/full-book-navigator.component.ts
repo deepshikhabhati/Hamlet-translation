@@ -11,9 +11,10 @@ export interface DialogueNode {
 }
 
 export interface SceneScore {
-  human: number | string;
-  ai: number | string;
-  context: number | string;
+  human_german: number | string;
+  ai_german: number | string;
+  context_ai_german: number | string;
+  [key: string]: number | string;
 }
 
 export interface SceneNode {
@@ -50,7 +51,8 @@ export class FullBookNavigatorComponent implements OnChanges {
 
   acts: ActNode[] = [];
   selectedDimension: string = 'semantic';
-  selectedTarget: 'human' | 'ai' | 'context' = 'context';
+  @Input() selectedTarget: string = 'context_ai_german';
+  @Output() targetChange = new EventEmitter<string>();
   
   dimensions = [
     { value: 'semantic', label: 'Semantic Preservation' },
@@ -111,9 +113,9 @@ export class FullBookNavigatorComponent implements OnChanges {
         sceneNumber: sceneNum,
         title: sceneData.title || `Scene ${sceneNum}`,
         scores: {
-          human: getScore('human_german'),
-          ai: getScore('ai_german'),
-          context: getScore('context_ai_german')
+          human_german: getScore('human_german'),
+          ai_german: getScore('ai_german'),
+          context_ai_german: getScore('context_ai_german')
         },
         data: sceneData,
         expanded: false,
@@ -189,15 +191,18 @@ export class FullBookNavigatorComponent implements OnChanges {
 
   getScoreColor(): string {
     switch(this.selectedTarget) {
-      case 'human': return '#16a34a';
-      case 'ai': return '#ca8a04';
-      case 'context': return '#2563eb';
+      case 'human_german': return '#16a34a';
+      case 'ai_german': return '#ca8a04';
+      case 'context_ai_german': return '#2563eb';
       default: return '#333';
     }
   }
 
-  setTarget(target: 'human' | 'ai' | 'context') {
-    this.selectedTarget = target;
+  setTarget(target: string) {
+    if (this.selectedTarget !== target) {
+      this.selectedTarget = target;
+      this.targetChange.emit(target);
+    }
   }
 
 }

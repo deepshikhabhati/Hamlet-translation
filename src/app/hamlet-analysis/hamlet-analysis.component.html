@@ -62,6 +62,8 @@
           [data]="sceneData"
           [dialogues]="passages"
           [selectedDialogueId]="selectedPassage?.passage_id"
+          [selectedTarget]="selectedTarget"
+          (targetChange)="onTargetChange($event)"
           (dialogueSelected)="selectPassage($event)"
           (sceneSelected)="onSceneSelected($event)"
         ></app-full-book-navigator>

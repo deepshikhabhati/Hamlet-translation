@@ -12,47 +12,49 @@
 
   
   <div class="target-buttons">
-    <button [class.active]="selectedTarget === 'human'" (click)="setTarget('human')" class="btn-human">Human</button>
-    <button [class.active]="selectedTarget === 'ai'" (click)="setTarget('ai')" class="btn-ai">AI</button>
-    <button [class.active]="selectedTarget === 'context'" (click)="setTarget('context')" class="btn-context">Context AI</button>
+    <button [class.active]="selectedTarget === 'human_german'" (click)="setTarget('human_german')" class="btn-human">Human</button>
+    <button [class.active]="selectedTarget === 'ai_german'" (click)="setTarget('ai_german')" class="btn-ai">AI</button>
+    <button [class.active]="selectedTarget === 'context_ai_german'" (click)="setTarget('context_ai_german')" class="btn-context">Context AI</button>
   </div>
 
-  <div class="act-node" *ngFor="let act of acts; trackBy: trackByAct">
-    <div class="act-header" (click)="toggleAct(act)" [style.color]="actColors[act.actNumber]">
-      <i class="fas" [ngClass]="act.expanded ? 'fa-folder-open' : 'fa-folder'"></i>
-      <span>Act {{ act.actNumber }}</span>
-      <i class="fas" [ngClass]="act.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
-    </div>
-    
-    <div class="scenes-container" *ngIf="act.expanded">
+  <div class="tree-scroll-area">
+    <div class="act-node" *ngFor="let act of acts; trackBy: trackByAct">
+      <div class="act-header" (click)="toggleAct(act)" [style.color]="actColors[act.actNumber]">
+        <i class="fas" [ngClass]="act.expanded ? 'fa-folder-open' : 'fa-folder'"></i>
+        <span>Act {{ act.actNumber }}</span>
+        <i class="fas" [ngClass]="act.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+      </div>
       
-      <div class="scene-node-wrapper" *ngFor="let scene of act.scenes; trackBy: trackByScene">
-        <div class="scene-node" (click)="selectScene(scene)">
-          <div class="scene-title">
-            <i class="fas" (click)="toggleScene(scene, $event)" [ngClass]="scene.expanded ? 'fa-folder-open' : 'fa-folder'" style="margin-right: 8px; color: var(--text-muted);"></i>
-            <span>Scene {{ scene.sceneNumber }}</span>
+      <div class="scenes-container" *ngIf="act.expanded">
+        
+        <div class="scene-node-wrapper" *ngFor="let scene of act.scenes; trackBy: trackByScene">
+          <div class="scene-node" (click)="selectScene(scene)">
+            <div class="scene-title">
+              <i class="fas" (click)="toggleScene(scene, $event)" [ngClass]="scene.expanded ? 'fa-folder-open' : 'fa-folder'" style="margin-right: 8px; color: var(--text-muted);"></i>
+              <span>Scene {{ scene.sceneNumber }}</span>
+            </div>
+            
+            <div class="scene-score-bar-container" [style.opacity]="getScore(scene) === '-' ? '0.3' : '1'">
+              <div class="score-bar-bg">
+                <div class="score-bar-fill" [style.width]="getScoreWidth(scene)" [style.background-color]="getScoreColor()"></div>
+              </div>
+              <span class="score-bar-text" [style.color]="getScoreColor()">{{ getScore(scene) }}</span>
+            </div>
+  
           </div>
           
-          <div class="scene-score-bar-container" [style.opacity]="getScore(scene) === '-' ? '0.3' : '1'">
-            <div class="score-bar-bg">
-              <div class="score-bar-fill" [style.width]="getScoreWidth(scene)" [style.background-color]="getScoreColor()"></div>
+          <div class="dialogues-container" *ngIf="scene.expanded">
+            <div class="dialogue-row" 
+                 *ngFor="let dialogue of scene.dialogues; trackBy: trackByDialogue"
+                 [class.selected]="dialogue.id === selectedDialogueId"
+                 (click)="selectDialogue(dialogue)">
+              <i class="fas fa-comment-dots"></i>
+              <div class="dialogue-content" [title]="dialogue.textPreview">
+                <span class="speaker">{{ dialogue.speaker }}</span>
+                <span class="preview">{{ dialogue.textPreview }}</span>
+              </div>
+              <span class="ftln">{{ dialogue.ftln }}</span>
             </div>
-            <span class="score-bar-text" [style.color]="getScoreColor()">{{ getScore(scene) }}</span>
-          </div>
-
-        </div>
-        
-        <div class="dialogues-container" *ngIf="scene.expanded">
-          <div class="dialogue-row" 
-               *ngFor="let dialogue of scene.dialogues; trackBy: trackByDialogue"
-               [class.selected]="dialogue.id === selectedDialogueId"
-               (click)="selectDialogue(dialogue)">
-            <i class="fas fa-comment-dots"></i>
-            <div class="dialogue-content" [title]="dialogue.textPreview">
-              <span class="speaker">{{ dialogue.speaker }}</span>
-              <span class="preview">{{ dialogue.textPreview }}</span>
-            </div>
-            <span class="ftln">{{ dialogue.ftln }}</span>
           </div>
         </div>
       </div>

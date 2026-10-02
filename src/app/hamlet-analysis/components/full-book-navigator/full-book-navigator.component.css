@@ -282,3 +282,11 @@
   min-width: 20px;
   text-align: right;
 }
+
+.tree-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-bottom: 2rem;
+}
