@@ -1,0 +1,138 @@
+{
+  "total_dialogues": 1107,
+  "analyzed_dialogues": 454,
+  "not_analyzed_dialogues": 653,
+  "scene_count": 20,
+  "review_assessment_count": 962,
+  "review_unique_dialogue_count": 264,
+  "review_reason_counts": {
+    "model_needs_review": 772,
+    "low_confidence_below_0.70": 165,
+    "invalid_evidence_span": 690
+  },
+  "text_mismatches_count": 0,
+  "text_mismatch_examples": [],
+  "d00008_review_items": 2,
+  "scene_summaries": [
+    {
+      "scene_id": "A1-S1",
+      "analyzed": 59,
+      "total": 59,
+      "review_dialogues": 33
+    },
+    {
+      "scene_id": "A1-S2",
+      "analyzed": 72,
+      "total": 72,
+      "review_dialogues": 38
+    },
+    {
+      "scene_id": "A1-S3",
+      "analyzed": 25,
+      "total": 25,
+      "review_dialogues": 17
+    },
+    {
+      "scene_id": "A1-S4",
+      "analyzed": 29,
+      "total": 29,
+      "review_dialogues": 20
+    },
+    {
+      "scene_id": "A1-S5",
+      "analyzed": 60,
+      "total": 60,
+      "review_dialogues": 34
+    },
+    {
+      "scene_id": "A2-S1",
+      "analyzed": 37,
+      "total": 37,
+      "review_dialogues": 20
+    },
+    {
+      "scene_id": "A2-S2",
+      "analyzed": 161,
+      "total": 161,
+      "review_dialogues": 92
+    },
+    {
+      "scene_id": "A3-S1",
+      "analyzed": 11,
+      "total": 44,
+      "review_dialogues": 10
+    },
+    {
+      "scene_id": "A3-S2",
+      "analyzed": 0,
+      "total": 140,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A3-S3",
+      "analyzed": 0,
+      "total": 8,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A3-S4",
+      "analyzed": 0,
+      "total": 55,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S1",
+      "analyzed": 0,
+      "total": 7,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S2",
+      "analyzed": 0,
+      "total": 16,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S3",
+      "analyzed": 0,
+      "total": 27,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S4",
+      "analyzed": 0,
+      "total": 17,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S5",
+      "analyzed": 0,
+      "total": 57,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S6",
+      "analyzed": 0,
+      "total": 6,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A4-S7",
+      "analyzed": 0,
+      "total": 40,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A5-S1",
+      "analyzed": 0,
+      "total": 104,
+      "review_dialogues": 0
+    },
+    {
+      "scene_id": "A5-S2",
+      "analyzed": 0,
+      "total": 143,
+      "review_dialogues": 0
+    }
+  ]
+}
