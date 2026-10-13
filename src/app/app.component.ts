@@ -42,6 +42,7 @@ import { englishQueries } from 'src/assets/english_queries';
   ]
 })
 export class AppComponent {
+  title = 'chatgpt-app';
   activeView: 'ai' | 'shakespeare' | 'hamlet' | 'german' = 'ai';
   
   // Data for dual-view-content component

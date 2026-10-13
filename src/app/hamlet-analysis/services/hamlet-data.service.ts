@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, shareReplay, of, catchError } from 'rxjs';
+import { gunzipSync, strFromU8 } from 'fflate';
 
 export const VERSIONS = [
   'english',
@@ -144,6 +145,9 @@ export interface TextSegment {
   concept_label?: string;
   evidence_span_id?: string;
   isMissingPlaceholder?: boolean;
+  missingEvidence?: boolean | string;
+  debugInfo?: any;
+  status?: string;
 }
 
 export interface EvidenceFocusContext {
@@ -222,8 +226,8 @@ const VALIDATION_STORAGE_KEY = 'hamlet_phrase_evidence_validations';
 
 @Injectable({ providedIn: 'root' })
 export class HamletDataService {
-  private readonly url = 'assets/data/hamlet_full_books_ui_all_phrase_evidence.json';
-  private readonly phraseUrl = 'assets/data/hamlet_all_phrase_and_scene_evidence.json';
+  private readonly url = 'assets/data/hamlet_full_books_ui_all_phrase_evidence_WITH_EXACT_HIGHLIGHT_SPANS.json.gz';
+  private readonly phraseUrl = 'assets/data/hamlet_all_phrase_and_scene_evidence_WITH_EXACT_HIGHLIGHT_SPANS.json.gz';
   private readonly phraseFallbackUrl = 'assets/data/hamlet_phrase_alignment_ui.json';
   private cache$?: Observable<any>;
   private phraseCache$?: Observable<any>;
@@ -231,21 +235,64 @@ export class HamletDataService {
 
   constructor(private http: HttpClient) {}
 
-  private readonly fullBookUiUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence.json';
-  private readonly fullBookUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence.json';
+  private fetchGzippedJson(url: string): Observable<any> {
+    return this.http.get(url, { responseType: 'arraybuffer' }).pipe(
+      map(buffer => JSON.parse(strFromU8(gunzipSync(new Uint8Array(buffer)))))
+    );
+  }
+
+  private readonly fullBookUiUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence_WITH_EXACT_HIGHLIGHT_SPANS.json.gz';
+  private readonly fullBookUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence_WITH_EXACT_HIGHLIGHT_SPANS.json.gz';
+  private readonly analysisUrl = 'assets/data/hamlet_ui_full_play_integrated.json';
   private fullBookUiCache$?: Observable<any>;
   private fullBookCache$?: Observable<any>;
+  private analysisCache$?: Observable<any>;
+  private computationReportCache$?: Observable<any>;
+  private spanReportCache$?: Observable<any>;
+
+  loadAnalysisJson(): Observable<any> {
+    if (!this.analysisCache$) {
+      this.analysisCache$ = this.http.get<any>(this.analysisUrl).pipe(
+        catchError(() => this.http.get<any>('assets/data/hamlet_ui_analysis_review_ready.json')),
+        catchError(() => this.http.get<any>('assets/data/hamlet_ui_analysis.json')),
+        catchError(() => this.http.get<any>('hamlet_ui_analysis.json')),
+        shareReplay(1)
+      );
+    }
+    return this.analysisCache$;
+  }
+
+  loadComputationReport(): Observable<any> {
+    if (!this.computationReportCache$) {
+      this.computationReportCache$ = this.http.get<any>('assets/data/hamlet_ui_computation_report.json').pipe(
+        catchError(() => of(null)),
+        shareReplay(1)
+      );
+    }
+    return this.computationReportCache$;
+  }
+
+  loadSpanValidationReport(): Observable<any> {
+    if (!this.spanReportCache$) {
+      this.spanReportCache$ = this.http.get<any>('assets/data/hamlet_span_validation_report.json').pipe(
+        catchError(() => this.http.get<any>('assets/data/hamlet_span_validation_repair_report.json')),
+        catchError(() => of(null)),
+        shareReplay(1)
+      );
+    }
+    return this.spanReportCache$;
+  }
 
   loadFullBookUiData(): Observable<any> {
     if (!this.fullBookUiCache$) {
-      this.fullBookUiCache$ = this.http.get<any>(this.fullBookUiUrl).pipe(shareReplay(1));
+      this.fullBookUiCache$ = this.fetchGzippedJson(this.fullBookUiUrl).pipe(shareReplay(1));
     }
     return this.fullBookUiCache$;
   }
 
   loadFullBookHierarchy(): Observable<any> {
     if (!this.fullBookCache$) {
-      this.fullBookCache$ = this.http.get<any>(this.fullBookUrl).pipe(shareReplay(1));
+      this.fullBookCache$ = this.fetchGzippedJson(this.fullBookUrl).pipe(shareReplay(1));
     }
     return this.fullBookCache$;
   }
@@ -297,14 +344,14 @@ export class HamletDataService {
 
   getData(): Observable<any> {
     if (!this.cache$) {
-      this.cache$ = this.http.get<any>(this.url).pipe(shareReplay(1));
+      this.cache$ = this.fetchGzippedJson(this.url).pipe(shareReplay(1));
     }
     return this.cache$;
   }
 
   getPhraseEvidenceData(): Observable<any> {
     if (!this.phraseCache$) {
-      this.phraseCache$ = this.http.get<any>(this.phraseUrl).pipe(
+      this.phraseCache$ = this.fetchGzippedJson(this.phraseUrl).pipe(
         map((data) => {
           if (!data.by_passage_id && data.passages) {
             data.by_passage_id = {};
@@ -315,6 +362,7 @@ export class HamletDataService {
             data.scenes.forEach((s: any) => data.by_scene_id[s.scene_id] = s);
           }
           this.phraseDataSnapshot = data;
+          console.log("PHRASE DATA FILE:", data);
           return data;
         }),
         catchError((err) => {
@@ -322,6 +370,7 @@ export class HamletDataService {
           return this.http.get<any>(this.phraseFallbackUrl).pipe(
             map((data) => {
               this.phraseDataSnapshot = data;
+          console.log("PHRASE DATA FILE:", data);
               return data;
             }),
             catchError(() => {
@@ -1186,13 +1235,15 @@ export class HamletDataService {
 
   getScoreColor(score: number | null): string {
     if (score === null || score === undefined) {
-      return '#94a3b8';
+      return '#e2e8f0';
     }
-    if (score >= 90) return '#059669';
-    if (score >= 75) return '#2563eb';
-    if (score >= 60) return '#0891b2';
-    if (score >= 40) return '#d97706';
-    return '#dc2626';
+    if (score >= 90) return '#14532d';
+    if (score >= 80) return '#166534';
+    if (score >= 70) return '#15803d';
+    if (score >= 60) return '#16a34a';
+    if (score >= 50) return '#22c55e';
+    if (score >= 40) return '#4ade80';
+    return '#86efac';
   }
 
   getUniqueActs(passages: any[]): number[] {

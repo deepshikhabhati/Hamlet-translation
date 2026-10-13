@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TopiclineChartComponent } from './topicline-chart.component';
+import { TopicLineChartComponent } from './topicline-chart.component';
 
-describe('TopiclineChartComponent', () => {
-  let component: TopiclineChartComponent;
-  let fixture: ComponentFixture<TopiclineChartComponent>;
+describe('TopicLineChartComponent', () => {
+  let component: TopicLineChartComponent;
+  let fixture: ComponentFixture<TopicLineChartComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TopiclineChartComponent ]
+      declarations: [ TopicLineChartComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(TopiclineChartComponent);
+    fixture = TestBed.createComponent(TopicLineChartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

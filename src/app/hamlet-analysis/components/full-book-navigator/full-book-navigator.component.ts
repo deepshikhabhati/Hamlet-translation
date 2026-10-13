@@ -50,7 +50,8 @@ export class FullBookNavigatorComponent implements OnChanges {
   @Input() selectedDialogueId: string | null = null;
 
   acts: ActNode[] = [];
-  selectedDimension: string = 'semantic';
+  @Input() selectedDimension: string = 'semantic';
+  @Output() dimensionChange = new EventEmitter<string>();
   @Input() selectedTarget: string = 'context_ai_german';
   @Output() targetChange = new EventEmitter<string>();
   
@@ -58,10 +59,7 @@ export class FullBookNavigatorComponent implements OnChanges {
     { value: 'semantic', label: 'Semantic Preservation' },
     { value: 'emotion', label: 'Emotion Preservation' },
     { value: 'tone', label: 'Tone Preservation' },
-    { value: 'metaphor', label: 'Metaphor Preservation' },
-    { value: 'cultural', label: 'Cultural Preservation' },
-    { value: 'voice', label: 'Voice Preservation' },
-    { value: 'omission', label: 'Omission/Addition' }
+    { value: 'metaphor', label: 'Metaphor Preservation' }
   ];
 
   actColors: Record<number, string> = {
@@ -73,12 +71,13 @@ export class FullBookNavigatorComponent implements OnChanges {
   };
 
   ngOnChanges(changes: SimpleChanges): void {
-    if ((changes['data'] || changes['dialogues']) && this.data && this.dialogues) {
+    if ((changes['data'] || changes['dialogues'] || changes['selectedDimension']) && this.data && this.dialogues) {
       this.buildTree();
     }
   }
 
   onDimensionChange() {
+    this.dimensionChange.emit(this.selectedDimension);
     this.buildTree();
   }
 
@@ -189,13 +188,29 @@ export class FullBookNavigatorComponent implements OnChanges {
     return `${score}%`;
   }
 
-  getScoreColor(): string {
-    switch(this.selectedTarget) {
-      case 'human_german': return '#16a34a';
-      case 'ai_german': return '#ca8a04';
-      case 'context_ai_german': return '#2563eb';
-      default: return '#333';
-    }
+  getActScore(act: ActNode): number | string {
+    const validScores = act.scenes
+      .map(s => this.getScore(s))
+      .filter(s => typeof s === 'number') as number[];
+    if (validScores.length === 0) return '-';
+    return Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length);
+  }
+
+  getActScoreWidth(act: ActNode): string {
+    const score = this.getActScore(act);
+    if (score === '-') return '0%';
+    return `${score}%`;
+  }
+
+  getScoreColor(score: number | string): string {
+    if (typeof score !== 'number') return '#e2e8f0';
+    if (score >= 90) return '#14532d';
+    if (score >= 80) return '#166534';
+    if (score >= 70) return '#15803d';
+    if (score >= 60) return '#16a34a';
+    if (score >= 50) return '#22c55e';
+    if (score >= 40) return '#4ade80';
+    return '#86efac';
   }
 
   setTarget(target: string) {

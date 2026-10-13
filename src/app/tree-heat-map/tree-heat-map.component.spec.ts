@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TreeHeatMapComponent } from './tree-heat-map.component';
+import { TreeHeatmapComponent } from './tree-heat-map.component';
 
-describe('TreeHeatMapComponent', () => {
-  let component: TreeHeatMapComponent;
-  let fixture: ComponentFixture<TreeHeatMapComponent>;
+describe('TreeHeatmapComponent', () => {
+  let component: TreeHeatmapComponent;
+  let fixture: ComponentFixture<TreeHeatmapComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TreeHeatMapComponent ]
+      declarations: [ TreeHeatmapComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(TreeHeatMapComponent);
+    fixture = TestBed.createComponent(TreeHeatmapComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

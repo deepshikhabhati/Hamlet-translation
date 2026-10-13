@@ -1,18 +1,25 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 
-import { MainContentComponent } from './main-content.component';
 
-describe('MainContentComponent', () => {
-  let component: MainContentComponent;
-  let fixture: ComponentFixture<MainContentComponent>;
+import { HamletContentComponent } from './hamlet-content.component';
+import { TopiclistComponent } from '../topiclist/topiclist.component';
+
+describe('HamletContentComponent', () => {
+  let component: HamletContentComponent;
+  let fixture: ComponentFixture<HamletContentComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ MainContentComponent ]
+      imports: [FormsModule, HttpClientTestingModule],
+      schemas: [NO_ERRORS_SCHEMA],
+      declarations: [ HamletContentComponent, TopiclistComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(MainContentComponent);
+    fixture = TestBed.createComponent(HamletContentComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

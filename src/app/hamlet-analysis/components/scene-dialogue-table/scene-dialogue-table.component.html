@@ -1,0 +1,637 @@
+<div class="sdt-root" role="region" [attr.aria-label]="'Dialogues for Act ' + scene.act + ' Scene ' + (scene.scene_number || scene.scene_id)">
+  <!-- Expanded Scene Header / Summary Bar -->
+  <div class="sdt-scene-header">
+    <div class="sdt-scene-header-left">
+      <span class="sdt-scene-count-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+        <strong>{{ getDisplayedDialogues().length }}</strong> dialogues displayed &bull; {{ scene.dialogues.length }} total ({{ getSceneAnalyzedCount() }} assessed)
+      </span>
+    </div>
+    <div class="sdt-scene-header-right">
+      <button
+        *ngIf="dialogueLimit < scene.dialogues.length"
+        type="button"
+        class="sdt-pager-btn"
+        (click)="showMoreDialogues()"
+      >Show 10 more</button>
+      <button
+        *ngIf="dialogueLimit < scene.dialogues.length"
+        type="button"
+        class="sdt-pager-btn sdt-pager-btn--all"
+        (click)="showAllDialogues()"
+      >Show all ({{ scene.dialogues.length }})</button>
+      <button
+        *ngIf="dialogueLimit > 10"
+        type="button"
+        class="sdt-pager-btn sdt-pager-btn--collapse"
+        (click)="collapseDialogues()"
+      >Collapse to 10</button>
+    </div>
+  </div>
+
+  <!-- Dialogue Comparison Nested Table -->
+  <div class="sdt-table-scroll">
+    <table class="sdt-table" role="table">
+      <thead>
+        <tr class="sdt-thead-row">
+          <th style="width: 90px;">DIALOGUE</th>
+          <th>SPEAKER / ENGLISH PREVIEW</th>
+          <th style="width: 150px; text-align: center;">SCORE CHART</th>
+          <th style="width: 72px; text-align: right;">HUMAN</th>
+          <th style="width: 72px; text-align: right;">AI</th>
+          <th style="width: 82px; text-align: right;">CONTEXT AI</th>
+          <th style="width: 65px; text-align: right;">SPREAD</th>
+          <th style="width: 85px; text-align: center;">REVIEW</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let d of getDisplayedDialogues(); trackBy: trackByDialogueId">
+          <!-- Dialogue Row -->
+          <tr
+            class="sdt-row"
+            [class.sdt-row--expanded]="isDialogueExpanded(d.dialogue_id)"
+            [class.sdt-row--highlighted]="highlightedDialogueId === d.dialogue_id"
+            (click)="toggleDialogue(d.dialogue_id)"
+          >
+            <!-- 1. Dialogue ID + Chevron -->
+            <td class="sdt-id-cell">
+              <button
+                type="button"
+                class="sdt-row-chevron-btn"
+                [attr.aria-expanded]="isDialogueExpanded(d.dialogue_id)"
+                (click)="toggleDialogue(d.dialogue_id); $event.stopPropagation()"
+                title="Expand dialogue details"
+              >
+                <svg
+                  class="sdt-row-chevron"
+                  [class.sdt-row-chevron--open]="isDialogueExpanded(d.dialogue_id)"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+              <span class="sdt-id-pill" [title]="d.dialogue_id">{{ getDialogueShortId(d.dialogue_id) }}</span>
+            </td>
+
+            <!-- 2. Speaker & English preview -->
+            <td class="sdt-preview-cell">
+              <div class="sdt-preview-content">
+                <strong class="sdt-speaker-name">{{ d.speaker }}</strong>
+                <span class="sdt-text-snippet">&mdash; {{ d.texts.english }}</span>
+                <span *ngIf="isDialogueFlaggedAny(d)" class="sdt-flag-pill" title="Flagged assessments requiring review">
+                  Review
+                </span>
+                <span *ngIf="getDialogueInvalidSpanCount(d) > 0" class="sdt-invalid-pill" title="Invalid evidence offset detected">
+                  ⚠️
+                </span>
+              </div>
+            </td>
+
+            <!-- 3. Mini Score Chart -->
+            <td class="sdt-chart-cell">
+              <div [innerHTML]="getDialogueComparisonSvg(d, 60, 100, 140)"></div>
+            </td>
+
+            <!-- 4. Human DE -->
+            <td class="sdt-num-cell">
+              <span class="sdt-score-pill" [ngClass]="getScoreClass(getDialogueScore(d, 'human_german'))">
+                {{ formatScore(getDialogueScore(d, 'human_german')) }}
+              </span>
+            </td>
+
+            <!-- 5. AI DE -->
+            <td class="sdt-num-cell">
+              <span class="sdt-score-pill" [ngClass]="getScoreClass(getDialogueScore(d, 'ai_german'))">
+                {{ formatScore(getDialogueScore(d, 'ai_german')) }}
+              </span>
+            </td>
+
+            <!-- 6. Context AI DE -->
+            <td class="sdt-num-cell">
+              <span class="sdt-score-pill" [ngClass]="getScoreClass(getDialogueScore(d, 'context_ai_german'))">
+                {{ formatScore(getDialogueScore(d, 'context_ai_german')) }}
+              </span>
+            </td>
+
+            <!-- 7. Spread -->
+            <td class="sdt-num-cell sdt-spread-val">
+              {{ getDialogueSpread(d) }}
+            </td>
+
+            <!-- 8. Review / View Action -->
+            <td class="sdt-action-cell" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="sdt-view-btn"
+                [class.sdt-view-btn--flagged]="isDialogueFlaggedAny(d)"
+                [class.sdt-view-btn--active]="isDialogueExpanded(d.dialogue_id)"
+                (click)="toggleDialogue(d.dialogue_id)"
+              >
+                {{ isDialogueFlaggedAny(d) ? 'Review' : 'View' }}
+              </button>
+            </td>
+          </tr>
+
+          <!-- Inline Expanded Dialogue Analysis Panel -->
+          <tr *ngIf="isDialogueExpanded(d.dialogue_id)" class="sdt-expanded-row">
+            <td colspan="8" class="sdt-expanded-cell">
+              <div class="sdt-panel-card">
+
+                <!-- PANEL SECTION A: 4-Column Parallel Text -->
+                <div class="sdt-section">
+                  <div class="sdt-section-header">
+                    <h4 class="sdt-section-title">
+                      Parallel Translations
+                      <span class="sdt-section-sub">{{ d.dialogue_id }} &bull; {{ d.speaker }}</span>
+                    </h4>
+                    <span *ngIf="copiedFeedback[d.dialogue_id]" class="sdt-copy-toast">
+                      {{ copiedFeedback[d.dialogue_id] }}
+                    </span>
+                  </div>
+
+                  <div class="sdt-parallel-grid">
+                    <!-- Column 1: English Source -->
+                    <div class="sdt-parallel-col">
+                      <div class="sdt-col-header">
+                        <span class="sdt-col-title">ORIGINAL ENGLISH</span>
+                        <button
+                          type="button"
+                          class="sdt-copy-btn"
+                          (click)="copyText(d.texts.english, 'English', d.dialogue_id)"
+                          title="Copy English text"
+                        >Copy</button>
+                      </div>
+                      <div class="sdt-col-body">
+                        <app-ha-evidence-highlighted-text
+                          [text]="d.texts.english"
+                          [spans]="getSourceSpans(d, getActiveDimension(d.dialogue_id))"
+                        ></app-ha-evidence-highlighted-text>
+                      </div>
+                    </div>
+
+                    <!-- Column 2: Human German -->
+                    <div class="sdt-parallel-col" [class.sdt-parallel-col--active]="getActiveVersion(d.dialogue_id) === 'human_german'">
+                      <div class="sdt-col-header">
+                        <span class="sdt-col-title">HUMAN GERMAN (Schlegel)</span>
+                        <button
+                          type="button"
+                          class="sdt-copy-btn"
+                          (click)="copyText(d.texts.human_german, 'Human German', d.dialogue_id)"
+                          title="Copy Human German"
+                        >Copy</button>
+                      </div>
+                      <div class="sdt-col-body">
+                        <app-ha-evidence-highlighted-text
+                          *ngIf="d.texts.human_german; else noHuman"
+                          [text]="d.texts.human_german"
+                          [spans]="getTargetSpans(d, 'human_german', getActiveDimension(d.dialogue_id))"
+                        ></app-ha-evidence-highlighted-text>
+                        <ng-template #noHuman>
+                          <span class="sdt-empty-text">[Human translation unavailable]</span>
+                        </ng-template>
+                      </div>
+                    </div>
+
+                    <!-- Column 3: AI German -->
+                    <div class="sdt-parallel-col" [class.sdt-parallel-col--active]="getActiveVersion(d.dialogue_id) === 'ai_german'">
+                      <div class="sdt-col-header">
+                        <span class="sdt-col-title">AI GERMAN (Direct)</span>
+                        <button
+                          type="button"
+                          class="sdt-copy-btn"
+                          (click)="copyText(d.texts.ai_german, 'AI German', d.dialogue_id)"
+                          title="Copy AI German"
+                        >Copy</button>
+                      </div>
+                      <div class="sdt-col-body">
+                        <app-ha-evidence-highlighted-text
+                          *ngIf="d.texts.ai_german; else noAi"
+                          [text]="d.texts.ai_german"
+                          [spans]="getTargetSpans(d, 'ai_german', getActiveDimension(d.dialogue_id))"
+                        ></app-ha-evidence-highlighted-text>
+                        <ng-template #noAi>
+                          <span class="sdt-empty-text">[AI translation unavailable]</span>
+                        </ng-template>
+                      </div>
+                    </div>
+
+                    <!-- Column 4: Context AI German -->
+                    <div class="sdt-parallel-col" [class.sdt-parallel-col--active]="getActiveVersion(d.dialogue_id) === 'context_ai_german'">
+                      <div class="sdt-col-header">
+                        <span class="sdt-col-title">CONTEXT-AWARE AI</span>
+                        <button
+                          type="button"
+                          class="sdt-copy-btn"
+                          (click)="copyText(d.texts.context_ai_german, 'Context AI German', d.dialogue_id)"
+                          title="Copy Context AI German"
+                        >Copy</button>
+                      </div>
+                      <div class="sdt-col-body">
+                        <app-ha-evidence-highlighted-text
+                          *ngIf="d.texts.context_ai_german; else noContextAi"
+                          [text]="d.texts.context_ai_german"
+                          [spans]="getTargetSpans(d, 'context_ai_german', getActiveDimension(d.dialogue_id))"
+                        ></app-ha-evidence-highlighted-text>
+                        <ng-template #noContextAi>
+                          <span class="sdt-empty-text">[Context AI translation unavailable]</span>
+                        </ng-template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PANEL SECTION B: Mode Toggle (Score matrix | Comparison chart) -->
+                <div class="sdt-section-controls">
+                  <div class="sdt-mode-toggle-group" role="group" aria-label="Analysis visualization mode">
+                    <button
+                      type="button"
+                      class="sdt-mode-btn"
+                      [class.sdt-mode-btn--active]="dialogueViewMode[d.dialogue_id] === 'matrix'"
+                      (click)="dialogueViewMode[d.dialogue_id] = 'matrix'"
+                    >Score matrix</button>
+                    <button
+                      type="button"
+                      class="sdt-mode-btn"
+                      [class.sdt-mode-btn--active]="dialogueViewMode[d.dialogue_id] === 'chart'"
+                      (click)="dialogueViewMode[d.dialogue_id] = 'chart'"
+                    >Comparison chart</button>
+                  </div>
+
+                  <!-- Focus Version Filter (for Comparison Chart) -->
+                  <div *ngIf="dialogueViewMode[d.dialogue_id] === 'chart'" class="sdt-focus-ver-group">
+                    <span class="sdt-focus-label">Focus:</span>
+                    <button
+                      type="button"
+                      class="sdt-focus-btn"
+                      [class.sdt-focus-btn--active]="dialogueFocusVersion[d.dialogue_id] === 'all'"
+                      (click)="dialogueFocusVersion[d.dialogue_id] = 'all'"
+                    >All (3)</button>
+                    <button
+                      type="button"
+                      class="sdt-focus-btn"
+                      [class.sdt-focus-btn--active]="dialogueFocusVersion[d.dialogue_id] === 'human_german'"
+                      (click)="dialogueFocusVersion[d.dialogue_id] = 'human_german'"
+                    >Human</button>
+                    <button
+                      type="button"
+                      class="sdt-focus-btn"
+                      [class.sdt-focus-btn--active]="dialogueFocusVersion[d.dialogue_id] === 'ai_german'"
+                      (click)="dialogueFocusVersion[d.dialogue_id] = 'ai_german'"
+                    >AI</button>
+                    <button
+                      type="button"
+                      class="sdt-focus-btn"
+                      [class.sdt-focus-btn--active]="dialogueFocusVersion[d.dialogue_id] === 'context_ai_german'"
+                      (click)="dialogueFocusVersion[d.dialogue_id] = 'context_ai_german'"
+                    >Context AI</button>
+                  </div>
+                </div>
+
+                <!-- VIEW MODE 1: 8-Dimension Literary Score Matrix -->
+                <div *ngIf="dialogueViewMode[d.dialogue_id] === 'matrix'" class="sdt-matrix-wrap">
+                  <table class="sdt-matrix-table">
+                    <thead>
+                      <tr>
+                        <th>LITERARY DIMENSION</th>
+                        <th style="width: 140px;">HUMAN</th>
+                        <th style="width: 140px;">AI</th>
+                        <th style="width: 140px;">CONTEXT AI</th>
+                        <th style="width: 70px; text-align: right;">SPREAD</th>
+                        <th>STATUS &amp; PROVENANCE</th>
+                        <th style="width: 80px; text-align: center;">INSPECT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        *ngFor="let dim of dimensions"
+                        class="sdt-matrix-tr"
+                        [class.sdt-matrix-tr--active]="getActiveDimension(d.dialogue_id) === dim.key"
+                        (click)="setActiveDimension(d.dialogue_id, dim.key)"
+                      >
+                        <!-- Dimension Name -->
+                        <td class="sdt-matrix-dim-name">
+                          <strong>{{ dim.name }}</strong>
+                        </td>
+
+                        <!-- Human -->
+                        <td class="sdt-matrix-score-col">
+                          <ng-container *ngIf="getDimScore(d, 'human_german', dim.key) !== null; else naH">
+                            <div class="sdt-score-bar-wrap">
+                              <span class="sdt-score-pill" [ngClass]="getScoreClass(getDimScore(d, 'human_german', dim.key))">
+                                {{ formatScore(getDimScore(d, 'human_german', dim.key)) }}
+                                <small *ngIf="hasDimOverride(d, 'human_german', dim.key)" title="Expert override">(rev)</small>
+                              </span>
+                              <div class="sdt-mini-bar-bg">
+                                <div class="sdt-mini-bar-fill fill--human" [style.width.%]="getDimScore(d, 'human_german', dim.key)"></div>
+                              </div>
+                            </div>
+                          </ng-container>
+                          <ng-template #naH><span class="sdt-na-text">N/A</span></ng-template>
+                        </td>
+
+                        <!-- AI -->
+                        <td class="sdt-matrix-score-col">
+                          <ng-container *ngIf="getDimScore(d, 'ai_german', dim.key) !== null; else naA">
+                            <div class="sdt-score-bar-wrap">
+                              <span class="sdt-score-pill" [ngClass]="getScoreClass(getDimScore(d, 'ai_german', dim.key))">
+                                {{ formatScore(getDimScore(d, 'ai_german', dim.key)) }}
+                                <small *ngIf="hasDimOverride(d, 'ai_german', dim.key)" title="Expert override">(rev)</small>
+                              </span>
+                              <div class="sdt-mini-bar-bg">
+                                <div class="sdt-mini-bar-fill fill--ai" [style.width.%]="getDimScore(d, 'ai_german', dim.key)"></div>
+                              </div>
+                            </div>
+                          </ng-container>
+                          <ng-template #naA><span class="sdt-na-text">N/A</span></ng-template>
+                        </td>
+
+                        <!-- Context AI -->
+                        <td class="sdt-matrix-score-col">
+                          <ng-container *ngIf="getDimScore(d, 'context_ai_german', dim.key) !== null; else naC">
+                            <div class="sdt-score-bar-wrap">
+                              <span class="sdt-score-pill" [ngClass]="getScoreClass(getDimScore(d, 'context_ai_german', dim.key))">
+                                {{ formatScore(getDimScore(d, 'context_ai_german', dim.key)) }}
+                                <small *ngIf="hasDimOverride(d, 'context_ai_german', dim.key)" title="Expert override">(rev)</small>
+                              </span>
+                              <div class="sdt-mini-bar-bg">
+                                <div class="sdt-mini-bar-fill fill--context" [style.width.%]="getDimScore(d, 'context_ai_german', dim.key)"></div>
+                              </div>
+                            </div>
+                          </ng-container>
+                          <ng-template #naC><span class="sdt-na-text">N/A</span></ng-template>
+                        </td>
+
+                        <!-- Spread -->
+                        <td class="sdt-matrix-spread-col">
+                          {{ getDimSpread(d, dim.key) }}
+                        </td>
+
+                        <!-- Status & Provenance -->
+                        <td class="sdt-matrix-prov-col">
+                          <div class="sdt-prov-wrap">
+                            <span class="v15-chip" [ngClass]="'v15-chip--' + getDimStatus(d, getActiveVersion(d.dialogue_id), dim.key).toLowerCase()">
+                              {{ getDimStatus(d, getActiveVersion(d.dialogue_id), dim.key) }}
+                            </span>
+                            <span class="sdt-prov-note">
+                              {{ getProvenanceLabel(d, getActiveVersion(d.dialogue_id), dim.key) }}
+                              &bull; Conf: {{ getDimConfidence(d, getActiveVersion(d.dialogue_id), dim.key) }}
+                            </span>
+                          </div>
+                        </td>
+
+                        <!-- Action -->
+                        <td class="sdt-matrix-action-col">
+                          <button
+                            type="button"
+                            class="sdt-inspect-dim-btn"
+                            [class.sdt-inspect-dim-btn--active]="getActiveDimension(d.dialogue_id) === dim.key"
+                            (click)="setActiveDimension(d.dialogue_id, dim.key); $event.stopPropagation()"
+                          >Inspect</button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- VIEW MODE 2: Dimension Grouped Comparison Horizontal Bar Chart -->
+                <div *ngIf="dialogueViewMode[d.dialogue_id] === 'chart'" class="sdt-chart-container">
+                  <div class="sdt-chart-legend">
+                    <span class="sdt-legend-item"><span class="sdt-legend-dot dot--human"></span>Human DE (Orange)</span>
+                    <span class="sdt-legend-item"><span class="sdt-legend-dot dot--ai"></span>AI DE (Dark grey)</span>
+                    <span class="sdt-legend-item"><span class="sdt-legend-dot dot--context"></span>Context AI DE (Blue)</span>
+                    <span class="sdt-legend-hint">Score scale 0 to 100</span>
+                  </div>
+
+                  <div class="sdt-bar-chart-grid">
+                    <div
+                      *ngFor="let dim of dimensions"
+                      class="sdt-chart-row"
+                      [class.sdt-chart-row--active]="getActiveDimension(d.dialogue_id) === dim.key"
+                      (click)="setActiveDimension(d.dialogue_id, dim.key)"
+                    >
+                      <div class="sdt-chart-row-label">
+                        <strong>{{ dim.name }}</strong>
+                      </div>
+                      <div class="sdt-chart-bars-area">
+                        <!-- Human Bar -->
+                        <div
+                          *ngIf="dialogueFocusVersion[d.dialogue_id] === 'all' || dialogueFocusVersion[d.dialogue_id] === 'human_german'"
+                          class="sdt-bar-line"
+                        >
+                          <span class="sdt-series-tag">Human</span>
+                          <div class="sdt-bar-track">
+                            <div
+                              *ngIf="getDimScore(d, 'human_german', dim.key) !== null"
+                              class="sdt-bar fill--human"
+                              [style.width.%]="getDimScore(d, 'human_german', dim.key)"
+                            ></div>
+                            <span *ngIf="getDimScore(d, 'human_german', dim.key) === null" class="sdt-bar-na">N/A</span>
+                          </div>
+                          <span class="sdt-bar-val">{{ formatScore(getDimScore(d, 'human_german', dim.key)) }}</span>
+                        </div>
+
+                        <!-- AI Bar -->
+                        <div
+                          *ngIf="dialogueFocusVersion[d.dialogue_id] === 'all' || dialogueFocusVersion[d.dialogue_id] === 'ai_german'"
+                          class="sdt-bar-line"
+                        >
+                          <span class="sdt-series-tag">AI</span>
+                          <div class="sdt-bar-track">
+                            <div
+                              *ngIf="getDimScore(d, 'ai_german', dim.key) !== null"
+                              class="sdt-bar fill--ai"
+                              [style.width.%]="getDimScore(d, 'ai_german', dim.key)"
+                            ></div>
+                            <span *ngIf="getDimScore(d, 'ai_german', dim.key) === null" class="sdt-bar-na">N/A</span>
+                          </div>
+                          <span class="sdt-bar-val">{{ formatScore(getDimScore(d, 'ai_german', dim.key)) }}</span>
+                        </div>
+
+                        <!-- Context AI Bar -->
+                        <div
+                          *ngIf="dialogueFocusVersion[d.dialogue_id] === 'all' || dialogueFocusVersion[d.dialogue_id] === 'context_ai_german'"
+                          class="sdt-bar-line"
+                        >
+                          <span class="sdt-series-tag">Ctx AI</span>
+                          <div class="sdt-bar-track">
+                            <div
+                              *ngIf="getDimScore(d, 'context_ai_german', dim.key) !== null"
+                              class="sdt-bar fill--context"
+                              [style.width.%]="getDimScore(d, 'context_ai_german', dim.key)"
+                            ></div>
+                            <span *ngIf="getDimScore(d, 'context_ai_german', dim.key) === null" class="sdt-bar-na">N/A</span>
+                          </div>
+                          <span class="sdt-bar-val">{{ formatScore(getDimScore(d, 'context_ai_german', dim.key)) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PANEL SECTION C: Phrase-Level Evidence Inspector & Review Tools -->
+                <div class="sdt-inspector-wrapper">
+                  <div class="sdt-inspector-grid">
+
+                    <!-- Left: Phrase Evidence Viewer -->
+                    <div class="sdt-evidence-box">
+                      <div class="sdt-ev-header">
+                        <div class="sdt-ev-tabs">
+                          <button
+                            *ngFor="let v of versions"
+                            type="button"
+                            class="sdt-ver-pill"
+                            [class.sdt-ver-pill--active]="getActiveVersion(d.dialogue_id) === v.key"
+                            (click)="setActiveVersion(d.dialogue_id, v.key)"
+                          >{{ v.short }}</button>
+                        </div>
+                        <div class="sdt-ev-meta">
+                          <span class="sdt-ev-dim-badge">
+                            {{ getActiveDimension(d.dialogue_id) | titlecase }}
+                          </span>
+                          <ng-container *ngIf="getEvidenceList(d, getActiveVersion(d.dialogue_id), getActiveDimension(d.dialogue_id)).length as evLen">
+                            <span *ngIf="evLen > 1" class="sdt-ev-counter">
+                              {{ getCurrentEvidenceIndex(d.dialogue_id) + 1 }} of {{ evLen }}
+                              <button type="button" class="sdt-step-btn" (click)="prevEvidence(d.dialogue_id, evLen)" title="Previous evidence">&lsaquo;</button>
+                              <button type="button" class="sdt-step-btn" (click)="nextEvidence(d.dialogue_id, evLen)" title="Next evidence">&rsaquo;</button>
+                            </span>
+                          </ng-container>
+                        </div>
+                      </div>
+
+                      <!-- Evidence Content Card -->
+                      <ng-container *ngIf="getEvidenceList(d, getActiveVersion(d.dialogue_id), getActiveDimension(d.dialogue_id)) as evs">
+                        <div *ngIf="evs.length > 0; else noEvidenceBlock" class="sdt-ev-body">
+                          <ng-container *ngIf="evs[getCurrentEvidenceIndex(d.dialogue_id)] as ev">
+                            <div class="sdt-ev-status-row">
+                              <span class="v15-chip" [ngClass]="'v15-chip--' + (ev.status || 'preserved').toLowerCase()">
+                                {{ ev.status || 'Preserved' }}
+                              </span>
+                              <span *ngIf="ev.valid === false || (ev.span_validation && !ev.span_validation.valid)" class="sdt-validation-warning">
+                                ⚠️ Unverified alignment (offset could not be validated)
+                              </span>
+                              <span *ngIf="ev.valid !== false && (!ev.span_validation || ev.span_validation.valid)" class="sdt-validation-ok">
+                                &check; Verified phrase alignment
+                              </span>
+                            </div>
+
+                            <div class="sdt-quotes-box">
+                              <div class="sdt-quote-item">
+                                <span class="sdt-quote-tag">English Source:</span>
+                                <blockquote class="sdt-quote-text">&ldquo;{{ ev.source_quote || d.texts.english }}&rdquo;</blockquote>
+                              </div>
+                              <div class="sdt-quote-item">
+                                <span class="sdt-quote-tag">{{ getActiveVersion(d.dialogue_id) === 'human_german' ? 'Human German' : (getActiveVersion(d.dialogue_id) === 'ai_german' ? 'AI German' : 'Context AI') }}:</span>
+                                <blockquote class="sdt-quote-text">&ldquo;{{ ev.target_quote || '[German translation]' }}&rdquo;</blockquote>
+                              </div>
+                            </div>
+
+                            <div *ngIf="ev.explanation" class="sdt-ev-explanation">
+                              <strong>Literary Analysis:</strong> {{ ev.explanation }}
+                            </div>
+                          </ng-container>
+                        </div>
+                        <ng-template #noEvidenceBlock>
+                          <div class="sdt-no-evidence">
+                            No discrete phrase-level evidence records required for this dimension assessment. Assessment applies holistically to dialogue speech.
+                          </div>
+                        </ng-template>
+                      </ng-container>
+                    </div>
+
+                    <!-- Right: Expert Review & Score Override Tool -->
+                    <div class="sdt-review-tool-box">
+                      <div class="sdt-review-tool-head">
+                        <strong>Expert Review &amp; Provenance</strong>
+                        <span class="sdt-review-state-pill" [class.state--flagged]="isDialogueFlaggedAny(d)">
+                          {{ isDialogueFlaggedAny(d) ? 'Review Candidate' : 'Verified' }}
+                        </span>
+                      </div>
+
+                      <div class="sdt-review-tool-body">
+                        <!-- Decision Selector -->
+                        <div class="sdt-tool-field">
+                          <label class="sdt-field-label">Expert Decision</label>
+                          <div class="sdt-decision-pills">
+                            <button
+                              type="button"
+                              class="sdt-dec-btn dec--accept"
+                              [class.sdt-dec-btn--active]="reviewDrafts[d.dialogue_id].decision === 'Accept'"
+                              (click)="reviewDrafts[d.dialogue_id].decision = 'Accept'"
+                            >Accept</button>
+                            <button
+                              type="button"
+                              class="sdt-dec-btn dec--override"
+                              [class.sdt-dec-btn--active]="reviewDrafts[d.dialogue_id].decision === 'Needs Revision'"
+                              (click)="reviewDrafts[d.dialogue_id].decision = 'Needs Revision'"
+                            >Override</button>
+                            <button
+                              type="button"
+                              class="sdt-dec-btn dec--reject"
+                              [class.sdt-dec-btn--active]="reviewDrafts[d.dialogue_id].decision === 'Reject'"
+                              (click)="reviewDrafts[d.dialogue_id].decision = 'Reject'"
+                            >Flag Review</button>
+                          </div>
+                        </div>
+
+                        <!-- Score Override -->
+                        <div class="sdt-tool-field" *ngIf="reviewDrafts[d.dialogue_id].decision === 'Needs Revision' || reviewDrafts[d.dialogue_id].decision === 'Accept'">
+                          <label class="sdt-field-label">
+                            Score Override (0-100)
+                            <small *ngIf="getDimOriginalScore(d, getActiveVersion(d.dialogue_id), getActiveDimension(d.dialogue_id)) as orig">
+                              Original: {{ orig }}
+                            </small>
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            class="sdt-score-input"
+                            [(ngModel)]="reviewDrafts[d.dialogue_id].scoreOverride"
+                            placeholder="Enter scholar score..."
+                          />
+                        </div>
+
+                        <!-- Reviewer & Comment -->
+                        <div class="sdt-tool-field">
+                          <label class="sdt-field-label">Reviewer Notes</label>
+                          <textarea
+                            class="sdt-comment-area"
+                            rows="2"
+                            [(ngModel)]="reviewDrafts[d.dialogue_id].comment"
+                            placeholder="Add scholar rationale or translation notes..."
+                          ></textarea>
+                        </div>
+
+                        <div class="sdt-tool-action-row">
+                          <button
+                            type="button"
+                            class="sdt-save-review-btn"
+                            (click)="saveReview(d)"
+                          >Save Decision</button>
+                          <span *ngIf="reviewDrafts[d.dialogue_id].successMsg" class="sdt-save-toast">
+                            &check; {{ reviewDrafts[d.dialogue_id].successMsg }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
+  </div>
+</div>

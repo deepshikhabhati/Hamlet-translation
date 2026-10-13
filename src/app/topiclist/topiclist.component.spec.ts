@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
 
 import { TopiclistComponent } from './topiclist.component';
 
@@ -8,7 +9,8 @@ describe('TopiclistComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TopiclistComponent ]
+      declarations: [ TopiclistComponent ],
+      imports: [ FormsModule ]
     })
     .compileComponents();
 

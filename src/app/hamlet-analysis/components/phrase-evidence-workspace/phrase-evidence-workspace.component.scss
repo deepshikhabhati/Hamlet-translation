@@ -484,6 +484,46 @@
     }
   }
 
+  &--preserved {
+    background: #dcfce7;
+    border-bottom: 2px solid #22c55e;
+    color: #14532d;
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+    &:hover { background: #bbf7d0; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.6); }
+  }
+
+  &--changed {
+    background: #ffedd5;
+    border-bottom: 2px solid #f97316;
+    color: #7c2d12;
+    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.4);
+    &:hover { background: #fed7aa; box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.6); }
+  }
+
+  &--lost {
+    background: #fee2e2;
+    border-bottom: 2px solid #ef4444;
+    color: #7f1d1d;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
+    &:hover { background: #fecaca; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.6); }
+  }
+
+  &--added {
+    background: #dbeafe;
+    border-bottom: 2px solid #3b82f6;
+    color: #1e3a8a;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+    &:hover { background: #bfdbfe; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6); }
+  }
+
+  &--needs-review {
+    background: #f3e8ff;
+    border-bottom: 2px solid #a855f7;
+    color: #581c87;
+    box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.4);
+    &:hover { background: #e9d5ff; box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.6); }
+  }
+
   &--concept-active {
     background: #f59e0b !important;
     color: #ffffff !important;

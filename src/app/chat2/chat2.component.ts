@@ -52,7 +52,10 @@ export class CircularTreeComponent implements OnChanges {
   private initChart() {
     d3.select(this.treeContainer.nativeElement).selectAll('*').remove();
 
-    this.root = d3.hierarchy(this.data, d => d.expanded ? d.children : null);
+    if (!this.data) {
+      return;
+    }
+    this.root = d3.hierarchy(this.data, d => d?.expanded ? d?.children : null);
     this.root.x0 = 0;
     this.root.y0 = 0;
 

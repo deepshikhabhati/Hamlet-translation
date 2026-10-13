@@ -16,7 +16,7 @@ This Cursor Composer session focused on extending the **Hamlet-translation** Ang
 1. **German Hamlet Structure & Content Views:** Displaying hierarchical structure from `german.ts` and adapting the 3-panel query/reader layout for German Hamlet.
 2. **Offline English Back-Translation Toggles:** Enabling users to toggle between German and supplied English back-translations for **AI German** and **Context-Aware AI German** cards and phrases, while keeping Human/Book German strictly in German.
 
-The final request ID `f765f016-0d6a-4c3a-b3e9-4e0447d12f7f` represents the automated background wakeup event triggered when the build, commit, and GitHub Pages deployment script finished executing.
+The final request ID `f765f016-0d6a-4c3a-b3e9-4e0447d12f7f` represents the automated background wakeup event triggered when the build, commit, and GitHub Pages deployment script finished executing.`
 
 ---
 

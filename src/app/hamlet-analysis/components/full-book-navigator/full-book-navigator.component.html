@@ -22,6 +22,14 @@
       <div class="act-header" (click)="toggleAct(act)" [style.color]="actColors[act.actNumber]">
         <i class="fas" [ngClass]="act.expanded ? 'fa-folder-open' : 'fa-folder'"></i>
         <span>Act {{ act.actNumber }}</span>
+        
+        <div class="scene-score-bar-container" [style.opacity]="getActScore(act) === '-' ? '0.3' : '1'" (click)="$event.stopPropagation()">
+          <div class="score-bar-bg">
+            <div class="score-bar-fill" [style.width]="getActScoreWidth(act)" [style.background-color]="getScoreColor(getActScore(act))"></div>
+          </div>
+          <span class="score-bar-text" [style.color]="getScoreColor(getActScore(act))">{{ getActScore(act) }}</span>
+        </div>
+
         <i class="fas" [ngClass]="act.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
       </div>
       
@@ -36,9 +44,9 @@
             
             <div class="scene-score-bar-container" [style.opacity]="getScore(scene) === '-' ? '0.3' : '1'">
               <div class="score-bar-bg">
-                <div class="score-bar-fill" [style.width]="getScoreWidth(scene)" [style.background-color]="getScoreColor()"></div>
+                <div class="score-bar-fill" [style.width]="getScoreWidth(scene)" [style.background-color]="getScoreColor(getScore(scene))"></div>
               </div>
-              <span class="score-bar-text" [style.color]="getScoreColor()">{{ getScore(scene) }}</span>
+              <span class="score-bar-text" [style.color]="getScoreColor(getScore(scene))">{{ getScore(scene) }}</span>
             </div>
   
           </div>

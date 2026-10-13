@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 import { HamletDataService } from './hamlet-data.service';
 
 describe('HamletDataService phrase evidence', () => {
@@ -22,13 +23,14 @@ describe('HamletDataService phrase evidence', () => {
 
   it('loads phrase evidence JSON and finds passage by id', () => {
     let result: any;
+    spyOn<any>(service, 'fetchGzippedJson').and.returnValue(
+      of({
+        passages: [{ passage_id: 'A1-01', phrase_alignments: [] }],
+        overview_heatmap: { cells: [] },
+        validation_options: ['Agree'],
+      })
+    );
     service.getPhraseEvidenceData().subscribe((d) => (result = d));
-    const req = http.expectOne('assets/data/hamlet_phrase_alignment_ui.json');
-    req.flush({
-      passages: [{ passage_id: 'A1-01', phrase_alignments: [] }],
-      overview_heatmap: { cells: [] },
-      validation_options: ['Agree'],
-    });
     expect(result.passages.length).toBe(1);
     expect(service.getPhrasePassageById('A1-01')?.passage_id).toBe('A1-01');
     expect(service.getPhrasePassageById('missing')).toBeNull();

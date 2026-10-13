@@ -8,7 +8,7 @@ describe('PdfHighlighterComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ PdfHighlighterComponent ]
+      imports: [ PdfHighlighterComponent ]
     })
     .compileComponents();
 

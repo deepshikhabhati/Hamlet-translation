@@ -297,8 +297,8 @@ private update3 = (source: any) => {
     });
 
   node.append("circle")
-    .attr("r", (d: any) => d.data.name.toLowerCase().includes("leaf") && !d.data.rank ? 8 : (d.data.rank ? d.data.rank * 2 : 10))
-    .style("fill", (d: any) => d.data.similarity_score > 0 ? "#ff5733" : (d.data.name.toLowerCase().includes("leaf") ? "#808080" : (d.data.color || "#000000")));
+    .attr("r", (d: any) => d.data?.name?.toLowerCase().includes("leaf") && !d.data.rank ? 8 : (d.data?.rank ? d.data.rank * 2 : 10))
+    .style("fill", (d: any) => d.data?.similarity_score > 0 ? "#ff5733" : (d.data?.name?.toLowerCase().includes("leaf") ? "#808080" : (d.data?.color || "#000000")));
 
   node.append("text")
     .attr("class", "node-text")

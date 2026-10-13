@@ -1,6 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+
 
 import { MainContentComponent } from './main-content.component';
+import { TopiclistComponent } from '../topiclist/topiclist.component';
 
 describe('MainContentComponent', () => {
   let component: MainContentComponent;
@@ -8,7 +13,9 @@ describe('MainContentComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ MainContentComponent ]
+      imports: [FormsModule, HttpClientTestingModule],
+      schemas: [NO_ERRORS_SCHEMA],
+      declarations: [ MainContentComponent, TopiclistComponent ]
     })
     .compileComponents();
 

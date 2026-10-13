@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { ButtonHeaderComponent } from './button-header.component';
 
@@ -8,7 +9,8 @@ describe('ButtonHeaderComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ButtonHeaderComponent ]
+      declarations: [ ButtonHeaderComponent ],
+      imports: [ NoopAnimationsModule ]
     })
     .compileComponents();
 

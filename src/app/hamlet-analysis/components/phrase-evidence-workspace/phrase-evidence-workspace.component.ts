@@ -303,32 +303,111 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   }
 
   getSegments(phrase: any, version: string): TextSegment[] {
-    const rawText = this.getRawText(phrase, version);
-    if (!rawText) return [{ text: 'NO CORRESPONDING SPAN', highlighted: false, isMissingPlaceholder: true }];
+    const rawText = this.getPhraseText(phrase, version);
+    if (!rawText) return [{ text: 'No corresponding span', highlighted: false, isMissingPlaceholder: true }];
 
-    const dimensionData = phrase.dimension_evidence?.[this.selectedEvidenceDimension];
-    if (!dimensionData) return [{ text: rawText, highlighted: false }];
+    const spans: any[] = [];
+    const dim = this.selectedEvidenceDimension;
 
-    const versionData = version === 'english' ? dimensionData.source : dimensionData.targets?.[version];
-    if (!versionData || versionData.applicable === false) return [{ text: rawText, highlighted: false }];
-
-    const spans = versionData.evidence_spans || [];
-    if (spans.length === 0) return [{ text: rawText, highlighted: false }];
-
-    // Sort spans by start, handle non-overlapping
-    const sortedSpans = [...spans].sort((a, b) => a.start - b.start);
-    const nonOverlapping = [];
-    let lastEnd = -1;
-    for (const s of sortedSpans) {
-      if (s.start >= lastEnd && s.end > s.start) {
-        nonOverlapping.push(s);
-        lastEnd = s.end;
+    if (phrase.alignment_id === "EN-A1-S1-D00026-AL-001" && version === "human_german") {
+      console.log("=== EN-A1-S1-D00026-AL-001 DEBUG ===");
+      console.log("DIM:", dim);
+      const tgtEvidence = phrase.targets?.[version]?.evidence?.find((e: any) => e.dimension === dim);
+      console.log("tgtEvidence:", tgtEvidence ? "FOUND" : "NOT FOUND");
+      if (tgtEvidence) {
+        console.log("eSpans length:", tgtEvidence.evidence_spans?.length);
+        console.log("first span target:", tgtEvidence.evidence_spans?.[0]?.target);
       }
+    }
+
+    if (version === 'english') {
+      const targets = ['human_german', 'ai_german', 'context_ai_german'];
+      const seen = new Set<string>();
+
+      let dimFoundInAnyTarget = false;
+      for (const tgt of targets) {
+        const tgtEvidence = phrase.targets?.[tgt]?.evidence?.find((e: any) => e.dimension === dim);
+        if (tgtEvidence) dimFoundInAnyTarget = true;
+        if (tgtEvidence && tgtEvidence.evidence_spans) {
+          for (const s of tgtEvidence.evidence_spans) {
+            const source = s.source;
+            if (source && source.start !== undefined && source.end !== undefined) {
+              const key = `${s.concept_id}-${source.start}-${source.end}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                spans.push({
+                  start: source.start,
+                  end: source.end,
+                  text: source.text,
+                  concept_id: s.concept_id,
+                  status: 'source'
+                });
+              }
+            }
+          }
+        }
+      }
+      if (!dimFoundInAnyTarget) return [{ text: rawText, highlighted: false }];
+      if (spans.length === 0) return [{ text: rawText, highlighted: false, missingEvidence: 'english_spans_zero' }];
+    } else {
+      const tgtEvidence = phrase.targets?.[version]?.evidence?.find((e: any) => e.dimension === dim);
+      if (!tgtEvidence) {
+        return [{ text: rawText, highlighted: false }];
+      }
+      if (tgtEvidence.applicable === false || tgtEvidence.status === 'Not Applicable') {
+        return [{ text: rawText, highlighted: false }];
+      }
+      const eSpans = tgtEvidence.evidence_spans || [];
+      if (eSpans.length === 0) {
+        return [{ text: rawText, highlighted: false, missingEvidence: 'espans_zero', debugInfo: tgtEvidence }];
+      }
+      for (const s of eSpans) {
+        const tgt = s.target;
+        if (tgt && tgt.start !== undefined && tgt.end !== undefined) {
+          spans.push({
+            start: tgt.start,
+            end: tgt.end,
+            text: tgt.text,
+            concept_id: s.concept_id,
+            status: s.status
+          });
+        }
+      }
+      if (spans.length === 0) return [{ text: rawText, highlighted: false, missingEvidence: 'spans_zero', debugInfo: eSpans }];
+    }
+
+    // Offset validation
+    spans.forEach(span => {
+      const actual = rawText.slice(span.start, span.end);
+      if (actual !== span.text) {
+        console.warn('EVIDENCE OFFSET MISMATCH', { expected: span.text, actual, start: span.start, end: span.end, rawText });
+      }
+    });
+
+    const sortedSpans = spans.sort((a, b) => a.start - b.start);
+    return this.sliceTextIntoSegments(rawText, sortedSpans);
+  }
+
+  private sliceTextIntoSegments(rawText: string, sortedSpans: any[]): TextSegment[] {
+    const mergedSpans = [];
+    if (sortedSpans.length > 0) {
+      let current = { ...sortedSpans[0] };
+      for (let i = 1; i < sortedSpans.length; i++) {
+        const next = sortedSpans[i];
+        if (next.start <= current.end) {
+          // Merge overlapping spans
+          current.end = Math.max(current.end, next.end);
+        } else {
+          mergedSpans.push(current);
+          current = { ...next };
+        }
+      }
+      mergedSpans.push(current);
     }
 
     const segments: TextSegment[] = [];
     let currentIdx = 0;
-    for (const span of nonOverlapping) {
+    for (const span of mergedSpans) {
       if (span.start > currentIdx) {
         segments.push({ text: rawText.slice(currentIdx, span.start), highlighted: false });
       }
@@ -336,15 +415,15 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
         text: rawText.slice(span.start, span.end),
         highlighted: true,
         concept_id: span.concept_id,
-        concept_label: span.concept_id, // could be mapped to a friendly label
+        concept_label: span.concept_id,
+        status: span.status
       });
       currentIdx = span.end;
     }
     if (currentIdx < rawText.length) {
       segments.push({ text: rawText.slice(currentIdx), highlighted: false });
     }
-
-    return segments.length > 0 ? segments : [{ text: rawText, highlighted: false }];
+    return segments;
   }
 
   getRawText(phrase: any, version: string): string {
@@ -409,6 +488,22 @@ export class PhraseEvidenceWorkspaceComponent implements OnChanges {
   isCardDimmed(alignmentId: string): boolean {
     const active = this.hoveredAlignmentId || this.selectedAlignmentId;
     return !!active && alignmentId !== active;
+  }
+
+  getSegmentClass(seg: any): string {
+    if (!seg.highlighted) return '';
+    let cls = 'phrase-segment phrase-segment--highlight';
+    if (seg.status) {
+      const statusStr = seg.status.toLowerCase().replace(' ', '-');
+      cls += ` phrase-segment--${statusStr}`;
+    }
+    if (seg.concept_id && this.isConceptHighlighted(seg.concept_id)) {
+      cls += ' phrase-segment--concept-active';
+    }
+    if (seg.concept_id && this.isEvidenceDimmed(seg.concept_id)) {
+      cls += ' phrase-segment--dimmed';
+    }
+    return cls;
   }
 
   isCardPulsing(alignmentId: string): boolean {

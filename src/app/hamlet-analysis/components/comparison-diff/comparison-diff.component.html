@@ -3,17 +3,6 @@
     <i class="fas fa-exchange-alt"></i> Side-by-Side Text
   </h3>
 
-  <div class="comparison-diff__categories">
-    <button
-      *ngFor="let cat of categories"
-      class="comparison-diff__cat-btn"
-      [class.comparison-diff__cat-btn--active]="isActive(cat.key)"
-      (click)="toggleCategory(cat.key)"
-    >
-      <i class="fas" [ngClass]="cat.icon"></i> {{ cat.label }}
-    </button>
-  </div>
-
   <div class="comparison-diff__panels">
     <div class="comparison-diff__panel">
       <div class="comparison-diff__panel-header">

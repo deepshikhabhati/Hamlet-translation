@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TreemapComponent } from './treemap.component';
+import { TreeMapComponent } from './treemap.component';
 
-describe('TreemapComponent', () => {
-  let component: TreemapComponent;
-  let fixture: ComponentFixture<TreemapComponent>;
+describe('TreeMapComponent', () => {
+  let component: TreeMapComponent;
+  let fixture: ComponentFixture<TreeMapComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TreemapComponent ]
+      declarations: [ TreeMapComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(TreemapComponent);
+    fixture = TestBed.createComponent(TreeMapComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

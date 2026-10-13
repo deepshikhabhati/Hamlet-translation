@@ -117,24 +117,38 @@
                   {{ labels[version] }}
                 </div>
 
-                <ng-container *ngIf="getPhraseText(alignment, version) as phraseText; else missingSpan">
-                  <div class="phrase-text" style="font-size: 0.95rem; line-height: 1.5; color: #334155;">
-                    {{ phraseText }}
-                  </div>
-                  <span
-                    *ngIf="version !== 'english'"
-                    class="classification-badge"
-                    style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.05);"
-                  >
-                    {{ getPhraseStatus(alignment, version) }}
-                  </span>
+                <ng-container *ngIf="getSegments(alignment, version) as segments">
+                  <ng-container *ngIf="segments[0]?.isMissingPlaceholder; else hasText">
+                    <div class="missing-span" style="color: #94a3b8; font-style: italic;">
+                      No corresponding span
+                    </div>
+                  </ng-container>
+                  <ng-template #hasText>
+                    <div class="phrase-text" style="font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                      <ng-container *ngFor="let seg of segments">
+                        <span 
+                          [class]="getSegmentClass(seg)"
+                          [attr.data-concept-id]="seg.concept_id"
+                          [attr.title]="seg.concept_id ? selectedEvidenceDimension + ' · ' + seg.status : null"
+                          (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
+                          (mouseleave)="seg.concept_id && clearHoveredConcept()"
+                          (click)="seg.concept_id && onSegmentClick($event, alignment, seg)"
+                        >{{ seg.text }}</span>
+                      </ng-container>
+                    </div>
+                    <div *ngIf="$any(segments[0]).missingEvidence && version !== 'english'" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; font-style: italic;">
+                      Exact phrase evidence not yet extracted ({{ $any(segments[0]).missingEvidence }})
+                      <pre style="font-size: 0.6rem; margin-top: 0.25rem;">{{ $any(segments[0]).debugInfo | json }}</pre>
+                    </div>
+                    <span
+                      *ngIf="version !== 'english'"
+                      class="classification-badge"
+                      style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.05);"
+                    >
+                      {{ getPhraseStatus(alignment, version) }}
+                    </span>
+                  </ng-template>
                 </ng-container>
-
-                <ng-template #missingSpan>
-                  <div class="missing-span" style="color: #94a3b8; font-style: italic;">
-                    No corresponding span
-                  </div>
-                </ng-template>
               </div>
             </div>
 
@@ -175,24 +189,38 @@
                 {{ labels[version] }}
               </div>
 
-              <ng-container *ngIf="getPhraseText(alignment, version) as phraseText; else missingSpan">
-                <div class="phrase-text" style="font-size: 0.95rem; line-height: 1.5; color: #334155;">
-                  {{ phraseText }}
-                </div>
-                <span
-                  *ngIf="version !== 'english'"
-                  class="classification-badge"
-                  style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.05);"
-                >
-                  {{ getPhraseStatus(alignment, version) }}
-                </span>
+              <ng-container *ngIf="getSegments(alignment, version) as segments">
+                <ng-container *ngIf="segments[0]?.isMissingPlaceholder; else hasText">
+                  <div class="missing-span" style="color: #94a3b8; font-style: italic;">
+                    No corresponding span
+                  </div>
+                </ng-container>
+                <ng-template #hasText>
+                  <div class="phrase-text" style="font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                    <ng-container *ngFor="let seg of segments">
+                      <span 
+                        [class]="getSegmentClass(seg)"
+                        [attr.data-concept-id]="seg.concept_id"
+                        [attr.title]="seg.concept_id ? selectedEvidenceDimension + ' · ' + seg.status : null"
+                        (mouseenter)="seg.concept_id && hoverConcept(seg.concept_id)"
+                        (mouseleave)="seg.concept_id && clearHoveredConcept()"
+                        (click)="seg.concept_id && onSegmentClick($event, alignment, seg)"
+                      >{{ seg.text }}</span>
+                    </ng-container>
+                  </div>
+                  <div *ngIf="$any(segments[0]).missingEvidence && version !== 'english'" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; font-style: italic;">
+                    Exact phrase evidence not yet extracted ({{ $any(segments[0]).missingEvidence }})
+                    <pre style="font-size: 0.6rem; margin-top: 0.25rem;">{{ $any(segments[0]).debugInfo | json }}</pre>
+                  </div>
+                  <span
+                    *ngIf="version !== 'english'"
+                    class="classification-badge"
+                    style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.05);"
+                  >
+                    {{ getPhraseStatus(alignment, version) }}
+                  </span>
+                </ng-template>
               </ng-container>
-
-              <ng-template #missingSpan>
-                <div class="missing-span" style="color: #94a3b8; font-style: italic;">
-                  No corresponding span
-                </div>
-              </ng-template>
             </div>
           </div>
 
