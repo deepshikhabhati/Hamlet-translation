@@ -10,6 +10,7 @@ export interface SpanValidation {
   valid: boolean;
   offset_unit: string;
   end_exclusive: boolean;
+  reason?: string;
 }
 
 export interface PhraseEvidence {
@@ -28,7 +29,7 @@ export interface PhraseEvidence {
 export interface DimensionAnalysis {
   applicable: boolean;
   score: number | null;
-  confidence: number;
+  confidence: number | null;
   status: string;
   explanation: string;
   evidence: PhraseEvidence[];
@@ -39,8 +40,8 @@ export interface DimensionReview {
   decision: 'Accept' | 'Reject' | 'Needs Revision' | null;
   score_override: number | null;
   comment: string | null;
-  reviewer: string | null;
-  reviewed_at: string | null;
+  reviewer?: string | null;
+  reviewed_at?: string | null;
 }
 
 export interface ExpertReview {

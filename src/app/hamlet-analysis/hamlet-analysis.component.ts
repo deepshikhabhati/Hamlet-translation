@@ -39,6 +39,7 @@ import {
 } from './models/hamlet-analysis-v15.models';
 import { HamletAggregationService } from './services/hamlet-aggregation.service';
 import { ExpertReviewService } from './services/expert-review.service';
+import { ReviewCountingService, DialogueReviewGroup, ReviewIssue, SceneReviewSummary } from './services/review-counting.service';
 import { SceneDialogueTableComponent } from './components/scene-dialogue-table/scene-dialogue-table.component';
 
 @Component({
@@ -155,18 +156,11 @@ export class HamletAnalysisComponent implements OnInit {
   reviewDrilldownModalOpen = false;
   reviewDrilldownData: {
     scene: AnalysisScene;
-    flaggedDialogues: Array<{
-      dialogue: AnalysisDialogue;
-      flags: Array<{
-        verKey: string;
-        dimKey: string;
-        dimName: string;
-        reason: string;
-        score: number | null;
-        confidence: number | null;
-        evidenceStatus: string;
-      }>;
-    }>;
+    dialogueGroups: DialogueReviewGroup[];
+    flaggedDialogues?: any[];
+    flaggedDialoguesCount: number;
+    totalFlaggedAssessments: number;
+    evidenceIssueCount: number;
   } | null = null;
 
   // Tooltip State
@@ -234,7 +228,8 @@ export class HamletAnalysisComponent implements OnInit {
     private adapter: FullBookAdapterService,
     private sanitizer: DomSanitizer,
     public aggregationService: HamletAggregationService,
-    public expertReviewService: ExpertReviewService
+    public expertReviewService: ExpertReviewService,
+    public reviewCountingService: ReviewCountingService
   ) {}
 
   ngOnInit(): void {
@@ -467,6 +462,7 @@ export class HamletAnalysisComponent implements OnInit {
     }
 
     if (this.analysisActs.length > 0) {
+      this.reviewCountingService.buildIndex(this.analysisActs);
       this.selectedAnalysisAct = 1;
       this.selectedAnalysisScene = null;
     }
@@ -540,7 +536,6 @@ export class HamletAnalysisComponent implements OnInit {
 
   selectAnalysisScene(scene: AnalysisScene): void {
     this.selectedAnalysisScene = scene;
-    this.toggleSceneExpand(scene.scene_id);
     this.activeInspectedDialogueId = null;
   }
 
@@ -660,20 +655,7 @@ export class HamletAnalysisComponent implements OnInit {
 
   getSceneReviewCount(scene: AnalysisScene): number {
     if (!this.isSceneAnalyzed(scene)) return 0;
-
-    if (scene.review_dialogues_count !== undefined) {
-      return scene.review_dialogues_count;
-    }
-
-    if (!scene.dialogues || scene.dialogues.length === 0) return 0;
-
-    const flaggedDlgs = new Set<string>();
-    scene.dialogues.forEach((d) => {
-      if (this.isDialogueFlaggedForReview(d)) {
-        flaggedDlgs.add(d.dialogue_id);
-      }
-    });
-    return flaggedDlgs.size;
+    return this.reviewCountingService.getSceneFlaggedDialogueCount(scene.scene_id);
   }
 
   getRankedStudyScenes(): AnalysisScene[] {
@@ -745,10 +727,14 @@ export class HamletAnalysisComponent implements OnInit {
         const lower = s.toLowerCase();
         return lower.includes('chang') || lower.includes('lost') || lower.includes('add');
       });
+      // Canonical review flag: dialogue has at least one active flagged assessment in this scene
+      const needsReview = isAnalyzed && this.reviewCountingService.isDialogueFlagged(d.dialogue_id);
+      // Dimension-specific review flag for active dimension
+      const dimNeedsReview = isAnalyzed && this.reviewCountingService.isDialogueFlagged(d.dialogue_id, dim);
+
       const hFlagged = isAnalyzed && this.isDialogueFlagged(d, 'human_german', dim);
       const aFlagged = isAnalyzed && this.isDialogueFlagged(d, 'ai_german', dim);
       const cFlagged = isAnalyzed && this.isDialogueFlagged(d, 'context_ai_german', dim);
-      const needsReview = isAnalyzed && (hFlagged || aFlagged || cFlagged);
       const hasInvalidEvidence = isAnalyzed && this.hasInvalidSpans(d, dim);
 
       return {
@@ -772,6 +758,7 @@ export class HamletAnalysisComponent implements OnInit {
         aiLiteral: false,
         contextAiLiteral: false,
         needsReview,
+        dimNeedsReview,
         isDiff,
         hasInvalidEvidence,
         invalidEvidenceWarning: hasInvalidEvidence ? 'Evidence offset could not be validated against text; highlight suppressed.' : '',
@@ -792,7 +779,18 @@ export class HamletAnalysisComponent implements OnInit {
   }
 
   getNeedsReviewCount(): number {
-    return this.getParallelPhraseRows().filter((r) => r.needsReview).length;
+    if (!this.selectedAnalysisScene) return 0;
+    return this.reviewCountingService.getSceneFlaggedDialogueCount(this.selectedAnalysisScene.scene_id);
+  }
+
+  getDimensionNeedsReviewCount(dimKey: string): number {
+    if (!this.selectedAnalysisScene) return 0;
+    return this.reviewCountingService.getSceneDimensionFlaggedDialogueCount(this.selectedAnalysisScene.scene_id, dimKey);
+  }
+
+  getDimensionName(dimKey: string): string {
+    const found = this.v15Dimensions.find((d) => d.key === dimKey);
+    return found?.short || found?.name || dimKey;
   }
 
   getFilteredPhraseRows(): any[] {
@@ -894,13 +892,9 @@ export class HamletAnalysisComponent implements OnInit {
   isDialogueFlagged(diag: AnalysisDialogue, verKey: string, dimKey: string): boolean {
     const verObj = diag.analysis?.[verKey];
     const ana = verObj?.[dimKey];
-    if (!ana) return false;
-    return !!(
-      ana.needs_review ||
-      (ana.evidence && ana.evidence.some((e) => e.verified === false || (e.span_validation && e.span_validation.valid === false))) ||
-      (ana.confidence !== undefined && ana.confidence < 0.85) ||
-      (ana.score !== null && ana.score !== undefined && ana.score < 70)
-    );
+    const review = diag.expert_review?.dimension_reviews?.[verKey]?.[dimKey];
+    const res = this.reviewCountingService.evaluateAssessment(ana, review, diag.dialogue_id, verKey, dimKey);
+    return res.flagged;
   }
 
   // --- Inspector & Expert Review ---
@@ -998,6 +992,7 @@ export class HamletAnalysisComponent implements OnInit {
       reviewer: this.valReviewer,
       reviewed_at: new Date().toISOString()
     });
+    this.reviewCountingService.buildIndex(this.analysisActs);
 
     this.expertValidations[diag.dialogue_id] = {
       target: this.valTarget,
@@ -1154,69 +1149,16 @@ export class HamletAnalysisComponent implements OnInit {
 
   // --- Review Drill-down Modal ---
   openReviewDrilldown(scene: AnalysisScene): void {
-    const flaggedList: Array<{
-      dialogue: AnalysisDialogue;
-      flags: Array<{
-        verKey: string;
-        dimKey: string;
-        dimName: string;
-        reason: string;
-        score: number | null;
-        confidence: number | null;
-        evidenceStatus: string;
-      }>;
-    }> = [];
-
-    scene.dialogues.forEach((d) => {
-      const flags: any[] = [];
-      this.v15Versions.forEach((v) => {
-        const verObj = d.analysis?.[v.key];
-        if (!verObj) return;
-        this.v15Dimensions.forEach((dim) => {
-          const ana = verObj[dim.key];
-          if (!ana) return;
-
-          let reason = '';
-          let evStatus = 'Valid';
-          if (ana.needs_review) {
-            reason = 'Needs review flag in model analysis';
-          }
-          if (ana.evidence && ana.evidence.some((e) => (e.span_validation && e.span_validation.valid === false) || e.verified === false)) {
-            reason = reason ? `${reason}; Invalid evidence span` : 'Invalid evidence span';
-            evStatus = 'Invalid';
-          }
-          if (ana.confidence !== undefined && ana.confidence < 0.85) {
-            reason = reason ? `${reason}; Low confidence (${ana.confidence})` : `Low confidence (${ana.confidence})`;
-          }
-          if (ana.score !== null && ana.score !== undefined && ana.score < 70) {
-            reason = reason ? `${reason}; Score below 70 (${ana.score})` : `Score below 70 (${ana.score})`;
-          }
-
-          if (reason) {
-            flags.push({
-              verKey: v.key,
-              dimKey: dim.key,
-              dimName: dim.name,
-              reason,
-              score: ana.score,
-              confidence: ana.confidence,
-              evidenceStatus: evStatus
-            });
-          }
-        });
-      });
-
-      if (flags.length > 0) {
-        flaggedList.push({
-          dialogue: d,
-          flags
-        });
-      }
-    });
+    const dialogueGroups = this.reviewCountingService.getSceneDialogueGroups(scene.scene_id);
+    const sceneSummary = this.reviewCountingService.getSceneSummary(scene.scene_id);
 
     this.reviewDrilldownData = {
       scene,
-      flaggedDialogues: flaggedList
+      dialogueGroups,
+      flaggedDialogues: dialogueGroups,
+      flaggedDialoguesCount: sceneSummary?.flaggedDialogueCount || dialogueGroups.length,
+      totalFlaggedAssessments: sceneSummary?.flaggedAssessmentCount || 0,
+      evidenceIssueCount: sceneSummary?.evidenceIssueCount || 0
     };
     this.reviewDrilldownModalOpen = true;
   }
@@ -1234,12 +1176,40 @@ export class HamletAnalysisComponent implements OnInit {
       this.selectAnalysisAct(sc.act);
       this.selectAnalysisScene(sc);
     }
-    if (item.flags && item.flags.length > 0) {
-      this.selectedAnalysisDimension = item.flags[0].dimKey;
-      this.activeInspectorDim = item.flags[0].dimKey;
-      this.valTarget = item.flags[0].verKey;
+    const issues = item.issues || item.flags || [];
+    if (issues.length > 0) {
+      const firstIssue = issues[0];
+      const dimKey = firstIssue.dimensionKey || firstIssue.dimKey;
+      const verKey = firstIssue.translationKey || firstIssue.verKey;
+      this.selectedAnalysisDimension = dimKey;
+      this.activeInspectorDim = dimKey;
+      this.valTarget = verKey;
     }
-    this.openInspector(item.dialogue.dialogue_id);
+    const dlgId = item.dialogueId || item.dialogue?.dialogue_id;
+    if (dlgId) {
+      this.openInspector(dlgId);
+    }
+  }
+
+  // --- Dynamic Header Summary Getters ---
+  getTotalDialoguesCount(): number {
+    return this.reviewCountingService.getPlaySummary().totalDialogues || 1107;
+  }
+
+  getAnalyzedDialoguesCount(): number {
+    return this.reviewCountingService.getPlaySummary().analyzedDialogues || 1107;
+  }
+
+  getTotalReviewDialoguesCount(): number {
+    return this.reviewCountingService.getPlaySummary().flaggedDialogueCount || 0;
+  }
+
+  getTotalFlaggedAssessmentsCount(): number {
+    return this.reviewCountingService.getPlaySummary().flaggedAssessmentCount || 0;
+  }
+
+  getTotalScenesCount(): number {
+    return this.getAllAnalysisScenes().length || 20;
   }
 
   // --- Validation Queue ---

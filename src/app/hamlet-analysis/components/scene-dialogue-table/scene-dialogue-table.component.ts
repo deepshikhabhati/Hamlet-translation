@@ -18,6 +18,7 @@ import {
   DimensionReview
 } from '../../models/hamlet-analysis-v15.models';
 import { ExpertReviewService } from '../../services/expert-review.service';
+import { ReviewCountingService } from '../../services/review-counting.service';
 import { EvidenceHighlightedTextComponent, codePointLength } from '../evidence-highlighted-text/evidence-highlighted-text.component';
 
 @Component({
@@ -61,7 +62,8 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
 
   constructor(
     private sanitizer: DomSanitizer,
-    private expertReviewService: ExpertReviewService
+    private expertReviewService: ExpertReviewService,
+    public reviewCountingService: ReviewCountingService
   ) {}
 
   ngOnInit(): void {
@@ -279,17 +281,18 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
 
   // --- Flags & Verification ---
   isDialogueFlaggedAny(d: AnalysisDialogue): boolean {
+    if (this.reviewCountingService.isDialogueFlagged(d.dialogue_id)) {
+      return true;
+    }
     if (!d.analysis) return false;
     for (const v of this.versions) {
       const verObj = d.analysis[v.key];
       if (!verObj) continue;
       for (const dim of this.dimensions) {
         const ana = verObj[dim.key];
-        if (!ana || !ana.applicable) continue;
-        if (ana.needs_review) return true;
-        if (ana.confidence !== null && ana.confidence !== undefined && ana.confidence < 0.70) return true;
-        if (ana.score !== null && ana.score !== undefined && ana.score < 70) return true;
-        if (ana.evidence && ana.evidence.some((e) => e.valid === false || (e.span_validation && !e.span_validation.valid))) return true;
+        const review = d.expert_review?.dimension_reviews?.[v.key]?.[dim.key];
+        const res = this.reviewCountingService.evaluateAssessment(ana, review, d.dialogue_id, v.key, dim.key);
+        if (res.flagged) return true;
       }
     }
     return false;
@@ -303,11 +306,9 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
       if (!verObj) continue;
       for (const dim of this.dimensions) {
         const ana = verObj[dim.key];
-        if (!ana || !ana.applicable) continue;
-        if (ana.needs_review) count++;
-        if (ana.confidence !== null && ana.confidence !== undefined && ana.confidence < 0.70) count++;
-        if (ana.score !== null && ana.score !== undefined && ana.score < 70) count++;
-        if (ana.evidence && ana.evidence.some((e) => e.valid === false || (e.span_validation && !e.span_validation.valid))) count++;
+        const review = d.expert_review?.dimension_reviews?.[v.key]?.[dim.key];
+        const res = this.reviewCountingService.evaluateAssessment(ana, review, d.dialogue_id, v.key, dim.key);
+        if (res.flagged) count++;
       }
     }
     return count;
@@ -443,6 +444,14 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
     };
 
     this.expertReviewService.saveReview(d, ver, dim, review);
+    if (this.scene) {
+      this.reviewCountingService.buildIndex([
+        {
+          act: this.scene.act,
+          scenes: [this.scene]
+        } as any
+      ]);
+    }
     draft.successMsg = 'Expert review saved to local audit trail!';
     setTimeout(() => {
       draft.successMsg = undefined;

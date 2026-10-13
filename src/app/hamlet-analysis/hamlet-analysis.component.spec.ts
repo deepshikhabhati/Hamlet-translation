@@ -328,4 +328,84 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
     expect(d8.expert_review?.dimension_reviews.ai_german['omissions_additions'].decision).toBe('Accept');
     expect(d8.expert_review?.dimension_reviews.ai_german['omissions_additions'].score_override).toBe(98);
   });
+
+  describe('Issue 2 — Scene Row Expansion vs Selection Interactions', () => {
+    it('should select scene without expanding dialogues when selecting a scene row', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+
+      // Selecting the scene row should update selectedAnalysisScene but NOT expand dialogues
+      component.selectAnalysisScene(act1Scene1);
+      expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+    });
+
+    it('should expand and collapse dialogues only when toggleSceneExpand is triggered (chevron action)', () => {
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+
+      // First click on chevron expands
+      component.toggleSceneExpand('A1-S1');
+      expect(component.isSceneExpanded('A1-S1')).toBeTrue();
+
+      // Second click on chevron collapses
+      component.toggleSceneExpand('A1-S1');
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+    });
+
+    it('should keep multiple scenes expanded independently without closing one another', () => {
+      component.toggleSceneExpand('A1-S1', true);
+      component.toggleSceneExpand('A1-S2', true);
+
+      expect(component.isSceneExpanded('A1-S1')).toBeTrue();
+      expect(component.isSceneExpanded('A1-S2')).toBeTrue();
+
+      component.toggleSceneExpand('A1-S1', false);
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+      expect(component.isSceneExpanded('A1-S2')).toBeTrue();
+    });
+
+    it('should open review drilldown modal without expanding the scene row', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+
+      component.openReviewDrilldown(act1Scene1);
+
+      expect(component.reviewDrilldownModalOpen).toBeTrue();
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+      expect(component.reviewDrilldownData?.scene?.scene_id).toBe('A1-S1');
+    });
+
+    it('should open score trace without expanding the scene row', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+
+      component.openScoreTrace(act1Scene1, 'semantic', 'human_german');
+
+      expect(component.scoreTraceModalOpen).toBeTrue();
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+    });
+  });
+
+  describe('Issue 1 — Count Agreement & Reading View Synchronization', () => {
+    it('should have exact agreement between scene table To review count and review modal unique dialogue count', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const tableCount = component.getSceneReviewCount(act1Scene1);
+
+      component.openReviewDrilldown(act1Scene1);
+
+      expect(component.reviewDrilldownData?.flaggedDialoguesCount).toBe(tableCount);
+      expect(component.reviewDrilldownData?.dialogueGroups.length).toBe(tableCount);
+    });
+
+    it('should match reading view Needs review count to the filtered dialogue rows', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      component.selectAnalysisScene(act1Scene1);
+
+      const reviewCount = component.getNeedsReviewCount();
+      component.analysisPhraseFilter = 'review';
+      const filteredRows = component.getFilteredPhraseRows();
+
+      expect(filteredRows.length).toBe(reviewCount);
+    });
+  });
 });

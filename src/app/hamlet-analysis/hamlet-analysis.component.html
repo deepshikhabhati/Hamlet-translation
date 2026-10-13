@@ -59,7 +59,7 @@
                     <h2 class="v15-toc-title">
                       Hamlet
                       <span class="v15-toc-sub">
-                        5 acts &bull; 20 scenes &bull; 1,107 dialogues (454 analyzed &bull; 264 review dialogues &bull; 962 flagged assessments)
+                        5 acts &bull; {{ getTotalScenesCount() }} scenes &bull; {{ getTotalDialoguesCount() | number }} dialogues ({{ getAnalyzedDialoguesCount() | number }} analyzed &bull; {{ getTotalReviewDialoguesCount() | number }} review dialogues &bull; {{ getTotalFlaggedAssessmentsCount() | number }} flagged assessments)
                       </span>
                     </h2>
                   </div>
@@ -111,43 +111,63 @@
                       <span style="text-align:right">AI</span>
                       <span style="text-align:right">CONTEXT AI</span>
                       <span style="text-align:right">SPREAD</span>
-                      <span style="text-align:right">TO REVIEW</span>
+                      <span style="text-align:right; display:flex; align-items:center; justify-content:flex-end; gap:4px">
+                        TO REVIEW
+                        <span class="v15-info-tooltip-trigger" title="Number of unique dialogues in this scene containing at least one assessment requiring review. A dialogue is counted once, even if multiple assessments are flagged." aria-label="Review count explanation">ⓘ</span>
+                      </span>
                     </div>
 
                     <div *ngFor="let sc of getActScenes(selectedAnalysisAct); trackBy: trackBySceneId" class="v15-scene-entry">
-                      <button
-                        type="button"
+                      <div
                         [id]="'scene-row-' + sc.scene_id"
-                        class="v15-scene-row-btn"
-                        [class.v15-scene-row-btn--active]="selectedAnalysisScene?.scene_id === sc.scene_id"
-                        [class.v15-scene-row-btn--expanded]="isSceneExpanded(sc.scene_id)"
-                        [attr.aria-expanded]="isSceneExpanded(sc.scene_id)"
+                        class="v15-scene-row"
+                        [class.v15-scene-row--active]="selectedAnalysisScene?.scene_id === sc.scene_id"
+                        [class.v15-scene-row--expanded]="isSceneExpanded(sc.scene_id)"
+                        role="row"
+                        tabindex="0"
                         (click)="selectAnalysisScene(sc)"
+                        (keydown.enter)="selectAnalysisScene(sc)"
                       >
                         <span class="v15-scene-label-col">
-                          <span
-                            class="v15-scene-chevron-icon"
-                            [class.v15-scene-chevron-icon--open]="isSceneExpanded(sc.scene_id)"
-                            aria-hidden="true"
+                          <button
+                            type="button"
+                            class="v15-scene-chevron-btn"
+                            [attr.aria-expanded]="isSceneExpanded(sc.scene_id)"
+                            [attr.aria-label]="(isSceneExpanded(sc.scene_id) ? 'Collapse dialogues for ' : 'Expand dialogues for ') + (sc.title || 'Scene ' + sc.scene_number)"
+                            (click)="$event.stopPropagation(); toggleSceneExpand(sc.scene_id)"
+                            (keydown.space)="$event.stopPropagation(); toggleSceneExpand(sc.scene_id); $event.preventDefault()"
+                            (keydown.enter)="$event.stopPropagation(); toggleSceneExpand(sc.scene_id); $event.preventDefault()"
+                            title="Expand or collapse dialogues inline"
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <svg
+                              class="v15-chevron-svg"
+                              [class.v15-chevron-svg--open]="isSceneExpanded(sc.scene_id)"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2.5"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
                               <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
-                          </span>
-                          <span class="v15-scene-label-texts">
+                          </button>
+                          <span class="v15-scene-label-texts" (click)="selectAnalysisScene(sc)">
                             <strong>Scene {{ sc.scene_number || sc.scene_id }}</strong>
                             <span *ngIf="isSceneAnalyzed(sc) && getStudyRank(sc)" class="v15-study-badge">Study #{{ getStudyRank(sc) }}</span>
                             <span *ngIf="!isSceneAnalyzed(sc)" class="v15-unassigned-badge">Not analyzed</span>
                           </span>
                         </span>
-                        <span class="v15-scene-desc">{{ sc.title || 'Act ' + sc.act + ', Scene ' + sc.scene_number }}</span>
+                        <span class="v15-scene-desc" (click)="selectAnalysisScene(sc)">{{ sc.title || 'Act ' + sc.act + ', Scene ' + sc.scene_number }}</span>
 
                         <ng-container *ngIf="isSceneAnalyzed(sc)">
-                          <div [innerHTML]="getComparisonSvg(getSceneSemanticScore(sc, 'human_german'), getSceneSemanticScore(sc, 'ai_german'), getSceneSemanticScore(sc, 'context_ai_german'), 80, 100, 150)"></div>
+                          <div (click)="$event.stopPropagation()" [innerHTML]="getComparisonSvg(getSceneSemanticScore(sc, 'human_german'), getSceneSemanticScore(sc, 'ai_german'), getSceneSemanticScore(sc, 'context_ai_german'), 80, 100, 150)"></div>
                           <span class="v15-score-cell" [ngClass]="getScoreClass(getSceneSemanticScore(sc, 'human_german'))" (click)="openScoreTrace(sc, 'semantic', 'human_german'); $event.stopPropagation()" title="Click to view dialogue score calculation breakdown">{{ formatScore(getSceneSemanticScore(sc, 'human_german')) }}</span>
                           <span class="v15-score-cell" [ngClass]="getScoreClass(getSceneSemanticScore(sc, 'ai_german'))" (click)="openScoreTrace(sc, 'semantic', 'ai_german'); $event.stopPropagation()" title="Click to view dialogue score calculation breakdown">{{ formatScore(getSceneSemanticScore(sc, 'ai_german')) }}</span>
                           <span class="v15-score-cell" [ngClass]="getScoreClass(getSceneSemanticScore(sc, 'context_ai_german'))" (click)="openScoreTrace(sc, 'semantic', 'context_ai_german'); $event.stopPropagation()" title="Click to view dialogue score calculation breakdown">{{ formatScore(getSceneSemanticScore(sc, 'context_ai_german')) }}</span>
-                          <span style="text-align:right; font-weight:600; font-variant-numeric:tabular-nums">{{ getSceneSpread(sc) }}</span>
+                          <span style="text-align:right; font-weight:600; font-variant-numeric:tabular-nums" (click)="$event.stopPropagation()">{{ getSceneSpread(sc) }}</span>
                           <span class="v15-review-badge-cell" (click)="openReviewDrilldown(sc); $event.stopPropagation()" title="Click to view all flagged dialogue review records for this scene">{{ getSceneReviewCount(sc) }}</span>
                         </ng-container>
 
@@ -159,7 +179,7 @@
                           <span style="text-align:right; color:var(--muted)">—</span>
                           <span style="text-align:right; color:var(--muted)">0</span>
                         </ng-container>
-                      </button>
+                      </div>
 
                       <!-- Inline Hierarchical Dialogue Comparison Table -->
                       <div
@@ -436,7 +456,13 @@
                       class="v15-filter-btn"
                       [class.v15-filter-btn--active]="analysisPhraseFilter === 'review'"
                       (click)="analysisPhraseFilter = 'review'"
+                      title="Number of unique dialogues with active review issues across all dimensions and translations"
                     >Needs review ({{ getNeedsReviewCount() }})</button>
+                    <span
+                      *ngIf="selectedAnalysisDimension && getDimensionNeedsReviewCount(selectedAnalysisDimension) as dimRevCount"
+                      class="v15-dim-review-badge"
+                      title="Unique dialogues requiring review in the {{ getDimensionName(selectedAnalysisDimension) }} dimension"
+                    >In {{ getDimensionName(selectedAnalysisDimension) }}: {{ dimRevCount }}</span>
                   </div>
 
                   <!-- Dimension Selector Dropdown -->
@@ -985,33 +1011,53 @@
           <h2 class="v15-modal-title">Flagged Review Records</h2>
           <span class="v15-modal-sub">
             Act {{ reviewDrilldownData?.scene?.act }}, Scene {{ reviewDrilldownData?.scene?.scene_number || reviewDrilldownData?.scene?.scene_id }}
-            · <strong>{{ reviewDrilldownData?.flaggedDialogues?.length }}</strong> dialogues requiring expert verification
+            · <strong>{{ reviewDrilldownData?.flaggedDialoguesCount }}</strong> dialogues requiring review ({{ reviewDrilldownData?.totalFlaggedAssessments }} flagged assessments)
           </span>
         </div>
         <button type="button" class="v15-modal-close" (click)="closeReviewDrilldown()" aria-label="Close modal">✕</button>
       </div>
 
       <div class="v15-modal-body">
-        <div *ngIf="reviewDrilldownData?.flaggedDialogues?.length === 0" class="v15-empty-message">
+        <!-- Review Summary Bar -->
+        <div class="v15-modal-summary-bar">
+          <div class="v15-modal-stat-card">
+            <span class="v15-modal-stat-num">{{ reviewDrilldownData?.flaggedDialoguesCount }}</span>
+            <span class="v15-modal-stat-label">Dialogues requiring review</span>
+          </div>
+          <!-- <div class="v15-modal-stat-card">
+            <span class="v15-modal-stat-num">{{ reviewDrilldownData?.totalFlaggedAssessments }}</span>
+            <span class="v15-modal-stat-label">Flagged assessments</span>
+          </div>
+          <div class="v15-modal-stat-card">
+            <span class="v15-modal-stat-num">{{ reviewDrilldownData?.evidenceIssueCount }}</span>
+            <span class="v15-modal-stat-label">Evidence validation issues</span>
+          </div> -->
+        </div>
+
+        <div *ngIf="!reviewDrilldownData || reviewDrilldownData.dialogueGroups.length === 0" class="v15-empty-message">
           No review candidates flagged for this scene.
         </div>
-        <div class="v15-drilldown-list">
-          <div *ngFor="let item of reviewDrilldownData?.flaggedDialogues" class="v15-drilldown-item">
+
+        <div class="v15-drilldown-list" *ngIf="reviewDrilldownData && reviewDrilldownData.dialogueGroups.length > 0">
+          <div *ngFor="let group of reviewDrilldownData?.dialogueGroups" class="v15-drilldown-item">
             <div class="v15-drilldown-header">
               <div>
-                <strong>{{ item.dialogue.dialogue_id }}</strong>
-                <span class="v15-drilldown-speaker">· {{ item.dialogue.speaker }}</span>
+                <strong>{{ group.dialogueId }}</strong>
+                <span class="v15-drilldown-speaker">· {{ group.speaker }}</span>
+                <span *ngIf="group.hasInvalidEvidence" class="v15-invalid-span-badge" style="margin-left:8px">⚠️ Invalid Evidence</span>
               </div>
-              <button type="button" class="v15-drilldown-inspect-btn" (click)="inspectDialogueFromReviewList(item)">
+              <button type="button" class="v15-drilldown-inspect-btn" (click)="inspectDialogueFromReviewList(group)">
                 Inspect in Inspector →
               </button>
             </div>
-            <p class="v15-drilldown-text">“{{ item.dialogue.texts.english }}”</p>
+            <p class="v15-drilldown-text">“{{ group.english }}”</p>
             <div class="v15-drilldown-flags">
-              <span *ngFor="let fl of item.flags" class="v15-drilldown-flag-chip" [class.flag-invalid]="fl.evidenceStatus === 'Invalid'">
-                <strong>{{ fl.dimName }} ({{ fl.verKey === 'human_german' ? 'Human' : (fl.verKey === 'ai_german' ? 'AI' : 'Context AI') }}):</strong>
-                {{ fl.reason }}
-                <span *ngIf="fl.score !== null">· Score: {{ fl.score }}</span>
+              <span *ngFor="let issue of group.issues" class="v15-drilldown-flag-chip" [class.flag-invalid]="issue.evidenceStatus === 'Invalid'" [class.flag-resolved]="issue.resolved">
+                <strong>{{ issue.dimensionName }} ({{ issue.translationName }}):</strong>
+                {{ issue.reasons.join(', ') }}
+                <span *ngIf="issue.score !== null">· Score: {{ issue.score }}</span>
+                <span *ngIf="issue.confidence !== null">· Conf: {{ (issue.confidence * 100).toFixed(0) }}%</span>
+                <span *ngIf="issue.resolved" class="flag-resolved-tag">· [Resolved]</span>
               </span>
             </div>
           </div>
