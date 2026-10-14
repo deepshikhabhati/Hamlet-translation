@@ -255,19 +255,19 @@
                     <button
                       type="button"
                       class="sdt-mode-btn"
-                      [class.sdt-mode-btn--active]="dialogueViewMode[d.dialogue_id] === 'matrix'"
+                      [class.sdt-mode-btn--active]="getDialogueViewMode(d.dialogue_id) === 'matrix'"
                       (click)="dialogueViewMode[d.dialogue_id] = 'matrix'"
                     >Score matrix</button>
                     <button
                       type="button"
                       class="sdt-mode-btn"
-                      [class.sdt-mode-btn--active]="dialogueViewMode[d.dialogue_id] === 'chart'"
+                      [class.sdt-mode-btn--active]="getDialogueViewMode(d.dialogue_id) === 'chart'"
                       (click)="dialogueViewMode[d.dialogue_id] = 'chart'"
                     >Comparison chart</button>
                   </div>
 
                   <!-- Focus Version Filter (for Comparison Chart) -->
-                  <div *ngIf="dialogueViewMode[d.dialogue_id] === 'chart'" class="sdt-focus-ver-group">
+                  <div *ngIf="getDialogueViewMode(d.dialogue_id) === 'chart'" class="sdt-focus-ver-group">
                     <span class="sdt-focus-label">Focus:</span>
                     <button
                       type="button"
@@ -297,7 +297,7 @@
                 </div>
 
                 <!-- VIEW MODE 1: 8-Dimension Literary Score Matrix -->
-                <div *ngIf="dialogueViewMode[d.dialogue_id] === 'matrix'" class="sdt-matrix-wrap">
+                <div *ngIf="getDialogueViewMode(d.dialogue_id) === 'matrix'" class="sdt-matrix-wrap">
                   <table class="sdt-matrix-table">
                     <thead>
                       <tr>
@@ -335,7 +335,7 @@
                               </div>
                             </div>
                           </ng-container>
-                          <ng-template #naH><span class="sdt-na-text">N/A</span></ng-template>
+                          <ng-template #naH><span class="sdt-na-text">{{ getDimScoreStatusText(d, 'human_german', dim.key) }}</span></ng-template>
                         </td>
 
                         <!-- AI -->
@@ -351,7 +351,7 @@
                               </div>
                             </div>
                           </ng-container>
-                          <ng-template #naA><span class="sdt-na-text">N/A</span></ng-template>
+                          <ng-template #naA><span class="sdt-na-text">{{ getDimScoreStatusText(d, 'ai_german', dim.key) }}</span></ng-template>
                         </td>
 
                         <!-- Context AI -->
@@ -367,7 +367,7 @@
                               </div>
                             </div>
                           </ng-container>
-                          <ng-template #naC><span class="sdt-na-text">N/A</span></ng-template>
+                          <ng-template #naC><span class="sdt-na-text">{{ getDimScoreStatusText(d, 'context_ai_german', dim.key) }}</span></ng-template>
                         </td>
 
                         <!-- Spread -->
@@ -403,7 +403,7 @@
                 </div>
 
                 <!-- VIEW MODE 2: Dimension Grouped Comparison Horizontal Bar Chart -->
-                <div *ngIf="dialogueViewMode[d.dialogue_id] === 'chart'" class="sdt-chart-container">
+                <div *ngIf="getDialogueViewMode(d.dialogue_id) === 'chart'" class="sdt-chart-container">
                   <div class="sdt-chart-legend">
                     <span class="sdt-legend-item"><span class="sdt-legend-dot dot--human"></span>Human DE (Orange)</span>
                     <span class="sdt-legend-item"><span class="sdt-legend-dot dot--ai"></span>AI DE (Dark grey)</span>
@@ -434,7 +434,7 @@
                               class="sdt-bar fill--human"
                               [style.width.%]="getDimScore(d, 'human_german', dim.key)"
                             ></div>
-                            <span *ngIf="getDimScore(d, 'human_german', dim.key) === null" class="sdt-bar-na">N/A</span>
+                            <span *ngIf="getDimScore(d, 'human_german', dim.key) === null" class="sdt-bar-na">{{ getDimScoreStatusText(d, 'human_german', dim.key) }}</span>
                           </div>
                           <span class="sdt-bar-val">{{ formatScore(getDimScore(d, 'human_german', dim.key)) }}</span>
                         </div>
@@ -451,7 +451,7 @@
                               class="sdt-bar fill--ai"
                               [style.width.%]="getDimScore(d, 'ai_german', dim.key)"
                             ></div>
-                            <span *ngIf="getDimScore(d, 'ai_german', dim.key) === null" class="sdt-bar-na">N/A</span>
+                            <span *ngIf="getDimScore(d, 'ai_german', dim.key) === null" class="sdt-bar-na">{{ getDimScoreStatusText(d, 'ai_german', dim.key) }}</span>
                           </div>
                           <span class="sdt-bar-val">{{ formatScore(getDimScore(d, 'ai_german', dim.key)) }}</span>
                         </div>
@@ -468,7 +468,7 @@
                               class="sdt-bar fill--context"
                               [style.width.%]="getDimScore(d, 'context_ai_german', dim.key)"
                             ></div>
-                            <span *ngIf="getDimScore(d, 'context_ai_german', dim.key) === null" class="sdt-bar-na">N/A</span>
+                            <span *ngIf="getDimScore(d, 'context_ai_german', dim.key) === null" class="sdt-bar-na">{{ getDimScoreStatusText(d, 'context_ai_german', dim.key) }}</span>
                           </div>
                           <span class="sdt-bar-val">{{ formatScore(getDimScore(d, 'context_ai_german', dim.key)) }}</span>
                         </div>
@@ -541,7 +541,10 @@
                         </div>
                         <ng-template #noEvidenceBlock>
                           <div class="sdt-no-evidence">
-                            No discrete phrase-level evidence records required for this dimension assessment. Assessment applies holistically to dialogue speech.
+                            <p *ngIf="getDialogueExplanation(d, getActiveVersion(d.dialogue_id), getActiveDimension(d.dialogue_id)) as expl" class="sdt-ev-expl-fallback">
+                              <strong>Literary Analysis:</strong> {{ expl }}
+                            </p>
+                            <span class="sdt-no-ev-notice">No phrase-level evidence available. Assessment applies holistically to dialogue speech.</span>
                           </div>
                         </ng-template>
                       </ng-container>

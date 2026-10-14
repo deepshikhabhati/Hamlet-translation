@@ -1,5 +1,5 @@
 import { FullBookAdapterService } from './services/full-book-adapter.service';
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -42,6 +42,38 @@ import { ExpertReviewService } from './services/expert-review.service';
 import { ReviewCountingService, DialogueReviewGroup, ReviewIssue, SceneReviewSummary } from './services/review-counting.service';
 import { SceneDialogueTableComponent } from './components/scene-dialogue-table/scene-dialogue-table.component';
 
+export interface ActiveEvidencePopover {
+  evidenceId?: string;
+  dialogueId: string;
+  speaker: string;
+  translationKey: string;
+  translationName: string;
+  dimensionKey: string;
+  dimensionName: string;
+  status: string;
+  score: number | null;
+  confidence: number | null;
+  sourceQuote: string;
+  targetQuote: string;
+  explanation: string;
+  englishDialogue: string;
+  targetDialogue: string;
+  mode: 'hover' | 'pinned';
+  left: number;
+  top: number;
+  arrowPos: 'top' | 'bottom';
+  docNotice?: string | null;
+}
+
+export interface AnalysisNavigationTarget {
+  act: number;
+  sceneId: string;
+  dialogueId?: string;
+  translationKey?: string;
+  dimensionKey?: string;
+  evidenceId?: string;
+}
+
 @Component({
   selector: 'app-hamlet-analysis',
   standalone: true,
@@ -69,7 +101,7 @@ import { SceneDialogueTableComponent } from './components/scene-dialogue-table/s
   templateUrl: './hamlet-analysis.component.html',
   styleUrls: ['./hamlet-analysis.component.scss'],
 })
-export class HamletAnalysisComponent implements OnInit {
+export class HamletAnalysisComponent implements OnInit, OnDestroy {
   @ViewChild(PhraseEvidenceWorkspaceComponent)
   phraseWorkspace?: PhraseEvidenceWorkspaceComponent;
 
@@ -163,7 +195,12 @@ export class HamletAnalysisComponent implements OnInit {
     evidenceIssueCount: number;
   } | null = null;
 
-  // Tooltip State
+  // Managed Evidence Popover State
+  activePopover: ActiveEvidencePopover | null = null;
+  popoverCloseTimer: any = null;
+  isMouseOverPopover = false;
+
+  // Backward compatibility tooltip properties
   tooltipVisible = false;
   tooltipDimension = '';
   tooltipVersion = '';
@@ -229,7 +266,8 @@ export class HamletAnalysisComponent implements OnInit {
     private sanitizer: DomSanitizer,
     public aggregationService: HamletAggregationService,
     public expertReviewService: ExpertReviewService,
-    public reviewCountingService: ReviewCountingService
+    public reviewCountingService: ReviewCountingService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -309,10 +347,12 @@ export class HamletAnalysisComponent implements OnInit {
     );
   }
 
-  openPdfBook(book: 'english' | 'german'): void {
+  openPdfBook(book: 'english' | 'german', customHighlight?: string): void {
     this.activePdfBook = book;
     this.pdfSource = book === 'english' ? this.englishPdfPath : this.germanPdfPath;
-    this.pdfHighlightText = this.getPdfHighlightText(book);
+    this.pdfHighlightText = (customHighlight !== undefined && customHighlight !== null)
+      ? customHighlight.trim()
+      : this.getPdfHighlightText(book);
     this.pdfPanelOpen = true;
   }
 
@@ -529,14 +569,17 @@ export class HamletAnalysisComponent implements OnInit {
 
   selectAnalysisAct(actNum: number): void {
     this.selectedAnalysisAct = actNum;
-    const scenes = this.getActScenes(actNum);
-    this.selectedAnalysisScene = scenes[0] || null;
-    this.activeInspectedDialogueId = null;
+    if (this.selectedAnalysisScene && this.selectedAnalysisScene.act !== actNum) {
+      this.selectedAnalysisScene = null;
+      this.activeInspectedDialogueId = null;
+    }
+    this.closeEvidencePopover();
   }
 
   selectAnalysisScene(scene: AnalysisScene): void {
     this.selectedAnalysisScene = scene;
     this.activeInspectedDialogueId = null;
+    this.closeEvidencePopover();
   }
 
   isSceneExpanded(sceneId: string): boolean {
@@ -560,25 +603,86 @@ export class HamletAnalysisComponent implements OnInit {
   }
 
   onStudySceneClick(sc: AnalysisScene): void {
-    this.selectAnalysisAct(sc.act);
-    this.selectedAnalysisScene = sc;
-    this.toggleSceneExpand(sc.scene_id, true);
-    const flaggedDlg = sc.dialogues?.find(
-      (d) =>
-        this.isDialogueFlagged(d, 'human_german', 'semantic') ||
-        this.isDialogueFlagged(d, 'ai_german', 'semantic') ||
-        this.isDialogueFlagged(d, 'context_ai_german', 'semantic')
-    );
-    if (flaggedDlg) {
-      this.autoExpandDialogueId = flaggedDlg.dialogue_id;
-      this.activeInspectedDialogueId = flaggedDlg.dialogue_id;
-    }
-    setTimeout(() => {
-      const el = document.getElementById('scene-row-' + sc.scene_id);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    this.navigateToAnalysis({
+      act: sc.act,
+      sceneId: sc.scene_id
+    });
+  }
+
+  async navigateToAnalysis(target: AnalysisNavigationTarget): Promise<void> {
+    this.closeEvidencePopover();
+
+    // 1. Resolve act and scene from loaded dataset
+    let targetScene: AnalysisScene | undefined;
+    for (const act of this.analysisActs) {
+      const found = act.scenes.find((s) => s.scene_id === target.sceneId);
+      if (found) {
+        targetScene = found;
+        target.act = act.act;
+        break;
       }
-    }, 60);
+    }
+
+    if (!targetScene) {
+      const act = this.analysisActs.find((a) => a.act === target.act);
+      if (act && act.scenes.length > 0) {
+        targetScene = act.scenes.find((s) => s.scene_id === target.sceneId) || act.scenes[0];
+      }
+    }
+
+    if (!targetScene) {
+      console.warn('Target scene could not be resolved for navigation:', target);
+      return;
+    }
+
+    // 2. Activate act tab & select scene
+    this.selectedAnalysisAct = targetScene.act;
+    this.selectedAnalysisScene = targetScene;
+
+    // 3. Clear filters and search so dialogues are never hidden
+    this.analysisPhraseFilter = 'all';
+    this.analysisSearchText = '';
+
+    // 4. Set dimension & target translation if provided
+    if (target.dimensionKey) {
+      this.selectedAnalysisDimension = target.dimensionKey;
+      this.activeInspectorDim = target.dimensionKey;
+    }
+    if (target.translationKey && target.translationKey !== 'english') {
+      this.valTarget = target.translationKey;
+    }
+
+    // 5. Resolve dialogue target if specified or find first relevant dialogue
+    let targetDialogueId = target.dialogueId;
+    if (!targetDialogueId && targetScene.dialogues?.length > 0) {
+      const flaggedDlg = targetScene.dialogues.find(
+        (d) =>
+          this.isDialogueFlagged(d, this.valTarget, this.selectedAnalysisDimension) ||
+          this.isDialogueFlagged(d, 'human_german', this.selectedAnalysisDimension) ||
+          this.isDialogueFlagged(d, 'ai_german', this.selectedAnalysisDimension) ||
+          this.isDialogueFlagged(d, 'context_ai_german', this.selectedAnalysisDimension)
+      );
+      if (flaggedDlg) {
+        targetDialogueId = flaggedDlg.dialogue_id;
+      } else {
+        targetDialogueId = targetScene.dialogues[0].dialogue_id;
+      }
+    }
+
+    if (targetDialogueId) {
+      this.autoExpandDialogueId = targetDialogueId;
+      this.activeInspectedDialogueId = targetDialogueId;
+    }
+
+    // Wait for view rendering
+    this.cdr.detectChanges();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    // Scroll requested content into view
+    const readingEl = document.querySelector('.v15-detail-wrap');
+    if (readingEl) {
+      readingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   trackBySceneId(index: number, sc: AnalysisScene): string {
@@ -741,6 +845,7 @@ export class HamletAnalysisComponent implements OnInit {
         id: d.dialogue_id,
         dialogue_id: d.dialogue_id,
         speaker: d.speaker,
+        dialogue: d,
         tag: !isAnalyzed ? 'Not Analyzed' : '',
         english: d.texts.english,
         human_german: d.texts.human_german || '',
@@ -927,12 +1032,14 @@ export class HamletAnalysisComponent implements OnInit {
   onInspectorVersionChange(verKey: string): void {
     this.valTarget = verKey;
     this.loadCurrentReviewForInspector();
+    this.closeEvidencePopover();
   }
 
   onInspectorDimensionChange(dimKey: string): void {
     this.activeInspectorDim = dimKey;
     this.selectedAnalysisDimension = dimKey;
     this.loadCurrentReviewForInspector();
+    this.closeEvidencePopover();
   }
 
   getActiveEvidenceItems(): any[] {
@@ -955,30 +1062,248 @@ export class HamletAnalysisComponent implements OnInit {
     this.activeLinkedSpanId = this.activeLinkedSpanId === linkId ? null : linkId;
   }
 
-  onSegmentHover(data: { segment: any; event: MouseEvent }, verKey: string): void {
+  onSegmentHover(data: { segment: any; event: MouseEvent }, verKey: string, dialogueContext?: any): void {
+    if (this.activePopover?.mode === 'pinned') {
+      return;
+    }
+    clearTimeout(this.popoverCloseTimer);
+    this.openEvidencePopover(data, verKey, dialogueContext, 'hover');
+  }
+
+  onSegmentLeave(): void {
+    if (this.activePopover && this.activePopover.mode !== 'pinned') {
+      clearTimeout(this.popoverCloseTimer);
+      this.popoverCloseTimer = setTimeout(() => {
+        if (!this.isMouseOverPopover && this.activePopover && this.activePopover.mode !== 'pinned') {
+          this.activePopover = null;
+          this.tooltipVisible = false;
+        }
+      }, 150);
+    }
+  }
+
+  onPopoverMouseEnter(): void {
+    this.isMouseOverPopover = true;
+    clearTimeout(this.popoverCloseTimer);
+  }
+
+  onPopoverMouseLeave(): void {
+    this.isMouseOverPopover = false;
+    if (this.activePopover && this.activePopover.mode !== 'pinned') {
+      clearTimeout(this.popoverCloseTimer);
+      this.popoverCloseTimer = setTimeout(() => {
+        if (!this.isMouseOverPopover && this.activePopover && this.activePopover.mode !== 'pinned') {
+          this.activePopover = null;
+          this.tooltipVisible = false;
+        }
+      }, 150);
+    }
+  }
+
+  onSegmentClick(data: { segment: any; event: MouseEvent }, verKey: string, dialogueContext?: any): void {
+    if (data.event) {
+      data.event.stopPropagation();
+    }
+    clearTimeout(this.popoverCloseTimer);
+    this.openEvidencePopover(data, verKey, dialogueContext, 'pinned');
+  }
+
+  closeEvidencePopover(): void {
+    clearTimeout(this.popoverCloseTimer);
+    this.activePopover = null;
+    this.isMouseOverPopover = false;
+    this.tooltipVisible = false;
+  }
+
+  openEvidencePopover(
+    data: { segment: any; event: MouseEvent },
+    verKey: string,
+    dialogueContext: any,
+    mode: 'hover' | 'pinned'
+  ): void {
     const seg = data.segment;
     const ev = seg.evidence;
     const dimDef = this.v15Dimensions.find((d) => d.key === this.selectedAnalysisDimension);
     const verDef = this.v15Versions.find((v) => v.key === verKey);
 
-    this.tooltipDimension = dimDef?.name || this.selectedAnalysisDimension;
-    this.tooltipVersion = verKey === 'english' ? 'English source' : (verDef?.name || verKey);
-    this.tooltipStatus = seg.status || 'Preserved';
-    this.tooltipScore = ev?.score !== undefined ? `Score: ${ev.score}` : '';
-    this.tooltipConfidence = ev?.confidence !== undefined ? `Conf: ${ev.confidence}` : '';
-    this.tooltipQuotes = ev ? `<strong>Quote:</strong> “${ev.source_quote || ''}” → “${ev.target_quote || ''}”` : '';
-    this.tooltipExplanation = ev?.explanation || '';
+    let dialogue: AnalysisDialogue | undefined;
+    if (dialogueContext) {
+      if (dialogueContext.texts) {
+        dialogue = dialogueContext as AnalysisDialogue;
+      } else if (dialogueContext.dialogue) {
+        dialogue = dialogueContext.dialogue;
+      } else if (dialogueContext.dialogue_id && this.selectedAnalysisScene) {
+        dialogue = this.selectedAnalysisScene.dialogues.find(
+          (d) => d.dialogue_id === dialogueContext.dialogue_id
+        );
+      }
+    }
+    if (!dialogue && this.selectedAnalysisScene) {
+      dialogue = this.getInspectedDialogue() || this.selectedAnalysisScene.dialogues[0];
+    }
 
-    const rect = (data.event.target as HTMLElement).getBoundingClientRect();
-    this.tooltipPos = {
-      left: Math.min(window.innerWidth - 320, Math.max(10, rect.left)),
-      top: rect.bottom + 8
+    const dialogueId = dialogue?.dialogue_id || dialogueContext?.id || dialogueContext?.dialogue_id || '';
+    const speaker = dialogue?.speaker || dialogueContext?.speaker || 'Speaker';
+    const dimKey = this.selectedAnalysisDimension;
+    const dimName = dimDef?.name || dimKey;
+    const translationName = verKey === 'english' ? 'English Source' : (verDef?.name || verKey);
+    const status = seg.status || ev?.status || 'Preserved';
+    const score = ev?.score !== undefined ? ev.score : (dialogue?.analysis?.[verKey]?.[dimKey]?.score ?? null);
+    const confidence = ev?.confidence !== undefined ? ev.confidence : (dialogue?.analysis?.[verKey]?.[dimKey]?.confidence ?? null);
+    const sourceQuote = ev?.source_quote || seg.text || '';
+    const targetQuote = ev?.target_quote || (verKey !== 'english' ? seg.text : '');
+    const explanation = ev?.explanation || dialogue?.analysis?.[verKey]?.[dimKey]?.explanation || 'No phrase-level explanation recorded.';
+
+    const targetEl = data.event.target as HTMLElement;
+    const rect = targetEl.getBoundingClientRect();
+    const popoverWidth = 360;
+    const popoverHeight = 280;
+
+    const left = Math.min(window.innerWidth - popoverWidth - 16, Math.max(16, rect.left));
+    let top: number;
+    let arrowPos: 'top' | 'bottom';
+
+    if (rect.bottom + popoverHeight + 16 <= window.innerHeight) {
+      top = rect.bottom + 8;
+      arrowPos = 'top';
+    } else if (rect.top - popoverHeight - 8 >= 0) {
+      top = rect.top - popoverHeight - 8;
+      arrowPos = 'bottom';
+    } else {
+      top = Math.max(12, window.innerHeight - popoverHeight - 12);
+      arrowPos = 'top';
+    }
+
+    this.activePopover = {
+      evidenceId: seg.linkId || ev?.evidence_id,
+      dialogueId,
+      speaker,
+      translationKey: verKey,
+      translationName,
+      dimensionKey: dimKey,
+      dimensionName: dimName,
+      status,
+      score,
+      confidence,
+      sourceQuote,
+      targetQuote,
+      explanation,
+      englishDialogue: dialogue?.texts?.english || '',
+      targetDialogue: dialogue?.texts?.[verKey] || '',
+      mode,
+      left,
+      top,
+      arrowPos,
+      docNotice: null
     };
+
+    // Keep backward compatibility values synced
+    this.tooltipDimension = dimName;
+    this.tooltipVersion = translationName;
+    this.tooltipStatus = status;
+    this.tooltipScore = score !== null ? `Score: ${score}` : '';
+    this.tooltipConfidence = confidence !== null ? `Conf: ${confidence}` : '';
+    this.tooltipQuotes = sourceQuote || targetQuote ? `<strong>Quote:</strong> “${sourceQuote}” → “${targetQuote}”` : '';
+    this.tooltipExplanation = explanation;
+    this.tooltipPos = { left, top };
     this.tooltipVisible = true;
   }
 
-  onSegmentLeave(): void {
-    this.tooltipVisible = false;
+  viewInOriginalDocument(popover: ActiveEvidencePopover): void {
+    if (!this.englishPdfPath) {
+      popover.docNotice = 'Original document reference unavailable.';
+      return;
+    }
+    const searchText = popover.sourceQuote || popover.englishDialogue || '';
+    this.openPdfBook('english', searchText);
+  }
+
+  viewTranslationSource(popover: ActiveEvidencePopover): void {
+    if (!this.germanPdfPath) {
+      popover.docNotice = 'Translation document reference unavailable.';
+      return;
+    }
+    const searchText = popover.targetQuote || popover.targetDialogue || '';
+    this.openPdfBook('german', searchText);
+  }
+
+  inspectFromPopover(popover: ActiveEvidencePopover): void {
+    if (popover.dimensionKey) {
+      this.selectedAnalysisDimension = popover.dimensionKey;
+      this.activeInspectorDim = popover.dimensionKey;
+    }
+    if (popover.translationKey && popover.translationKey !== 'english') {
+      this.valTarget = popover.translationKey;
+    }
+    if (popover.dialogueId) {
+      this.openInspector(popover.dialogueId);
+    }
+    this.closeEvidencePopover();
+  }
+
+  @HostListener('document:keydown.escape')
+  onDocumentEscape(): void {
+    if (this.activePopover) {
+      this.closeEvidencePopover();
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.activePopover) return;
+    const target = event.target as HTMLElement;
+    if (target.closest && (target.closest('.v15-evidence-popover') || target.closest('.highlight-segment'))) {
+      return;
+    }
+    this.closeEvidencePopover();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    if (this.activePopover && this.activePopover.mode !== 'pinned') {
+      this.closeEvidencePopover();
+    }
+  }
+
+  getActiveInspectorScoreDisplay(): string {
+    const diag = this.getInspectedDialogue();
+    if (!diag) return '—';
+    const texts = diag.texts || {};
+    if (this.valTarget !== 'english' && !texts[this.valTarget as keyof typeof texts]) {
+      return 'Translation unavailable';
+    }
+    const ana = diag.analysis?.[this.valTarget]?.[this.activeInspectorDim];
+    if (!ana) {
+      return 'Not yet evaluated';
+    }
+    if (ana.applicable === false) {
+      return 'Not applicable';
+    }
+    if (ana.score === null || ana.score === undefined) {
+      return 'Not yet evaluated';
+    }
+    return String(ana.score);
+  }
+
+  getActiveInspectorExplanation(): string {
+    const diag = this.getInspectedDialogue();
+    if (!diag) return 'No dialogue selected.';
+    const texts = diag.texts || {};
+    if (this.valTarget !== 'english' && !texts[this.valTarget as keyof typeof texts]) {
+      return 'Translation unavailable for this version.';
+    }
+    const ana = diag.analysis?.[this.valTarget]?.[this.activeInspectorDim];
+    if (ana?.applicable === false) {
+      return 'Not applicable to this dialogue.';
+    }
+    if (ana?.explanation && ana.explanation.trim()) {
+      return ana.explanation;
+    }
+    return 'No phrase-level evidence available.';
+  }
+
+  ngOnDestroy(): void {
+    this.closeEvidencePopover();
   }
 
   saveValidation(): void {

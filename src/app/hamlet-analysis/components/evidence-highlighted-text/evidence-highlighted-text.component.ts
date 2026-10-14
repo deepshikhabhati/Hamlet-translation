@@ -125,6 +125,7 @@ export class EvidenceHighlightedTextComponent implements OnChanges {
 
   @Output() segmentHover = new EventEmitter<{ segment: TextSegment; event: MouseEvent }>();
   @Output() segmentLeave = new EventEmitter<void>();
+  @Output() segmentClick = new EventEmitter<{ segment: TextSegment; event: MouseEvent }>();
   @Output() linkClick = new EventEmitter<string>();
 
   segments: TextSegment[] = [];
@@ -211,6 +212,7 @@ export class EvidenceHighlightedTextComponent implements OnChanges {
 
   onSegmentClick(seg: TextSegment, event: MouseEvent): void {
     event.stopPropagation();
+    this.segmentClick.emit({ segment: seg, event });
     if (seg.linkId) {
       this.linkClick.emit(seg.linkId);
     }

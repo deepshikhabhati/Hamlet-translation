@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 import { HamletAnalysisComponent } from './hamlet-analysis.component';
@@ -406,6 +406,215 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       const filteredRows = component.getFilteredPhraseRows();
 
       expect(filteredRows.length).toBe(reviewCount);
+    });
+  });
+
+  describe('BUG 1 — Evidence Popovers (Hover preview, click-to-pin, outside click, dismissal, document access)', () => {
+    let mockEvent: any;
+    let mockSegment: any;
+
+    beforeEach(() => {
+      const el = document.createElement('span');
+      spyOn(el, 'getBoundingClientRect').and.returnValue({
+        left: 100,
+        top: 200,
+        bottom: 220,
+        right: 180,
+        width: 80,
+        height: 20
+      } as any);
+
+      mockEvent = {
+        target: el,
+        stopPropagation: jasmine.createSpy('stopPropagation')
+      };
+
+      mockSegment = {
+        text: 'bitter cold',
+        status: 'Preserved',
+        evidence: {
+          evidence_id: 'ev-1',
+          score: 95,
+          confidence: 0.92,
+          source_quote: 'bitter cold',
+          target_quote: 'bitterkalt',
+          explanation: 'Both expressions convey severe freezing weather.'
+        }
+      };
+    });
+
+    it('1. hovering over evidence opens preview popover with mode hover', () => {
+      component.onSegmentHover({ segment: mockSegment, event: mockEvent }, 'ai_german');
+
+      expect(component.activePopover).toBeTruthy();
+      expect(component.activePopover?.mode).toBe('hover');
+      expect(component.activePopover?.score).toBe(95);
+      expect(component.activePopover?.sourceQuote).toBe('bitter cold');
+      expect(component.activePopover?.targetQuote).toBe('bitterkalt');
+      expect(component.activePopover?.explanation).toContain('freezing weather');
+    });
+
+    it('2. moving away from unpinned preview closes it after 150ms delay', fakeAsync(() => {
+      component.onSegmentHover({ segment: mockSegment, event: mockEvent }, 'ai_german');
+      expect(component.activePopover).toBeTruthy();
+
+      component.onSegmentLeave();
+      // Should still be open before 150ms
+      tick(100);
+      expect(component.activePopover).toBeTruthy();
+
+      // Should close after 150ms
+      tick(60);
+      expect(component.activePopover).toBeNull();
+    }));
+
+    it('3. moving pointer into popover clears close timer and prevents flicker', fakeAsync(() => {
+      component.onSegmentHover({ segment: mockSegment, event: mockEvent }, 'ai_german');
+      component.onSegmentLeave();
+
+      // Enter popover within 100ms
+      tick(100);
+      component.onPopoverMouseEnter();
+
+      // Wait beyond 150ms
+      tick(200);
+      expect(component.activePopover).toBeTruthy();
+
+      // Leaving popover closes it after delay
+      component.onPopoverMouseLeave();
+      tick(150);
+      expect(component.activePopover).toBeNull();
+    }));
+
+    it('4. clicking evidence pins the popover open', () => {
+      component.onSegmentClick({ segment: mockSegment, event: mockEvent }, 'ai_german');
+
+      expect(component.activePopover).toBeTruthy();
+      expect(component.activePopover?.mode).toBe('pinned');
+
+      // Pointer leave should NOT close a pinned popover
+      component.onSegmentLeave();
+      expect(component.activePopover?.mode).toBe('pinned');
+    });
+
+    it('5. dismisses popover on close button, Escape key, or outside click', () => {
+      component.onSegmentClick({ segment: mockSegment, event: mockEvent }, 'ai_german');
+      expect(component.activePopover).toBeTruthy();
+
+      // Close button
+      component.closeEvidencePopover();
+      expect(component.activePopover).toBeNull();
+
+      // Escape key
+      component.onSegmentClick({ segment: mockSegment, event: mockEvent }, 'ai_german');
+      component.onDocumentEscape();
+      expect(component.activePopover).toBeNull();
+
+      // Outside click
+      component.onSegmentClick({ segment: mockSegment, event: mockEvent }, 'ai_german');
+      const outsideEl = document.createElement('div');
+      component.onDocumentClick({ target: outsideEl } as any);
+      expect(component.activePopover).toBeNull();
+    });
+
+    it('6. switching dimensions closes stale popover', () => {
+      component.onSegmentClick({ segment: mockSegment, event: mockEvent }, 'ai_german');
+      expect(component.activePopover).toBeTruthy();
+
+      component.onInspectorDimensionChange('metaphor_imagery');
+      expect(component.activePopover).toBeNull();
+    });
+
+    it('7. original document action opens PDF reader with search quote', () => {
+      spyOn(component, 'openPdfBook');
+      component.onSegmentClick({ segment: mockSegment, event: mockEvent }, 'ai_german');
+
+      component.viewInOriginalDocument(component.activePopover!);
+      expect(component.openPdfBook).toHaveBeenCalledWith('english', 'bitter cold');
+
+      component.viewTranslationSource(component.activePopover!);
+      expect(component.openPdfBook).toHaveBeenCalledWith('german', 'bitterkalt');
+    });
+  });
+
+  describe('BUG 2 & Act Selection — Centralized Navigation & Study First', () => {
+    it('8. clicking Study First recommendation selects the correct act and scene', fakeAsync(() => {
+      const targetScene = component.analysisActs[0].scenes[0];
+      component.selectedAnalysisScene = null;
+
+      component.onStudySceneClick(targetScene);
+      tick();
+
+      expect(component.selectedAnalysisAct).toBe(1);
+      expect((component.selectedAnalysisScene as any)?.scene_id).toBe('A1-S1');
+    }));
+
+    it('9. centralized navigateToAnalysis populates reading view with dialogues and resets filter', async () => {
+      component.analysisPhraseFilter = 'diff';
+      component.analysisSearchText = 'something-obscure';
+
+      await component.navigateToAnalysis({
+        act: 1,
+        sceneId: 'A1-S1',
+        dimensionKey: 'semantic'
+      });
+
+      expect(component.selectedAnalysisAct).toBe(1);
+      expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
+      expect(component.analysisPhraseFilter).toBe('all');
+      expect(component.analysisSearchText).toBe('');
+      expect(component.selectedAnalysisDimension).toBe('semantic');
+      expect(component.selectedAnalysisScene?.dialogues.length).toBeGreaterThan(0);
+    });
+
+    it('10. switching Act tabs does NOT default-select a scene for other acts', () => {
+      // User requested: "also check other than act1 for others act it defaultly selecitng scenes"
+      component.selectedAnalysisScene = null;
+
+      component.selectAnalysisAct(2);
+      expect(component.selectedAnalysisAct).toBe(2);
+      expect(component.selectedAnalysisScene).toBeNull();
+
+      component.selectAnalysisAct(3);
+      expect(component.selectedAnalysisAct).toBe(3);
+      expect(component.selectedAnalysisScene).toBeNull();
+    });
+
+    it('11. clicking a scene row explicitly selects that scene without expanding dialogues', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+
+      component.selectAnalysisScene(act1Scene1);
+      expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
+      expect(component.isSceneExpanded('A1-S1')).toBeFalse();
+    });
+  });
+
+  describe('BUG 3 — Empty or Incorrect Analysis Panel Handlers', () => {
+    it('12. displays meaningful status for Not Applicable dimensions and missing translations', () => {
+      const testDialogue: any = {
+        dialogue_id: 'TEST-D1',
+        speaker: 'HAMLET',
+        texts: { english: 'Hello', human_german: 'Hallo' },
+        analysis: {
+          human_german: {
+            wordplay: { applicable: false, score: null, explanation: 'No wordplay here.' }
+          }
+        }
+      };
+
+      component.activeInspectedDialogueId = 'TEST-D1';
+      spyOn(component, 'getInspectedDialogue').and.returnValue(testDialogue);
+
+      // wordplay applicable: false
+      component.valTarget = 'human_german';
+      component.activeInspectorDim = 'wordplay';
+      expect(component.getActiveInspectorScoreDisplay()).toBe('Not applicable');
+
+      // ai_german has no text
+      component.valTarget = 'ai_german';
+      expect(component.getActiveInspectorScoreDisplay()).toBe('Translation unavailable');
+      expect(component.getActiveInspectorExplanation()).toBe('Translation unavailable for this version.');
     });
   });
 });

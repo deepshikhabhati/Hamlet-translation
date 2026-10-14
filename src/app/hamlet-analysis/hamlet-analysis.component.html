@@ -525,8 +525,9 @@
                           [text]="r.english"
                           [spans]="r.sourceSpans"
                           [activeLinkId]="activeLinkedSpanId"
-                          (segmentHover)="onSegmentHover($event, 'english')"
+                          (segmentHover)="onSegmentHover($event, 'english', r)"
                           (segmentLeave)="onSegmentLeave()"
+                          (segmentClick)="onSegmentClick($event, 'english', r)"
                           (linkClick)="onLinkClick($event)"
                         ></app-ha-evidence-highlighted-text>
                       </div>
@@ -544,8 +545,9 @@
                           [spans]="r.humanSpans"
                           fallbackText="[German text from dataset]"
                           [activeLinkId]="activeLinkedSpanId"
-                          (segmentHover)="onSegmentHover($event, 'human_german')"
+                          (segmentHover)="onSegmentHover($event, 'human_german', r)"
                           (segmentLeave)="onSegmentLeave()"
+                          (segmentClick)="onSegmentClick($event, 'human_german', r)"
                           (linkClick)="onLinkClick($event)"
                         ></app-ha-evidence-highlighted-text>
                       </div>
@@ -563,8 +565,9 @@
                           [spans]="r.aiSpans"
                           fallbackText="[German text from dataset]"
                           [activeLinkId]="activeLinkedSpanId"
-                          (segmentHover)="onSegmentHover($event, 'ai_german')"
+                          (segmentHover)="onSegmentHover($event, 'ai_german', r)"
                           (segmentLeave)="onSegmentLeave()"
+                          (segmentClick)="onSegmentClick($event, 'ai_german', r)"
                           (linkClick)="onLinkClick($event)"
                         ></app-ha-evidence-highlighted-text>
                       </div>
@@ -582,8 +585,9 @@
                           [spans]="r.contextAiSpans"
                           [fallbackText]="r.contextAiFallback || '[German text from dataset]'"
                           [activeLinkId]="activeLinkedSpanId"
-                          (segmentHover)="onSegmentHover($event, 'context_ai_german')"
+                          (segmentHover)="onSegmentHover($event, 'context_ai_german', r)"
                           (segmentLeave)="onSegmentLeave()"
+                          (segmentClick)="onSegmentClick($event, 'context_ai_german', r)"
                           (linkClick)="onLinkClick($event)"
                         ></app-ha-evidence-highlighted-text>
                       </div>
@@ -657,7 +661,7 @@
                 </div>
                 <div class="v15-insp-metric">
                   <span class="v15-metric-lbl">Model Score</span>
-                  <strong class="v15-metric-val">{{ getInspectedDialogue()?.analysis?.[valTarget]?.[activeInspectorDim]?.score ?? 'N/A' }}</strong>
+                  <strong class="v15-metric-val">{{ getActiveInspectorScoreDisplay() }}</strong>
                 </div>
                 <div class="v15-insp-metric">
                   <span class="v15-metric-lbl">Confidence</span>
@@ -687,8 +691,9 @@
                   <app-ha-evidence-highlighted-text
                     [text]="getInspectedDialogue()?.texts?.english || ''"
                     [spans]="getSourceSpansForDialogue(getInspectedDialogue()!, activeInspectorDim)"
-                    (segmentHover)="onSegmentHover($event, 'english')"
+                    (segmentHover)="onSegmentHover($event, 'english', getInspectedDialogue())"
                     (segmentLeave)="onSegmentLeave()"
+                    (segmentClick)="onSegmentClick($event, 'english', getInspectedDialogue())"
                   ></app-ha-evidence-highlighted-text>
                 </div>
 
@@ -704,8 +709,9 @@
                     [text]="getInspectedDialogue()?.texts?.[v.key] || ''"
                     [spans]="getTargetSpansForDialogue(getInspectedDialogue()!, v.key, activeInspectorDim)"
                     fallbackText="[No translation]"
-                    (segmentHover)="onSegmentHover($event, v.key)"
+                    (segmentHover)="onSegmentHover($event, v.key, getInspectedDialogue())"
                     (segmentLeave)="onSegmentLeave()"
+                    (segmentClick)="onSegmentClick($event, v.key, getInspectedDialogue())"
                   ></app-ha-evidence-highlighted-text>
                 </div>
               </div>
@@ -713,7 +719,7 @@
               <!-- Literary Explanation -->
               <div class="v15-insp-expl-box">
                 <h3 class="v15-insp-subh">Model Literary Explanation</h3>
-                <p>{{ getInspectedDialogue()?.analysis?.[valTarget]?.[activeInspectorDim]?.explanation || 'No model explanation recorded for this dimension.' }}</p>
+                <p>{{ getActiveInspectorExplanation() }}</p>
               </div>
 
               <!-- Expert Review Form -->
@@ -910,23 +916,106 @@
 
   </div>
 
-  <!-- Interactive Floating Tooltip -->
+  <!-- Managed Evidence Popover (Hover preview & Click-to-pin) -->
   <div
-    class="v15-tooltip"
-    [class.v15-tooltip--visible]="tooltipVisible"
-    [style.left.px]="tooltipPos.left"
-    [style.top.px]="tooltipPos.top"
-    role="tooltip"
+    *ngIf="activePopover"
+    class="v15-evidence-popover"
+    [class.v15-evidence-popover--pinned]="activePopover.mode === 'pinned'"
+    [class.v15-evidence-popover--arrow-bottom]="activePopover.arrowPos === 'bottom'"
+    [style.left.px]="activePopover.left"
+    [style.top.px]="activePopover.top"
+    (mouseenter)="onPopoverMouseEnter()"
+    (mouseleave)="onPopoverMouseLeave()"
+    role="dialog"
+    aria-label="Evidence details"
   >
-    <div class="v15-tt-dim">{{ tooltipDimension }}</div>
-    <div class="v15-tt-ver">{{ tooltipVersion }}</div>
-    <div class="v15-tt-badges">
-      <span class="v15-chip" [ngClass]="'v15-chip--' + tooltipStatus.toLowerCase()">{{ tooltipStatus }}</span>
-      <span *ngIf="tooltipScore" class="v15-tt-score">{{ tooltipScore }}</span>
-      <span *ngIf="tooltipConfidence" class="v15-tt-conf">{{ tooltipConfidence }}</span>
+    <!-- Header -->
+    <div class="v15-pop-header">
+      <div class="v15-pop-meta">
+        <span class="v15-pop-dim">{{ activePopover.dimensionName | uppercase }}</span>
+        <span class="v15-pop-dot">·</span>
+        <span class="v15-pop-ver">{{ activePopover.translationName | uppercase }}</span>
+      </div>
+      <div class="v15-pop-head-right">
+        <span class="v15-pop-mode-pill" [class.v15-pop-mode-pill--pinned]="activePopover.mode === 'pinned'">
+          {{ activePopover.mode === 'pinned' ? 'Pinned' : 'Preview' }}
+        </span>
+        <button
+          type="button"
+          class="v15-pop-close-btn"
+          (click)="closeEvidencePopover()"
+          aria-label="Close evidence popover"
+          title="Close (Esc)"
+        >✕</button>
+      </div>
     </div>
-    <div *ngIf="tooltipQuotes" class="v15-tt-quotes" [innerHTML]="tooltipQuotes"></div>
-    <div *ngIf="tooltipExplanation" class="v15-tt-expl">{{ tooltipExplanation }}</div>
+
+    <!-- Badges & Metrics -->
+    <div class="v15-pop-badges">
+      <span class="v15-chip" [ngClass]="'v15-chip--' + activePopover.status.toLowerCase()">
+        {{ activePopover.status }}
+      </span>
+      <span *ngIf="activePopover.score !== null" class="v15-pop-metric">
+        Score: <strong>{{ activePopover.score }}</strong>
+      </span>
+      <span *ngIf="activePopover.confidence !== null" class="v15-pop-metric">
+        Conf: <strong>{{ activePopover.confidence | number:'1.2-2' }}</strong>
+      </span>
+      <span class="v15-pop-speaker-badge">
+        {{ activePopover.speaker }} ({{ activePopover.dialogueId }})
+      </span>
+    </div>
+
+    <!-- Evidence Quotes -->
+    <div class="v15-pop-quotes-box" *ngIf="activePopover.sourceQuote || activePopover.targetQuote">
+      <div class="v15-pop-quote-line" *ngIf="activePopover.sourceQuote">
+        <span class="v15-pop-quote-lbl">English:</span>
+        <span class="v15-pop-quote-val">“{{ activePopover.sourceQuote }}”</span>
+      </div>
+      <div class="v15-pop-quote-line" *ngIf="activePopover.targetQuote">
+        <span class="v15-pop-quote-lbl">German:</span>
+        <span class="v15-pop-quote-val">“{{ activePopover.targetQuote }}”</span>
+      </div>
+    </div>
+
+    <!-- Literary Explanation -->
+    <div class="v15-pop-expl">
+      <strong class="v15-pop-expl-title">Explanation:</strong>
+      <p class="v15-pop-expl-text">{{ activePopover.explanation }}</p>
+    </div>
+
+    <!-- Notice if document is unavailable -->
+    <div *ngIf="activePopover.docNotice" class="v15-pop-notice">
+      {{ activePopover.docNotice }}
+    </div>
+
+    <!-- Actions -->
+    <div class="v15-pop-actions">
+      <button
+        type="button"
+        class="v15-pop-action-btn"
+        (click)="viewInOriginalDocument(activePopover)"
+        title="Open English source document in reader"
+      >
+        View in original document ↗
+      </button>
+      <button
+        type="button"
+        class="v15-pop-action-btn"
+        (click)="viewTranslationSource(activePopover)"
+        title="Open German translation source in reader"
+      >
+        View translation source ↗
+      </button>
+      <button
+        type="button"
+        class="v15-pop-action-btn v15-pop-action-btn--primary"
+        (click)="inspectFromPopover(activePopover)"
+        title="Inspect full dialogue review"
+      >
+        Inspect full analysis →
+      </button>
+    </div>
   </div>
 
   <!-- Score Traceability Drill-down Modal -->

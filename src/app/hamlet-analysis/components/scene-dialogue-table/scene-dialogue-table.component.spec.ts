@@ -188,4 +188,56 @@ describe('SceneDialogueTableComponent', () => {
       })
     );
   });
+
+  it('should auto-expand dialogue and initialize state even if beyond first 10 dialogues', () => {
+    // Dialogue at index 15 (beyond default limit 10)
+    const deepDlg = mockDialogues[15];
+    component.dialogueLimit = 10;
+    component.autoExpandDialogueId = deepDlg.dialogue_id;
+
+    component.ngOnChanges({
+      autoExpandDialogueId: {
+        currentValue: deepDlg.dialogue_id,
+        previousValue: null,
+        firstChange: false,
+        isFirstChange: () => false
+      }
+    });
+
+    expect(component.isDialogueExpanded(deepDlg.dialogue_id)).toBeTrue();
+    expect(component.getDialogueViewMode(deepDlg.dialogue_id)).toBe('matrix');
+    expect(component.dialogueLimit).toBeGreaterThan(15);
+  });
+
+  it('should display meaningful status for Not applicable, Translation unavailable, and Not evaluated', () => {
+    const dlg: any = {
+      dialogue_id: 'TEST-1',
+      texts: { english: 'Text', human_german: 'Text' },
+      analysis: {
+        human_german: {
+          wordplay: { applicable: false, score: null },
+          tone: { applicable: true, score: null }
+        }
+      }
+    };
+
+    expect(component.getDimScoreStatusText(dlg, 'human_german', 'wordplay')).toBe('Not applicable');
+    expect(component.getDimScoreStatusText(dlg, 'human_german', 'tone')).toBe('Not yet evaluated');
+    expect(component.getDimScoreStatusText(dlg, 'ai_german', 'semantic')).toBe('Translation unavailable');
+  });
+
+  it('should return model explanation or fallback notice when evidence array is empty', () => {
+    const dlg: any = {
+      dialogue_id: 'TEST-2',
+      texts: { english: 'Text', human_german: 'Text' },
+      analysis: {
+        human_german: {
+          semantic: { applicable: true, explanation: 'Overall semantic coherence preserved.', evidence: [] }
+        }
+      }
+    };
+
+    expect(component.getDialogueExplanation(dlg, 'human_german', 'semantic')).toBe('Overall semantic coherence preserved.');
+    expect(component.getDialogueExplanation(dlg, 'ai_german', 'semantic')).toBe('Translation unavailable for this version.');
+  });
 });

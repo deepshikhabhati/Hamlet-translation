@@ -68,14 +68,44 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     if (this.autoExpandDialogueId) {
+      this.ensureDialogueState(this.autoExpandDialogueId);
       this.expandedDialogueIds.add(this.autoExpandDialogueId);
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['autoExpandDialogueId'] && this.autoExpandDialogueId) {
+      this.ensureDialogueState(this.autoExpandDialogueId);
       this.expandedDialogueIds.add(this.autoExpandDialogueId);
     }
+  }
+
+  ensureDialogueState(dialogueId: string): void {
+    if (!this.dialogueActiveDim[dialogueId]) {
+      this.dialogueActiveDim[dialogueId] = 'semantic';
+    }
+    if (!this.dialogueActiveVer[dialogueId]) {
+      this.dialogueActiveVer[dialogueId] = 'human_german';
+    }
+    if (!this.dialogueViewMode[dialogueId]) {
+      this.dialogueViewMode[dialogueId] = 'matrix';
+    }
+    if (!this.dialogueFocusVersion[dialogueId]) {
+      this.dialogueFocusVersion[dialogueId] = 'all';
+    }
+    this.initReviewDraft(dialogueId);
+
+    // Expand dialogue limit if the targeted dialogue is beyond the initial 10 dialogues
+    if (this.scene?.dialogues) {
+      const idx = this.scene.dialogues.findIndex((d) => d.dialogue_id === dialogueId);
+      if (idx >= 0 && idx >= this.dialogueLimit) {
+        this.dialogueLimit = idx + 1;
+      }
+    }
+  }
+
+  getDialogueViewMode(dialogueId: string): 'matrix' | 'chart' {
+    return this.dialogueViewMode[dialogueId] || 'matrix';
   }
 
   // --- Pagination ---
@@ -113,20 +143,8 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
     if (this.expandedDialogueIds.has(dialogueId)) {
       this.expandedDialogueIds.delete(dialogueId);
     } else {
+      this.ensureDialogueState(dialogueId);
       this.expandedDialogueIds.add(dialogueId);
-      if (!this.dialogueActiveDim[dialogueId]) {
-        this.dialogueActiveDim[dialogueId] = 'semantic';
-      }
-      if (!this.dialogueActiveVer[dialogueId]) {
-        this.dialogueActiveVer[dialogueId] = 'human_german';
-      }
-      if (!this.dialogueViewMode[dialogueId]) {
-        this.dialogueViewMode[dialogueId] = 'matrix';
-      }
-      if (!this.dialogueFocusVersion[dialogueId]) {
-        this.dialogueFocusVersion[dialogueId] = 'all';
-      }
-      this.initReviewDraft(dialogueId);
     }
   }
 
@@ -254,6 +272,37 @@ export class SceneDialogueTableComponent implements OnInit, OnChanges {
     const ana = d.analysis?.[verKey]?.[dimKey];
     if (!ana || !ana.applicable) return 'Not Applicable';
     return ana.status || 'Preserved';
+  }
+
+  getDimScoreStatusText(d: AnalysisDialogue, verKey: string, dimKey: string): string {
+    if (!d.texts || !d.texts[verKey as keyof typeof d.texts]) {
+      return 'Translation unavailable';
+    }
+    const ana = d.analysis?.[verKey]?.[dimKey];
+    if (!ana) {
+      return 'Not yet evaluated';
+    }
+    if (ana.applicable === false) {
+      return 'Not applicable';
+    }
+    if (ana.score === null || ana.score === undefined) {
+      return 'Not yet evaluated';
+    }
+    return 'N/A';
+  }
+
+  getDialogueExplanation(d: AnalysisDialogue, verKey: string, dimKey: string): string {
+    if (d.texts && !d.texts[verKey as keyof typeof d.texts]) {
+      return 'Translation unavailable for this version.';
+    }
+    const ana = d.analysis?.[verKey]?.[dimKey];
+    if (ana?.explanation && ana.explanation.trim()) {
+      return ana.explanation;
+    }
+    if (ana?.applicable === false) {
+      return 'Not applicable to this dialogue.';
+    }
+    return 'No phrase-level evidence available.';
   }
 
   getDimSpread(d: AnalysisDialogue, dimKey: string): string {
