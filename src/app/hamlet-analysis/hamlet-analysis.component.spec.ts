@@ -67,7 +67,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
                       status: 'Preserved',
                       explanation: '',
                       evidence: [],
-                      needs_review: false
+                      needs_review: true
                     }
                   },
                   ai_german: {
@@ -615,6 +615,170 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       component.valTarget = 'ai_german';
       expect(component.getActiveInspectorScoreDisplay()).toBe('Translation unavailable');
       expect(component.getActiveInspectorExplanation()).toBe('Translation unavailable for this version.');
+    });
+  });
+
+  describe('Navigation Levels & Scene vs Dialogue Selection (v1.5 Distinct Modes)', () => {
+    it('13. defaults to "act" viewMode and renders the Act Scene Average Bar Chart and 8-dim matrix', () => {
+      component.selectedAnalysisAct = 1;
+      component.selectedAnalysisScene = null;
+      component.activeInspectedDialogueId = null;
+
+      expect(component.viewMode).toBe('act');
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.v15-act-header-card')).toBeTruthy();
+      expect(compiled.querySelector('.v15-act-chart-card')).toBeTruthy();
+      expect(compiled.querySelector('.v15-act-matrix-card')).toBeTruthy();
+      expect(compiled.querySelector('.v15-scene-header-card')).toBeNull();
+      expect(compiled.querySelector('.v15-dialogue-detail-panel')).toBeNull();
+    });
+
+    it('14. correctly calculates Scene-level average dimension scores and overall score for the bar chart', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const semScore = component.getSceneDimensionAverageScore(act1Scene1, 'semantic');
+      expect(semScore).toBe(90);
+
+      const overallScore = component.getSceneOverallScore(act1Scene1);
+      expect(overallScore).toBe(87.5);
+
+      const chartScore = component.getSceneChartScore(act1Scene1);
+      expect(chartScore).toBe(87.5);
+
+      component.onActChartDimensionChange('semantic');
+      expect(component.selectedActChartDimension).toBe('semantic');
+      expect(component.getSceneChartScore(act1Scene1)).toBe(90);
+    });
+
+    it('15. selecting a Scene switches viewMode to "scene", displays scene analysis, and hides dialogue panel and act chart', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      component.selectAnalysisScene(act1Scene1);
+
+      expect(component.viewMode).toBe('scene');
+      expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
+      expect(component.activeInspectedDialogueId).toBeNull();
+
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.v15-scene-header-card')).toBeTruthy();
+      expect(compiled.querySelector('.v15-human-matrix-section')).toBeTruthy();
+      expect(compiled.querySelector('.v15-act-chart-card')).toBeNull();
+      expect(compiled.querySelector('.v15-dialogue-detail-panel')).toBeNull();
+    });
+
+    it('16. selecting a Dialogue switches viewMode to "dialogue", displays ONLY dialogue analysis, and hides scene cards and act chart', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      component.selectAnalysisScene(act1Scene1);
+
+      // Select individual dialogue
+      component.onTocDialogueSelected({
+        act: 1,
+        sceneId: 'A1-S1',
+        dialogueId: 'EN-A1-S1-D00008',
+        dialogue: act1Scene1.dialogues[0]
+      });
+
+      expect(component.viewMode).toBe('dialogue');
+      expect(component.activeInspectedDialogueId).toBe('EN-A1-S1-D00008');
+
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      // In dialogue mode, scene summary, 8-dim scene matrix, full reading table, and act chart are hidden
+      expect(compiled.querySelector('.v15-scene-header-card')).toBeNull();
+      expect(compiled.querySelector('.v15-human-matrix-section')).toBeNull();
+      expect(compiled.querySelector('.v15-act-chart-card')).toBeNull();
+
+      // Only dedicated dialogue detail panel is rendered
+      expect(compiled.querySelector('.v15-dialogue-detail-panel')).toBeTruthy();
+      expect(compiled.textContent).toContain('EN-A1-S1-D00008');
+      expect(compiled.textContent).toContain('FRANCISCO');
+    });
+
+    it('17. breadcrumb "Scene 1" click or switchToSceneView() returns from dialogue mode to scene mode', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      component.selectAnalysisScene(act1Scene1);
+      component.activeInspectedDialogueId = 'EN-A1-S1-D00008';
+      expect(component.viewMode).toBe('dialogue');
+
+      component.switchToSceneView();
+      expect(component.viewMode).toBe('scene');
+      expect(component.activeInspectedDialogueId).toBeNull();
+      expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
+    });
+
+    it('18. missing dialogue dimension scores show N/A instead of zero or scene averages', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const dialogue = act1Scene1.dialogues[0];
+
+      // semantic is scored 90
+      const semScore = component.getDialogueHumanScore(dialogue, 'semantic');
+      expect(semScore).toBe(90);
+
+      // metaphor_imagery is not present on this dialogue
+      const metaScore = component.getDialogueHumanScore(dialogue, 'metaphor_imagery');
+      expect(metaScore).toBeNull();
+      expect(component.formatHumanScore(metaScore)).toBe('N/A');
+    });
+
+    it('19. resets right workspace scroll to top on navigation level change or dialogue switch', () => {
+      spyOn(component, 'scrollWorkspaceToTop');
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+
+      component.selectAnalysisAct(1);
+      expect(component.scrollWorkspaceToTop).toHaveBeenCalled();
+
+      component.selectAnalysisScene(act1Scene1);
+      expect(component.scrollWorkspaceToTop).toHaveBeenCalled();
+
+      component.onTocDialogueSelected({
+        act: 1,
+        sceneId: 'A1-S1',
+        dialogueId: 'EN-A1-S1-D00008',
+        dialogue: act1Scene1.dialogues[0]
+      });
+      expect(component.scrollWorkspaceToTop).toHaveBeenCalled();
+    });
+
+    it('20. detects explanation text phrasing mismatch for review flagging', () => {
+      const mockDialogueWithMismatch: any = {
+        dialogue_id: 'EN-A1-S1-D00001',
+        speaker: 'BERNARDO',
+        texts: {
+          english: "Who's there?",
+          human_german: 'Wer da?'
+        },
+        analysis: {
+          human_german: {
+            semantic: {
+              score: 95,
+              explanation: 'Translates "Who\'s there?" as "Wer ist da?" preserving question intent.'
+            }
+          }
+        }
+      };
+
+      expect(component.hasExplanationMismatch(mockDialogueWithMismatch, 'semantic')).toBeTrue();
+
+      const mockDialogueAligned: any = {
+        dialogue_id: 'EN-A1-S1-D00001',
+        speaker: 'BERNARDO',
+        texts: {
+          english: "Who's there?",
+          human_german: 'Wer da?'
+        },
+        analysis: {
+          human_german: {
+            semantic: {
+              score: 95,
+              explanation: 'Translates "Who\'s there?" accurately into German dramatic verse.'
+            }
+          }
+        }
+      };
+
+      expect(component.hasExplanationMismatch(mockDialogueAligned, 'semantic')).toBeFalse();
     });
   });
 });

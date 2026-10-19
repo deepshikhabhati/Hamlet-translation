@@ -16,6 +16,7 @@ export interface ReviewPolicyConfig {
   includeInvalidEvidence: boolean;
   includeProvisional: boolean;
   respectExpertDecisions: boolean;
+  humanOnly: boolean;
 }
 
 export const DEFAULT_REVIEW_POLICY: ReviewPolicyConfig = {
@@ -24,7 +25,8 @@ export const DEFAULT_REVIEW_POLICY: ReviewPolicyConfig = {
   scoreThreshold: null, // by default, score threshold is null; can be set to 70 when configured
   includeInvalidEvidence: true,
   includeProvisional: false,
-  respectExpertDecisions: true
+  respectExpertDecisions: true,
+  humanOnly: false,
 };
 
 export interface ReviewIssue {
@@ -258,11 +260,14 @@ export class ReviewCountingService {
             if (hasAnalysis) {
               analyzedDialogues++;
             }
-
             const dialogueIssues: ReviewIssue[] = [];
             let dlgHasInvalidEvidence = false;
 
-            VERSION_DEFINITIONS.forEach((v) => {
+            const targetVersions = this.config.humanOnly
+              ? VERSION_DEFINITIONS.filter((v) => v.key === 'human_german')
+              : VERSION_DEFINITIONS;
+
+            targetVersions.forEach((v) => {
               const verObj = dlg.analysis?.[v.key];
               if (!verObj) return;
 

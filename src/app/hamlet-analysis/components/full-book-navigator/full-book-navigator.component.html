@@ -1,71 +1,198 @@
-<div class="tree-container">
-  <div class="header-branding">
-    <h2>HAMLET</h2>
-  </div>
-  
-  <div class="dimension-selector">
-    <label for="dimSelect">Dimension:</label>
-    <select id="dimSelect" [(ngModel)]="selectedDimension" (ngModelChange)="onDimensionChange()">
-      <option *ngFor="let dim of dimensions" [value]="dim.value">{{ dim.label }}</option>
-    </select>
-  </div>
+<nav class="toc-root" aria-label="Hamlet Table of Contents">
+  <!-- TOC Header & Branding -->
+  <header class="toc-header">
+    <div class="toc-title-row">
+      <h2 class="toc-main-title">Hamlet</h2>
+      <span class="toc-sub-tag">Human German Analysis</span>
+    </div>
 
-  
-  <div class="target-buttons">
-    <button [class.active]="selectedTarget === 'human_german'" (click)="setTarget('human_german')" class="btn-human">Human</button>
-    <button [class.active]="selectedTarget === 'ai_german'" (click)="setTarget('ai_german')" class="btn-ai">AI</button>
-    <button [class.active]="selectedTarget === 'context_ai_german'" (click)="setTarget('context_ai_german')" class="btn-context">Context AI</button>
-  </div>
+    <!-- Literary Dimension Selector -->
+    <div class="toc-dim-selector-wrap">
+      <label for="tocDimSelect" class="toc-dim-label">Literary Dimension</label>
+      <select
+        id="tocDimSelect"
+        class="toc-dim-select"
+        [(ngModel)]="selectedDimension"
+        (ngModelChange)="onDimensionChange()"
+        title="Select literary dimension to evaluate across scenes"
+      >
+        <option *ngFor="let dim of dimensions" [value]="dim.value">{{ dim.label }}</option>
+      </select>
+    </div>
 
-  <div class="tree-scroll-area">
-    <div class="act-node" *ngFor="let act of acts; trackBy: trackByAct">
-      <div class="act-header" (click)="toggleAct(act)" [style.color]="actColors[act.actNumber]">
-        <i class="fas" [ngClass]="act.expanded ? 'fa-folder-open' : 'fa-folder'"></i>
-        <span>Act {{ act.actNumber }}</span>
-        
-        <div class="scene-score-bar-container" [style.opacity]="getActScore(act) === '-' ? '0.3' : '1'" (click)="$event.stopPropagation()">
-          <div class="score-bar-bg">
-            <div class="score-bar-fill" [style.width]="getActScoreWidth(act)" [style.background-color]="getScoreColor(getActScore(act))"></div>
-          </div>
-          <span class="score-bar-text" [style.color]="getScoreColor(getActScore(act))">{{ getActScore(act) }}</span>
-        </div>
-
-        <i class="fas" [ngClass]="act.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+    <!-- Search / Filter Input -->
+    <div class="toc-search-wrap">
+      <div class="toc-search-input-box">
+        <svg class="toc-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="text"
+          class="toc-search-input"
+          [(ngModel)]="searchQuery"
+          (input)="onSearchChange()"
+          placeholder="Filter scenes, speakers, ID..."
+          aria-label="Filter scenes, speakers, or dialogue ID"
+        />
+        <button
+          *ngIf="searchQuery"
+          type="button"
+          class="toc-search-clear-btn"
+          (click)="clearSearch()"
+          aria-label="Clear search"
+          title="Clear search"
+        >✕</button>
       </div>
-      
-      <div class="scenes-container" *ngIf="act.expanded">
-        
-        <div class="scene-node-wrapper" *ngFor="let scene of act.scenes; trackBy: trackByScene">
-          <div class="scene-node" (click)="selectScene(scene)">
-            <div class="scene-title">
-              <i class="fas" (click)="toggleScene(scene, $event)" [ngClass]="scene.expanded ? 'fa-folder-open' : 'fa-folder'" style="margin-right: 8px; color: var(--text-muted);"></i>
-              <span>Scene {{ scene.sceneNumber }}</span>
-            </div>
-            
-            <div class="scene-score-bar-container" [style.opacity]="getScore(scene) === '-' ? '0.3' : '1'">
-              <div class="score-bar-bg">
-                <div class="score-bar-fill" [style.width]="getScoreWidth(scene)" [style.background-color]="getScoreColor(getScore(scene))"></div>
+    </div>
+  </header>
+
+  <!-- Hierarchy Scroll Area -->
+  <div class="toc-scroll-area" role="tree" aria-label="Hamlet Acts and Scenes">
+    <div
+      *ngFor="let act of acts; trackBy: trackByAct"
+      class="toc-act-node"
+      [class.toc-act-node--active]="selectedActId === act.actNumber"
+      role="treeitem"
+      [attr.aria-expanded]="act.expanded"
+    >
+      <!-- Act Header -->
+      <div
+        class="toc-act-header"
+        [class.toc-act-header--selected]="selectedActId === act.actNumber && !selectedSceneId && !selectedDialogueId"
+        (click)="selectActNode(act)"
+        tabindex="0"
+      >
+        <button
+          type="button"
+          class="toc-chevron-btn"
+          [attr.aria-expanded]="act.expanded"
+          [attr.aria-label]="(act.expanded ? 'Collapse Act ' : 'Expand Act ') + act.actNumber"
+          (click)="toggleAct(act, $event)"
+          title="Expand/collapse Act scenes"
+        >
+          <svg
+            class="toc-chevron-icon"
+            [class.toc-chevron-icon--open]="act.expanded"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+
+        <span class="toc-act-title" [style.color]="actColors[act.actNumber] || 'var(--ink)'">
+          Act {{ act.actNumber }}
+        </span>
+
+        <span class="toc-act-badge">{{ act.scenes.length }} scenes</span>
+      </div>
+
+      <!-- Scenes Under Act -->
+      <div class="toc-scenes-group" *ngIf="act.expanded" role="group">
+        <div
+          *ngFor="let scene of act.scenes; trackBy: trackByScene"
+          class="toc-scene-wrapper"
+          role="treeitem"
+          [attr.aria-expanded]="scene.expanded"
+        >
+          <!-- Scene Row -->
+          <div
+            class="toc-scene-row"
+            [class.toc-scene-row--selected]="selectedSceneId === scene.id && !selectedDialogueId"
+            [class.toc-scene-row--child-selected]="selectedSceneId === scene.id && !!selectedDialogueId"
+            (click)="selectSceneNode(scene)"
+            tabindex="0"
+          >
+            <!-- Chevron to toggle dialogue expansion -->
+            <button
+              type="button"
+              class="toc-chevron-btn toc-chevron-btn--scene"
+              [attr.aria-expanded]="scene.expanded"
+              [attr.aria-label]="(scene.expanded ? 'Collapse dialogues in Scene ' : 'Expand dialogues in Scene ') + scene.sceneNumber"
+              (click)="toggleScene(scene, $event)"
+              title="Expand/collapse dialogue list"
+            >
+              <svg
+                class="toc-chevron-icon"
+                [class.toc-chevron-icon--open]="scene.expanded"
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+
+            <!-- Scene Label (Click selects scene without expanding) -->
+            <span class="toc-scene-label" [title]="scene.title">
+              <strong>Scene {{ scene.sceneNumber }}</strong>
+            </span>
+
+            <!-- Human German Score Pill & Bar -->
+            <div
+              class="toc-scene-score-box"
+              [title]="'Human German ' + selectedDimension + ' score: ' + getScoreDisplay(scene.humanScore) + (scene.units ? ' (' + scene.units + ' units)' : '')"
+            >
+              <div class="toc-score-microbar" *ngIf="scene.humanScore !== null">
+                <div
+                  class="toc-score-microfill"
+                  [style.width]="getScoreWidth(scene.humanScore)"
+                  [style.background-color]="getScoreColor(scene.humanScore)"
+                ></div>
               </div>
-              <span class="score-bar-text" [style.color]="getScoreColor(getScore(scene))">{{ getScore(scene) }}</span>
+              <span
+                class="toc-scene-score-val"
+                [style.color]="getScoreColor(scene.humanScore)"
+                [style.background-color]="getScoreBgColor(scene.humanScore)"
+              >
+                {{ getScoreDisplay(scene.humanScore) }}
+              </span>
             </div>
-  
           </div>
-          
-          <div class="dialogues-container" *ngIf="scene.expanded">
-            <div class="dialogue-row" 
-                 *ngFor="let dialogue of scene.dialogues; trackBy: trackByDialogue"
-                 [class.selected]="dialogue.id === selectedDialogueId"
-                 (click)="selectDialogue(dialogue)">
-              <i class="fas fa-comment-dots"></i>
-              <div class="dialogue-content" [title]="dialogue.textPreview">
-                <span class="speaker">{{ dialogue.speaker }}</span>
-                <span class="preview">{{ dialogue.textPreview }}</span>
+
+          <!-- Dialogues Under Scene -->
+          <div class="toc-dialogues-group" *ngIf="scene.expanded" role="group">
+            <div
+              *ngFor="let dlg of scene.dialogues; trackBy: trackByDialogue"
+              class="toc-dialogue-row"
+              [class.toc-dialogue-row--selected]="selectedDialogueId === dlg.id"
+              (click)="selectDialogueNode(scene, dlg, $event)"
+              [attr.title]="dlg.id + ' — ' + dlg.speaker + ': ' + dlg.fullText"
+              tabindex="0"
+              role="treeitem"
+            >
+              <div class="toc-dialogue-dot"></div>
+              <div class="toc-dialogue-text-block">
+                <span class="toc-dialogue-id">{{ dlg.id }}</span>
+                <span class="toc-dialogue-sep">—</span>
+                <span class="toc-dialogue-speaker">{{ dlg.speaker }}</span>
+                <span class="toc-dialogue-sep">—</span>
+                <span class="toc-dialogue-preview">{{ dlg.textPreview }}</span>
               </div>
-              <span class="ftln">{{ dialogue.ftln }}</span>
+              <span *ngIf="dlg.score !== null" class="toc-dialogue-score" [style.color]="getScoreColor(dlg.score)">
+                {{ dlg.score }}
+              </span>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Empty search message -->
+    <div *ngIf="acts.length === 0 || (searchQuery && acts[0]?.scenes?.length === 0)" class="toc-empty-msg">
+      No scenes or dialogues match "{{ searchQuery }}".
+    </div>
   </div>
-</div>
+</nav>

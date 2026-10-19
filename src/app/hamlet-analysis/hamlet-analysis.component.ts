@@ -1,5 +1,5 @@
 import { FullBookAdapterService } from './services/full-book-adapter.service';
-import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -41,6 +41,14 @@ import { HamletAggregationService } from './services/hamlet-aggregation.service'
 import { ExpertReviewService } from './services/expert-review.service';
 import { ReviewCountingService, DialogueReviewGroup, ReviewIssue, SceneReviewSummary } from './services/review-counting.service';
 import { SceneDialogueTableComponent } from './components/scene-dialogue-table/scene-dialogue-table.component';
+import { HamletSelectionService, ViewMode } from './services/hamlet-selection.service';
+import { BackTranslationService, BackTranslationResult } from './services/back-translation.service';
+import {
+  HUMAN_SCORE_HEATMAP,
+  getHeatmapThreshold,
+  getScoreCssClass,
+  formatHumanScore
+} from './models/heatmap-config';
 
 export interface ActiveEvidencePopover {
   evidenceId?: string;
@@ -138,6 +146,12 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   // Hierarchical Scene & Dialogue Expansion State
   expandedSceneIds = new Set<string>();
   autoExpandDialogueId: string | null = null;
+
+  // Workspace Scroll Container Reference (for independent scrolling)
+  @ViewChild('workspaceContainer') workspaceContainerRef?: ElementRef<HTMLElement>;
+
+  // Act Bar Chart Dimension State (Defaults to 'overall' or active dimension)
+  selectedActChartDimension: string = 'overall';
 
   // Inspector State
   activeInspectedDialogueId: string | null = null;
@@ -260,6 +274,13 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   readonly versions = VERSIONS;
 
+  /** Meeting-Approved UI Redesign State */
+  sceneReadingOpen = false;
+  mobileTocOpen = false;
+  backTranslationResult: BackTranslationResult | null = null;
+  backTranslationLoading = false;
+  readonly heatmapThresholds = HUMAN_SCORE_HEATMAP;
+
   constructor(
     private dataService: HamletDataService,
     private adapter: FullBookAdapterService,
@@ -267,6 +288,8 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     public aggregationService: HamletAggregationService,
     public expertReviewService: ExpertReviewService,
     public reviewCountingService: ReviewCountingService,
+    public selectionService: HamletSelectionService,
+    public backTranslationService: BackTranslationService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -562,6 +585,16 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     return scenes;
   }
 
+  get viewMode(): ViewMode {
+    if (this.activeInspectedDialogueId) return 'dialogue';
+    if (this.selectedAnalysisScene) return 'scene';
+    return 'act';
+  }
+
+  get currentAct(): AnalysisAct | null {
+    return this.analysisActs.find((a) => a.act === this.selectedAnalysisAct) || null;
+  }
+
   getActScenes(actNum: number): AnalysisScene[] {
     const act = this.analysisActs.find((a) => a.act === actNum);
     return act?.scenes || [];
@@ -569,17 +602,398 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   selectAnalysisAct(actNum: number): void {
     this.selectedAnalysisAct = actNum;
-    if (this.selectedAnalysisScene && this.selectedAnalysisScene.act !== actNum) {
-      this.selectedAnalysisScene = null;
-      this.activeInspectedDialogueId = null;
-    }
+    this.selectedAnalysisScene = null;
+    this.activeInspectedDialogueId = null;
+    this.selectionService.selectAct(actNum);
     this.closeEvidencePopover();
+    this.scrollWorkspaceToTop();
   }
 
-  selectAnalysisScene(scene: AnalysisScene): void {
+  selectAnalysisScene(scene: AnalysisScene | null): void {
     this.selectedAnalysisScene = scene;
+    if (scene) {
+      this.selectedAnalysisAct = scene.act;
+      this.selectionService.selectScene(scene.act, scene.scene_id, this.sceneReadingOpen);
+    } else {
+      this.selectionService.selectAct(this.selectedAnalysisAct);
+    }
     this.activeInspectedDialogueId = null;
     this.closeEvidencePopover();
+    this.scrollWorkspaceToTop();
+  }
+
+  switchToSceneView(): void {
+    this.activeInspectedDialogueId = null;
+    this.backTranslationResult = null;
+    if (this.selectedAnalysisScene) {
+      this.selectionService.selectScene(
+        this.selectedAnalysisScene.act,
+        this.selectedAnalysisScene.scene_id,
+        this.sceneReadingOpen
+      );
+    } else {
+      this.selectionService.clearDialogue();
+    }
+    this.closeEvidencePopover();
+    this.scrollWorkspaceToTop();
+  }
+
+  switchToActView(actNum?: number): void {
+    const targetAct = actNum !== undefined ? actNum : (this.selectedAnalysisScene?.act || this.selectedAnalysisAct || 1);
+    this.selectAnalysisAct(targetAct);
+    this.scrollWorkspaceToTop();
+  }
+
+  scrollWorkspaceToTop(): void {
+    if (this.workspaceContainerRef?.nativeElement) {
+      this.workspaceContainerRef.nativeElement.scrollTop = 0;
+    }
+  }
+
+  onActChartDimensionChange(dimKey: string): void {
+    this.selectedActChartDimension = dimKey;
+  }
+
+  getSceneChartScore(scene: AnalysisScene): number | null {
+    if (this.selectedActChartDimension === 'overall') {
+      return this.getSceneOverallScore(scene);
+    }
+    return this.getSceneDimensionAverageScore(scene, this.selectedActChartDimension);
+  }
+
+  getSceneOverallScore(scene: AnalysisScene): number | null {
+    if (!this.isSceneAnalyzed(scene)) return null;
+
+    if (scene.dialogues && scene.dialogues.length > 0) {
+      const dialogueMeans: number[] = [];
+      for (const dlg of scene.dialogues) {
+        const dimScores: number[] = [];
+        for (const dim of this.v15Dimensions) {
+          const ana = dlg.analysis?.human_german?.[dim.key];
+          if (ana && ana.applicable !== false && ana.score !== null && ana.score !== undefined && !isNaN(ana.score)) {
+            const rev = this.expertReviewService.getReview(dlg, 'human_german', dim.key);
+            if (rev && rev.score_override !== null && rev.score_override !== undefined && !isNaN(rev.score_override)) {
+              dimScores.push(Number(rev.score_override));
+            } else {
+              dimScores.push(Number(ana.score));
+            }
+          }
+        }
+        if (dimScores.length > 0) {
+          const mean = dimScores.reduce((sum, s) => sum + s, 0) / dimScores.length;
+          dialogueMeans.push(mean);
+        }
+      }
+      if (dialogueMeans.length > 0) {
+        const overall = dialogueMeans.reduce((sum, m) => sum + m, 0) / dialogueMeans.length;
+        return Math.round(overall * 10) / 10;
+      }
+    }
+
+    if (scene.scores?.human_german) {
+      const scores: number[] = [];
+      for (const dim of this.v15Dimensions) {
+        const s = scene.scores.human_german[dim.key]?.score;
+        if (s !== null && s !== undefined && !isNaN(s)) {
+          scores.push(Number(s));
+        }
+      }
+      if (scores.length > 0) {
+        return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+      }
+    }
+    return null;
+  }
+
+  getSceneDimensionAverageScore(scene: AnalysisScene, dimKey: string): number | null {
+    if (!this.isSceneAnalyzed(scene)) return null;
+
+    if (scene.dialogues && scene.dialogues.length > 0) {
+      let totalScore = 0;
+      let count = 0;
+      for (const dlg of scene.dialogues) {
+        const ana = dlg.analysis?.human_german?.[dimKey];
+        if (ana && ana.applicable !== false && ana.score !== null && ana.score !== undefined && !isNaN(ana.score)) {
+          const rev = this.expertReviewService.getReview(dlg, 'human_german', dimKey);
+          if (rev && rev.score_override !== null && rev.score_override !== undefined && !isNaN(rev.score_override)) {
+            totalScore += Number(rev.score_override);
+          } else {
+            totalScore += Number(ana.score);
+          }
+          count++;
+        }
+      }
+      if (count > 0) {
+        return Math.round((totalScore / count) * 10) / 10;
+      }
+    }
+
+    return this.getSceneDimensionScore(scene, dimKey, 'human_german');
+  }
+
+  getSceneScoredDialoguesCount(scene: AnalysisScene, dimKey: string = 'overall'): number {
+    if (!this.isSceneAnalyzed(scene)) return 0;
+    if (!scene.dialogues || scene.dialogues.length === 0) {
+      return this.getSceneDimensionUnits(scene, dimKey === 'overall' ? 'semantic' : dimKey);
+    }
+    if (dimKey === 'overall') {
+      return scene.dialogues.filter((dlg) => {
+        return this.v15Dimensions.some((dim) => {
+          const ana = dlg.analysis?.human_german?.[dim.key];
+          return ana && ana.applicable !== false && ana.score !== null && ana.score !== undefined;
+        });
+      }).length;
+    }
+    return scene.dialogues.filter((dlg) => {
+      const ana = dlg.analysis?.human_german?.[dimKey];
+      return ana && ana.applicable !== false && ana.score !== null && ana.score !== undefined;
+    }).length;
+  }
+
+  getActTotalValidAssessments(actNum: number): number {
+    const scenes = this.getActScenes(actNum);
+    return scenes.reduce((acc, sc) => acc + this.getSceneScoredDialoguesCount(sc, 'overall'), 0);
+  }
+
+  selectAnalysisSceneWithDimension(scene: AnalysisScene, dimKey: string): void {
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
+    this.selectedActChartDimension = dimKey;
+    this.selectAnalysisScene(scene);
+  }
+
+  hasExplanationMismatch(diag: AnalysisDialogue | null, dimKey: string): boolean {
+    if (!diag) return false;
+    const ana = diag.analysis?.human_german?.[dimKey];
+    if (!ana) return false;
+    const expl = ana.explanation || '';
+    const humanDe = diag.texts?.human_german || '';
+    if (expl.includes('Wer ist da?') && !humanDe.includes('Wer ist da?')) {
+      return true;
+    }
+    return false;
+  }
+
+  getBarWidth(totalScenes: number): number {
+    if (totalScenes <= 0) return 40;
+    const colWidth = 690 / totalScenes;
+    return Math.max(26, Math.min(54, colWidth * 0.55));
+  }
+
+  getBarX(index: number, totalScenes: number): number {
+    if (totalScenes <= 0) return 50;
+    const colWidth = 690 / totalScenes;
+    const barWidth = this.getBarWidth(totalScenes);
+    return 50 + index * colWidth + (colWidth - barWidth) / 2;
+  }
+
+  getBarHeight(score: number | null): number {
+    if (score === null || isNaN(score)) return 6;
+    return Math.max(4, Math.min(210, (score / 100) * 210));
+  }
+
+  getBarY(score: number | null): number {
+    if (score === null || isNaN(score)) return 234;
+    return 240 - this.getBarHeight(score);
+  }
+
+  getBarCenterX(index: number, totalScenes: number): number {
+    if (totalScenes <= 0) return 50;
+    const colWidth = 690 / totalScenes;
+    return 50 + index * colWidth + colWidth / 2;
+  }
+
+  getActDimensionScore(actNum: number, dimKey: string): number | null {
+    const act = this.analysisActs.find((a) => a.act === actNum);
+    if (!act) return null;
+    if (act.scores?.human_german?.[dimKey]?.score !== undefined && act.scores.human_german[dimKey].score !== null) {
+      return act.scores.human_german[dimKey].score;
+    }
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+    for (const scene of act.scenes || []) {
+      for (const dlg of scene.dialogues || []) {
+        const ana = dlg.analysis?.human_german?.[dimKey];
+        if (ana && ana.applicable && ana.score !== null && ana.score !== undefined) {
+          const weight = dlg.texts?.english?.length || 10;
+          totalWeightedScore += ana.score * weight;
+          totalWeight += weight;
+        }
+      }
+    }
+    if (totalWeight > 0) {
+      return Math.round((totalWeightedScore / totalWeight) * 10) / 10;
+    }
+    return null;
+  }
+
+  getActDimensionUnits(actNum: number, dimKey: string): { units: number; total: number } {
+    const act = this.analysisActs.find((a) => a.act === actNum);
+    if (!act) return { units: 0, total: 0 };
+    let units = 0;
+    let total = 0;
+    for (const scene of act.scenes || []) {
+      total += scene.dialogues?.length || 0;
+      for (const dlg of scene.dialogues || []) {
+        const ana = dlg.analysis?.human_german?.[dimKey];
+        if (ana && ana.applicable && ana.score !== null && ana.score !== undefined) {
+          units++;
+        }
+      }
+    }
+    return { units, total };
+  }
+
+  getActTotalDialogues(actNum: number): number {
+    const act = this.analysisActs.find((a) => a.act === actNum);
+    if (!act) return 0;
+    return (act.scenes || []).reduce((acc, s) => acc + (s.dialogues?.length || 0), 0);
+  }
+
+  getActTotalReviewCount(actNum: number): number {
+    const act = this.analysisActs.find((a) => a.act === actNum);
+    if (!act) return 0;
+    return (act.scenes || []).reduce((acc, s) => acc + this.getSceneHumanReviewCount(s), 0);
+  }
+
+  getActScoredDialoguesCount(actNum: number): number {
+    const act = this.analysisActs.find((a) => a.act === actNum);
+    if (!act) return 0;
+    return (act.scenes || []).reduce((acc, s) => acc + this.getSceneScoredDialoguesCount(s), 0);
+  }
+
+
+  onTocActSelected(actNum: number): void {
+    this.selectAnalysisAct(actNum);
+  }
+
+  onTocSceneSelected(evt: { act: number; sceneId: string; sceneNumber: number }): void {
+    const act = this.analysisActs.find((a) => a.act === evt.act);
+    const sc = act?.scenes.find((s) => s.scene_id === evt.sceneId);
+    if (sc) {
+      this.selectAnalysisAct(evt.act);
+      this.selectAnalysisScene(sc);
+    }
+  }
+
+  onTocDialogueSelected(evt: { act: number; sceneId: string; dialogueId: string; dialogue: AnalysisDialogue }): void {
+    const act = this.analysisActs.find((a) => a.act === evt.act);
+    const sc = act?.scenes.find((s) => s.scene_id === evt.sceneId);
+    if (sc) {
+      this.selectedAnalysisAct = evt.act;
+      this.selectedAnalysisScene = sc;
+      this.valTarget = 'human_german';
+      this.openInspector(evt.dialogueId, 'human_german');
+      this.selectionService.selectDialogue(evt.dialogueId, evt.act, evt.sceneId);
+      this.scrollWorkspaceToTop();
+    }
+  }
+
+  onTocDimensionChange(dimKey: string): void {
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
+    this.selectionService.selectDimension(dimKey);
+    if (this.selectedActChartDimension !== 'overall') {
+      this.selectedActChartDimension = dimKey;
+    }
+  }
+
+  onSceneDimensionRowClick(dimKey: string): void {
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
+    this.sceneReadingOpen = true;
+    this.selectionService.selectDimension(dimKey);
+  }
+
+  toggleSceneReading(): void {
+    this.sceneReadingOpen = !this.sceneReadingOpen;
+    this.selectionService.setAnalysisPanelOpen(this.sceneReadingOpen);
+  }
+
+  translateActiveDialogueBackToEnglish(): void {
+    const d = this.getInspectedDialogue();
+    const deText = d?.texts?.human_german;
+    if (!deText) {
+      this.backTranslationResult = {
+        dialogueId: d?.dialogue_id,
+        sourceGerman: '',
+        translatedEnglish: '',
+        cached: false,
+        status: 'error',
+        message: 'No Human German translation available for this dialogue.'
+      };
+      return;
+    }
+
+    this.backTranslationLoading = true;
+    this.backTranslationService.translateGermanToEnglish(deText, d?.dialogue_id).subscribe({
+      next: (res) => {
+        this.backTranslationResult = res;
+        this.backTranslationLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.backTranslationResult = {
+          dialogueId: d?.dialogue_id,
+          sourceGerman: deText,
+          translatedEnglish: '',
+          cached: false,
+          status: 'error',
+          message: 'Back-translation service error.'
+        };
+        this.backTranslationLoading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  getHumanScoreThreshold(score: number | null | undefined) {
+    return getHeatmapThreshold(score);
+  }
+
+  getHumanScoreClass(score: number | null | undefined): string {
+    return getScoreCssClass(score);
+  }
+
+  getDialogueHumanScore(diag: AnalysisDialogue | null | undefined, dimKey: string): number | null {
+    if (!diag || !diag.analysis) return null;
+    const ana = (diag.analysis as any)?.human_german?.[dimKey];
+    if (!ana || ana.applicable === false || ana.score === null || ana.score === undefined) {
+      return null;
+    }
+    return ana.score;
+  }
+
+
+  getHumanScoreColor(score: number | null | undefined): string {
+    const t = getHeatmapThreshold(score);
+    return t ? t.color : '#94a3b8';
+  }
+
+  getHumanScoreBgColor(score: number | null | undefined): string {
+    const t = getHeatmapThreshold(score);
+    return t ? t.bgColor : '#f1f5f9';
+  }
+
+  getHumanScoreWidth(score: number | null | undefined): string {
+    if (score === null || score === undefined || isNaN(score)) return '0%';
+    return `${Math.min(100, Math.max(0, score))}%`;
+  }
+
+  getSceneHumanReviewCount(scene: AnalysisScene): number {
+    if (!scene) return 0;
+    return this.reviewCountingService.getSceneFlaggedDialogueCount(scene.scene_id);
+  }
+
+  getSceneDimensionHumanReviewCount(scene: AnalysisScene, dimKey: string): number {
+    if (!scene) return 0;
+    return this.reviewCountingService.getSceneDimensionFlaggedDialogueCount(scene.scene_id, dimKey);
+  }
+
+  isDialogueExpertReviewed(dialogue: AnalysisDialogue | undefined | null, dimKey: string): boolean {
+    if (!dialogue) return false;
+    const rev = dialogue.expert_review?.dimension_reviews?.human_german?.[dimKey];
+    return !!(rev && (rev.decision || (rev.score_override !== null && rev.score_override !== undefined)));
   }
 
   isSceneExpanded(sceneId: string): boolean {
@@ -827,10 +1241,10 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       const hStatus = isAnalyzed ? this.getDialogueStatus(d, 'human_german', dim) : 'Not analyzed';
       const aStatus = isAnalyzed ? this.getDialogueStatus(d, 'ai_german', dim) : 'Not analyzed';
       const cStatus = isAnalyzed ? this.getDialogueStatus(d, 'context_ai_german', dim) : 'Not analyzed';
-      const isDiff = isAnalyzed && [hStatus, aStatus, cStatus].some((s) => {
-        const lower = s.toLowerCase();
+      const isDiff = isAnalyzed && (() => {
+        const lower = hStatus.toLowerCase();
         return lower.includes('chang') || lower.includes('lost') || lower.includes('add');
-      });
+      })();
       // Canonical review flag: dialogue has at least one active flagged assessment in this scene
       const needsReview = isAnalyzed && this.reviewCountingService.isDialogueFlagged(d.dialogue_id);
       // Dimension-specific review flag for active dimension
@@ -867,7 +1281,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         isDiff,
         hasInvalidEvidence,
         invalidEvidenceWarning: hasInvalidEvidence ? 'Evidence offset could not be validated against text; highlight suppressed.' : '',
-        sourceSpans: isAnalyzed ? this.getSourceSpansForDialogue(d, dim) : [],
+        sourceSpans: isAnalyzed ? this.getHumanSourceSpansForDialogue(d, dim) : [],
         humanSpans: isAnalyzed ? this.getTargetSpansForDialogue(d, 'human_german', dim) : [],
         aiSpans: isAnalyzed ? this.getTargetSpansForDialogue(d, 'ai_german', dim) : [],
         contextAiSpans: isAnalyzed ? this.getTargetSpansForDialogue(d, 'context_ai_german', dim) : []
@@ -916,6 +1330,35 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     }
 
     return rows;
+  }
+
+  formatHumanScore(val: number | null | undefined): string {
+    return formatHumanScore(val);
+  }
+
+  getHumanSourceSpansForDialogue(diag: AnalysisDialogue, dimKey: string): any[] {
+    const spans: any[] = [];
+    const verObj = diag.analysis?.['human_german'];
+    const ana = verObj?.[dimKey];
+    if (ana && ana.evidence) {
+      ana.evidence.forEach((ev, evIdx) => {
+        if (ev.span_validation && ev.span_validation.valid === false) {
+          return;
+        }
+        if (ev.source_span && ev.source_span.start !== null && ev.source_span.end !== null) {
+          spans.push({
+            start: ev.source_span.start,
+            end: ev.source_span.end,
+            status: ev.status,
+            isSource: true,
+            evidence: ev,
+            needs_review: ana.needs_review || ev.verified === false,
+            linkId: `${diag.dialogue_id}_${evIdx}`
+          });
+        }
+      });
+    }
+    return spans;
   }
 
   // --- Exact Word-Level Highlighting Adapters ---
@@ -1003,20 +1446,54 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   }
 
   // --- Inspector & Expert Review ---
-  openInspector(diagId: string): void {
+  openInspector(diagId: string, targetVersion?: string): void {
     this.activeInspectedDialogueId = diagId;
     this.activeInspectorDim = this.selectedAnalysisDimension;
+    this.valTarget = targetVersion || 'human_german';
+
+    const diag = this.getInspectedDialogue();
+    const deText = diag?.texts?.human_german || '';
+    if (this.backTranslationService.hasCachedTranslation(diagId, deText)) {
+      this.backTranslationResult = {
+        dialogueId: diagId,
+        sourceGerman: deText,
+        translatedEnglish: this.backTranslationService.getCachedTranslation(diagId, deText)!,
+        cached: true,
+        status: 'success'
+      };
+    } else {
+      this.backTranslationResult = null;
+    }
+
     this.loadCurrentReviewForInspector();
+    this.scrollWorkspaceToTop();
   }
 
   closeInspector(): void {
-    this.activeInspectedDialogueId = null;
+    this.switchToSceneView();
   }
 
   getInspectedDialogue(): AnalysisDialogue | null {
-    if (!this.selectedAnalysisScene || !this.activeInspectedDialogueId) return null;
-    return this.selectedAnalysisScene.dialogues.find((d) => d.dialogue_id === this.activeInspectedDialogueId) || null;
+    if (!this.activeInspectedDialogueId) return null;
+    if (this.selectedAnalysisScene) {
+      const found = this.selectedAnalysisScene.dialogues?.find((d) => d.dialogue_id === this.activeInspectedDialogueId);
+      if (found) return found;
+    }
+    for (const act of this.analysisActs) {
+      for (const sc of act.scenes || []) {
+        const found = sc.dialogues?.find((d) => d.dialogue_id === this.activeInspectedDialogueId);
+        if (found) {
+          if (!this.selectedAnalysisScene) {
+            this.selectedAnalysisScene = sc;
+            this.selectedAnalysisAct = sc.act;
+          }
+          return found;
+        }
+      }
+    }
+    return null;
   }
+
 
   loadCurrentReviewForInspector(): void {
     const diag = this.getInspectedDialogue();
@@ -1304,6 +1781,14 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.closeEvidencePopover();
+  }
+
+  setVerdict(decision: 'Accept' | 'Reject' | 'Needs Revision'): void {
+    this.valDecision = decision;
+  }
+
+  saveDraftReview(): void {
+    this.saveValidation();
   }
 
   saveValidation(): void {
@@ -1665,7 +2150,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.activeInspectorDim = item.dimKey;
     this.valTarget = item.versionKey;
     this.activeTab = 'passage';
-    this.openInspector(item.dialogue_id);
+    this.openInspector(item.dialogue_id, item.versionKey);
   }
 
   // --- Exportable Research Data (Section 12) ---
