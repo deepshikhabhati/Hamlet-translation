@@ -211,5 +211,117 @@ describe('FullBookNavigatorComponent — Hierarchical TOC Suite', () => {
     expect(act1.expanded).toBeTrue();
     expect(scene1.expanded).toBeTrue();
   });
+
+  describe('7 Compact Donut Charts per Scene Suite', () => {
+    it('11. every scene in all 5 acts and 20 scenes initializes with exactly 7 donut charts', () => {
+      let sceneCount = 0;
+      for (const act of component.acts) {
+        for (const scene of act.scenes) {
+          sceneCount++;
+          expect(scene.donuts).toBeDefined();
+          expect(scene.donuts.length).toBe(7);
+
+          const labels = scene.donuts.map(d => d.label);
+          expect(labels).toEqual(['SEM', 'EMO', 'MET', 'TON', 'VOI', 'CUL', 'OMI']);
+
+          const keys = scene.donuts.map(d => d.key);
+          expect(keys).toEqual([
+            'semantic',
+            'emotion',
+            'metaphor_imagery',
+            'tone',
+            'character_voice',
+            'cultural_archaic',
+            'omissions_additions'
+          ]);
+        }
+      }
+      expect(sceneCount).toBe(20);
+    });
+
+    it('12. donut displays actual scene average score in center and formats label below', () => {
+      const scene1 = component.acts[0].scenes[0];
+      const semDonut = scene1.donuts.find(d => d.key === 'semantic');
+
+      expect(semDonut).toBeDefined();
+      expect(semDonut?.label).toBe('SEM');
+      // Dialogue scores for semantic are 95 and 92, average is ~93.5 or 94
+      expect(semDonut?.score).toBeGreaterThan(90);
+      expect(semDonut?.centerText).toBe(Math.round(semDonut!.score!).toString());
+    });
+
+    it('13. missing or N/A scores display dash center text and gray color', () => {
+      // Scene A1-S2 has no dialogues or scores
+      const scene2 = component.acts[0].scenes[1];
+      const culDonut = scene2.donuts.find(d => d.key === 'cultural_archaic');
+
+      expect(culDonut).toBeDefined();
+      expect(culDonut?.score).toBeNull();
+      expect(culDonut?.centerText).toBe('—');
+      expect(culDonut?.color).toBe('#94a3b8');
+      expect(culDonut?.dashOffset).toBe(culDonut?.circumference!);
+    });
+
+    it('14. applies score colors consistently: Green >= 85, Amber 70-84.9, Red < 70, Gray N/A', () => {
+      // Verify color thresholds via aggregation helper
+      expect(component['aggregationService']?.getDonutColor(95)).toBe('#16a34a'); // Green
+      expect(component['aggregationService']?.getDonutColor(85)).toBe('#16a34a'); // Green boundary
+      expect(component['aggregationService']?.getDonutColor(84.9)).toBe('#d97706'); // Amber boundary
+      expect(component['aggregationService']?.getDonutColor(75)).toBe('#d97706'); // Amber
+      expect(component['aggregationService']?.getDonutColor(70)).toBe('#d97706'); // Amber boundary
+      expect(component['aggregationService']?.getDonutColor(69.9)).toBe('#dc2626'); // Red
+      expect(component['aggregationService']?.getDonutColor(50)).toBe('#dc2626'); // Red
+      expect(component['aggregationService']?.getDonutColor(null)).toBe('#94a3b8'); // Gray N/A
+    });
+
+    it('15. donut tooltip includes dimension name, exact score, scored dialogues, and review count', () => {
+      const scene1 = component.acts[0].scenes[0];
+      const semDonut = scene1.donuts[0];
+
+      expect(semDonut.tooltip).toContain('Semantic');
+      expect(semDonut.tooltip).toContain('%');
+      expect(semDonut.tooltip).toContain('scored dialogues');
+      expect(semDonut.tooltip).toContain('requiring review');
+    });
+
+    it('16. clicking a donut selects that scene, sets active dimension, and does not expand/collapse node', () => {
+      spyOn(component.sceneSelected, 'emit');
+      spyOn(component.dimensionChange, 'emit');
+
+      const scene1 = component.acts[0].scenes[0];
+      const initialExpanded = scene1.expanded;
+
+      const mockEvent = new MouseEvent('click');
+      spyOn(mockEvent, 'stopPropagation');
+
+      component.onSceneDonutClick(scene1, 'metaphor_imagery', mockEvent);
+
+      expect(mockEvent.stopPropagation).toHaveBeenCalled();
+      expect(component.selectedDimension).toBe('metaphor_imagery');
+      expect(component.dimensionChange.emit).toHaveBeenCalledWith('metaphor_imagery');
+      expect(component.sceneSelected.emit).toHaveBeenCalledWith({
+        act: 1,
+        sceneId: 'A1-S1',
+        sceneNumber: 1
+      });
+      // Scene expansion state remains untouched
+      expect(scene1.expanded).toBe(initialExpanded);
+    });
+
+    it('17. keeps existing overall scene score badge on right of scene title', () => {
+      const scene1 = component.acts[0].scenes[0];
+      expect(scene1.humanScore).not.toBeNull();
+      expect(scene1.humanScore!).toBeGreaterThan(0);
+    });
+
+    it('18. preserves Wordplay in DIMENSION_DEFINITIONS while displaying 7 donuts in sidebar', () => {
+      const hasWordplay = component.dimensions.some(d => d.value === 'wordplay');
+      expect(hasWordplay).toBeTrue();
+
+      const donutKeys = component.acts[0].scenes[0].donuts.map(d => d.key);
+      expect(donutKeys).not.toContain('wordplay');
+      expect(donutKeys.length).toBe(7);
+    });
+  });
 });
 

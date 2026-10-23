@@ -5,7 +5,8 @@ import {
   EventEmitter,
   ChangeDetectionStrategy,
   OnChanges,
-  SimpleChanges
+  SimpleChanges,
+  Optional
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -20,15 +21,56 @@ import {
   getHeatmapThreshold,
   formatHumanScore
 } from '../../models/heatmap-config';
+import { HamletAggregationService } from '../../services/hamlet-aggregation.service';
+import { ReviewCountingService } from '../../services/review-counting.service';
+
+export interface DimensionIndicator {
+  key: string;
+  name: string;
+  letter: string;
+  score: number | null;
+  status: 'green' | 'amber' | 'red' | 'gray';
+  symbol: string;
+  needsReview: boolean;
+  tooltip: string;
+}
 
 export interface DialogueNode {
   id: string;
+  shortId: string;
   speaker: string;
   textPreview: string;
   fullText: string;
   score: number | null;
+  needsReview: boolean;
+  indicators: DimensionIndicator[];
   data: AnalysisDialogue;
 }
+
+export interface SceneDonutDimension {
+  key: string;
+  name: string;
+  label: string;
+  score: number | null;
+  units: number;
+  totalDialogues: number;
+  reviewCount: number;
+  color: string;
+  centerText: string;
+  tooltip: string;
+  dashOffset: number;
+  circumference: number;
+}
+
+export const SCENE_DONUT_DIMENSIONS = [
+  { key: 'semantic', name: 'Semantic', label: 'SEM' },
+  { key: 'emotion', name: 'Emotion', label: 'EMO' },
+  { key: 'metaphor_imagery', name: 'Metaphor / Imagery', label: 'MET' },
+  { key: 'tone', name: 'Tone', label: 'TON' },
+  { key: 'character_voice', name: 'Character Voice', label: 'VOI' },
+  { key: 'cultural_archaic', name: 'Cultural / Archaic', label: 'CUL' },
+  { key: 'omissions_additions', name: 'Omissions / Additions', label: 'OMI' }
+];
 
 export interface SceneNode {
   id: string;
@@ -38,6 +80,7 @@ export interface SceneNode {
   humanScore: number | null;
   units: number;
   expanded: boolean;
+  donuts: SceneDonutDimension[];
   dialogues: DialogueNode[];
   data: AnalysisScene;
 }
@@ -58,6 +101,18 @@ export interface ActNode {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FullBookNavigatorComponent implements OnChanges {
+  constructor(
+    @Optional() private aggregationService?: HamletAggregationService,
+    @Optional() private reviewCountingService?: ReviewCountingService
+  ) {
+    if (!this.aggregationService) {
+      this.aggregationService = new HamletAggregationService();
+    }
+    if (!this.reviewCountingService) {
+      this.reviewCountingService = new ReviewCountingService();
+    }
+  }
+
   @Input() actsData: AnalysisAct[] = [];
   @Input() data: any[] = [];
   @Input() dialogues: any[] = [];
@@ -75,11 +130,23 @@ export class FullBookNavigatorComponent implements OnChanges {
 
   searchQuery = '';
   acts: ActNode[] = [];
+  miniLegendOpen = false;
 
   readonly dimensions = DIMENSION_DEFINITIONS.map(d => ({
     value: d.key,
     label: d.name
   }));
+
+  readonly dimensionLetters = [
+    { key: 'semantic', letter: 'S', name: 'Semantic', short: 'Semantic' },
+    { key: 'emotion', letter: 'E', name: 'Emotion', short: 'Emotion' },
+    { key: 'metaphor_imagery', letter: 'M', name: 'Metaphor / Imagery', short: 'Metaphor' },
+    { key: 'tone', letter: 'T', name: 'Tone', short: 'Tone' },
+    { key: 'character_voice', letter: 'V', name: 'Character Voice', short: 'Voice' },
+    { key: 'wordplay', letter: 'W', name: 'Wordplay', short: 'Wordplay' },
+    { key: 'cultural_archaic', letter: 'C', name: 'Cultural / Archaic', short: 'Cultural' },
+    { key: 'omissions_additions', letter: 'O', name: 'Omissions / Additions', short: 'Omissions' }
+  ];
 
   actColors: Record<number, string> = {
     1: '#1e3a8a',
@@ -88,6 +155,10 @@ export class FullBookNavigatorComponent implements OnChanges {
     4: '#374151',
     5: '#4b5563'
   };
+
+  toggleMiniLegend(): void {
+    this.miniLegendOpen = !this.miniLegendOpen;
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -153,39 +224,40 @@ export class FullBookNavigatorComponent implements OnChanges {
           ? existingScene.expanded
           : (scene.scene_id === this.selectedSceneId && !!this.selectedDialogueId) || !!query;
 
-        // Human German score for selected dimension
+        // Overall Human German score using shared aggregation function
         let humanScore: number | null = null;
         let units = 0;
-        if (scene.scores?.human_german?.[this.selectedDimension]) {
-          const scoreObj = scene.scores.human_german[this.selectedDimension];
-          humanScore = scoreObj.score;
-          units = scoreObj.units;
-        } else if (scene.dialogues && scene.dialogues.length > 0) {
-          let sumWeight = 0;
-          let sumWeightedScore = 0;
-          scene.dialogues.forEach(dlg => {
-            const ana = dlg.analysis?.human_german?.[this.selectedDimension];
-            if (ana && ana.applicable && ana.score !== null && ana.score !== undefined) {
-              const weight = dlg.texts?.english?.length || 10;
-              sumWeight += weight;
-              sumWeightedScore += ana.score * weight;
-              units++;
-            }
-          });
-          humanScore = sumWeight > 0 ? Math.round((sumWeightedScore / sumWeight) * 10) / 10 : null;
+        if (this.aggregationService) {
+          humanScore = this.aggregationService.getSceneOverallScore(scene);
+          units = (scene.dialogues && scene.dialogues.length > 0)
+            ? scene.dialogues.filter(dlg => Object.values(dlg.analysis?.human_german || {}).some(a => a?.applicable !== false && a?.score !== null)).length
+            : (scene.total_dialogues || 0);
+        } else if (scene.scores?.human_german) {
+          const scs = Object.values(scene.scores.human_german)
+            .map(s => s?.score)
+            .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
+          humanScore = scs.length > 0 ? Math.round((scs.reduce((a, b) => a + b, 0) / scs.length) * 10) / 10 : null;
+          units = scene.total_dialogues || 0;
         }
+
+        const donuts = this.buildSceneDonuts(scene);
 
         const dialogues: DialogueNode[] = (scene.dialogues || []).map(dlg => {
           const eng = dlg.texts?.english || '';
           const preview = eng.length > 55 ? eng.substring(0, 52) + '…' : eng;
           const dlgScore = dlg.analysis?.human_german?.[this.selectedDimension]?.score ?? null;
+          const { indicators, needsReview } = this.buildDialogueIndicators(dlg);
+          const shortId = this.getShortId(dlg.dialogue_id);
 
           return {
             id: dlg.dialogue_id,
+            shortId,
             speaker: dlg.speaker || 'UNKNOWN',
             textPreview: preview,
             fullText: eng,
             score: dlgScore,
+            needsReview,
+            indicators,
             data: dlg
           };
         });
@@ -207,6 +279,7 @@ export class FullBookNavigatorComponent implements OnChanges {
           humanScore,
           units,
           expanded: query ? filteredDialogues.length > 0 : isSceneExpanded,
+          donuts,
           dialogues: filteredDialogues,
           data: scene
         };
@@ -255,6 +328,7 @@ export class FullBookNavigatorComponent implements OnChanges {
         humanScore = comp.dimensions[this.selectedDimension].score;
       }
 
+      const donuts = this.buildSceneDonuts(sceneData);
       act.scenes.push({
         id: sceneData.scene_id || `A${actNum}-S${sceneNum}`,
         actNumber: actNum,
@@ -263,6 +337,7 @@ export class FullBookNavigatorComponent implements OnChanges {
         humanScore,
         units: 0,
         expanded: false,
+        donuts,
         dialogues: [],
         data: sceneData
       });
@@ -281,18 +356,172 @@ export class FullBookNavigatorComponent implements OnChanges {
           const scene = act.scenes.find(s => s.sceneNumber === sceneNum);
           if (scene) {
             const eng = d.texts?.english || '';
+            const { indicators, needsReview } = this.buildDialogueIndicators(d);
+            const rawId = d.dialogue_id || d.passage_id || '';
+            const shortId = this.getShortId(rawId);
             scene.dialogues.push({
-              id: d.dialogue_id || d.passage_id,
+              id: rawId,
+              shortId,
               speaker: d.speaker || 'UNKNOWN',
               textPreview: eng.length > 55 ? eng.substring(0, 52) + '…' : eng,
               fullText: eng,
               score: null,
+              needsReview,
+              indicators,
               data: d
             });
           }
         }
       });
     }
+  }
+
+  buildSceneDonuts(scene: AnalysisScene): SceneDonutDimension[] {
+    const totalDialogues = scene.dialogues?.length || scene.total_dialogues || 0;
+    const circumference = 69.12;
+
+    return SCENE_DONUT_DIMENSIONS.map(dimDef => {
+      let score: number | null = null;
+      let units = 0;
+
+      if (this.aggregationService) {
+        score = this.aggregationService.getSceneDimensionScore(scene, dimDef.key, 'human_german');
+        units = this.aggregationService.getSceneDimensionUnits(scene, dimDef.key, 'human_german');
+      } else if (scene.scores?.human_german?.[dimDef.key]?.score !== undefined) {
+        score = scene.scores.human_german[dimDef.key].score;
+        units = scene.scores.human_german[dimDef.key].units || 0;
+      }
+
+      // Review count for this dimension in this scene
+      let reviewCount = 0;
+      if (this.reviewCountingService) {
+        reviewCount = this.reviewCountingService.getSceneDimensionFlaggedDialogueCount(scene.scene_id, dimDef.key);
+      }
+      if (reviewCount === 0 && scene.dialogues && scene.dialogues.length > 0) {
+        reviewCount = scene.dialogues.filter(dlg => dlg.analysis?.human_german?.[dimDef.key]?.needs_review).length;
+      }
+
+      const color = this.aggregationService
+        ? this.aggregationService.getDonutColor(score)
+        : (score === null ? '#94a3b8' : score >= 85 ? '#16a34a' : score >= 70 ? '#d97706' : '#dc2626');
+
+      const centerText = this.aggregationService
+        ? this.aggregationService.getDonutCenterText(score)
+        : (score === null ? '—' : Math.round(score).toString());
+
+      const dashOffset = this.aggregationService
+        ? this.aggregationService.getDonutDashOffset(score, circumference)
+        : (score === null || score <= 0 ? circumference : Math.round((circumference - (circumference * Math.min(100, score)) / 100) * 100) / 100);
+
+      const scoreText = score !== null && !isNaN(score) ? `${score}%` : 'N/A';
+      const reviewText = reviewCount === 1 ? '1 requiring review' : `${reviewCount} requiring review`;
+      const tooltip = `${dimDef.name}: ${scoreText} (${units}/${totalDialogues} scored dialogues, ${reviewText})`;
+
+      return {
+        key: dimDef.key,
+        name: dimDef.name,
+        label: dimDef.label,
+        score,
+        units,
+        totalDialogues,
+        reviewCount,
+        color,
+        centerText,
+        tooltip,
+        dashOffset,
+        circumference
+      };
+    });
+  }
+
+  onSceneDonutClick(scene: SceneNode, dimKey: string, event: Event): void {
+    event.stopPropagation();
+    this.selectedDimension = dimKey;
+    this.dimensionChange.emit(dimKey);
+    this.sceneSelected.emit({
+      act: scene.actNumber,
+      sceneId: scene.id,
+      sceneNumber: scene.sceneNumber
+    });
+  }
+
+  buildDialogueIndicators(dlg: AnalysisDialogue): { indicators: DimensionIndicator[]; needsReview: boolean } {
+    let dialogueNeedsReview = false;
+    const humanAnalysis = dlg.analysis?.human_german || {};
+
+    if (dlg.expert_review?.status === 'needs_review' || (dlg.expert_review as any)?.needs_review) {
+      dialogueNeedsReview = true;
+    }
+
+    const indicators: DimensionIndicator[] = this.dimensionLetters.map(def => {
+      const dimAna = humanAnalysis[def.key];
+      const isApplicable = dimAna?.applicable !== false;
+      const rawScore = dimAna?.score;
+      const score = (isApplicable && rawScore !== null && rawScore !== undefined && !isNaN(rawScore))
+        ? Math.round(Number(rawScore) * 10) / 10
+        : null;
+      const dimNeedsReview = Boolean(dimAna?.needs_review);
+
+      if (dimNeedsReview) {
+        dialogueNeedsReview = true;
+      }
+
+      let status: 'green' | 'amber' | 'red' | 'gray' = 'gray';
+      let symbol = '–';
+
+      if (score === null || !isApplicable) {
+        status = 'gray';
+        symbol = '–';
+      } else if (dimNeedsReview) {
+        status = 'red';
+        symbol = '!';
+      } else if (score >= 80) {
+        status = 'green';
+        symbol = '●';
+      } else if (score >= 60) {
+        status = 'amber';
+        symbol = '●';
+      } else {
+        status = 'red';
+        symbol = '!';
+      }
+
+      const statusDesc = status === 'green'
+        ? 'Strong preservation'
+        : status === 'amber'
+          ? 'Potential issue'
+          : status === 'red'
+            ? (dimNeedsReview ? 'Flagged for expert review' : 'Serious concern')
+            : 'Not applicable';
+
+      const tooltip = `${def.name} (${def.letter}): ${score !== null ? score + '%' : 'N/A'} — ${statusDesc}`;
+
+      return {
+        key: def.key,
+        name: def.name,
+        letter: def.letter,
+        score,
+        status,
+        symbol,
+        needsReview: dimNeedsReview,
+        tooltip
+      };
+    });
+
+    return { indicators, needsReview: dialogueNeedsReview };
+  }
+
+  getShortId(id: string): string {
+    if (!id) return '';
+    const match = id.match(/D\d+$/);
+    return match ? match[0] : id;
+  }
+
+  onIndicatorClick(scene: SceneNode, dialogue: DialogueNode, dimKey: string, event: Event): void {
+    event.stopPropagation();
+    this.selectedDimension = dimKey;
+    this.dimensionChange.emit(dimKey);
+    this.selectDialogueNode(scene, dialogue);
   }
 
   onSearchChange(): void {

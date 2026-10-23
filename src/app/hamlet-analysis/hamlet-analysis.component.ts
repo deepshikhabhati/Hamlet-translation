@@ -873,6 +873,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     if (sc) {
       this.selectAnalysisAct(evt.act);
       this.selectAnalysisScene(sc);
+      this.sceneReadingOpen = true;
     }
   }
 

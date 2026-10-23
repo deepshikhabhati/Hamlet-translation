@@ -45,6 +45,36 @@
         >✕</button>
       </div>
     </div>
+
+    <!-- Collapsible Mini-Legend near sidebar header -->
+    <div class="toc-legend-bar">
+      <button
+        type="button"
+        class="toc-legend-toggle-btn"
+        (click)="toggleMiniLegend()"
+        [attr.aria-expanded]="miniLegendOpen"
+        title="Toggle literary dimension indicators legend"
+      >
+        <span class="toc-legend-toggle-icon">ⓘ</span>
+        <span class="toc-legend-toggle-text">Literary Dimensions Legend</span>
+        <span class="toc-legend-chevron">{{ miniLegendOpen ? '▲' : '▼' }}</span>
+      </button>
+
+      <div class="toc-mini-legend" *ngIf="miniLegendOpen" role="region" aria-label="Dimension Guide">
+        <div class="toc-mini-legend-grid">
+          <span *ngFor="let dim of dimensionLetters" class="toc-mini-legend-item" [title]="dim.name">
+            <strong>{{ dim.letter }}</strong>: {{ dim.short }}
+          </span>
+        </div>
+        <div class="toc-mini-legend-scale">
+          <span class="toc-scale-chip"><span class="toc-dim-glyph toc-dim-glyph--green">●</span> &ge;80%</span>
+          <span class="toc-scale-chip"><span class="toc-dim-glyph toc-dim-glyph--amber">●</span> 60–79%</span>
+          <span class="toc-scale-chip"><span class="toc-dim-glyph toc-dim-glyph--red">!</span> &lt;60%</span>
+          <span class="toc-scale-chip"><span class="toc-dim-glyph toc-dim-glyph--gray">–</span> N/A</span>
+          <span class="toc-scale-chip"><span class="toc-dialogue-flag-icon">⚑</span> Review</span>
+        </div>
+      </div>
+    </div>
   </header>
 
   <!-- Hierarchy Scroll Area -->
@@ -102,63 +132,119 @@
           role="treeitem"
           [attr.aria-expanded]="scene.expanded"
         >
-          <!-- Scene Row -->
+          <!-- Scene Card Container -->
           <div
-            class="toc-scene-row"
-            [class.toc-scene-row--selected]="selectedSceneId === scene.id && !selectedDialogueId"
-            [class.toc-scene-row--child-selected]="selectedSceneId === scene.id && !!selectedDialogueId"
-            (click)="selectSceneNode(scene)"
-            tabindex="0"
+            class="toc-scene-card"
+            [class.toc-scene-card--selected]="selectedSceneId === scene.id && !selectedDialogueId"
+            [class.toc-scene-card--child-selected]="selectedSceneId === scene.id && !!selectedDialogueId"
           >
-            <!-- Chevron to toggle dialogue expansion -->
-            <button
-              type="button"
-              class="toc-chevron-btn toc-chevron-btn--scene"
-              [attr.aria-expanded]="scene.expanded"
-              [attr.aria-label]="(scene.expanded ? 'Collapse dialogues in Scene ' : 'Expand dialogues in Scene ') + scene.sceneNumber"
-              (click)="toggleScene(scene, $event)"
-              title="Expand/collapse dialogue list"
-            >
-              <svg
-                class="toc-chevron-icon"
-                [class.toc-chevron-icon--open]="scene.expanded"
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+            <!-- Line 1: Chevron + Scene Title + Overall Score Badge -->
+            <div class="toc-scene-header-line">
+              <!-- Chevron to toggle dialogue expansion ONLY -->
+              <button
+                type="button"
+                class="toc-chevron-btn toc-chevron-btn--scene"
+                [attr.aria-expanded]="scene.expanded"
+                [attr.aria-label]="(scene.expanded ? 'Collapse dialogues in Scene ' : 'Expand dialogues in Scene ') + scene.sceneNumber"
+                (click)="toggleScene(scene, $event)"
+                title="Expand/collapse dialogue list"
               >
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </button>
+                <svg
+                  class="toc-chevron-icon"
+                  [class.toc-chevron-icon--open]="scene.expanded"
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
 
-            <!-- Scene Label (Click selects scene without expanding) -->
-            <span class="toc-scene-label" [title]="scene.title">
-              <strong>Scene {{ scene.sceneNumber }}</strong>
-            </span>
-
-            <!-- Human German Score Pill & Bar -->
-            <div
-              class="toc-scene-score-box"
-              [title]="'Human German ' + selectedDimension + ' score: ' + getScoreDisplay(scene.humanScore) + (scene.units ? ' (' + scene.units + ' units)' : '')"
-            >
-              <div class="toc-score-microbar" *ngIf="scene.humanScore !== null">
-                <div
-                  class="toc-score-microfill"
-                  [style.width]="getScoreWidth(scene.humanScore)"
-                  [style.background-color]="getScoreColor(scene.humanScore)"
-                ></div>
+              <!-- Scene Title (Click selects scene without expanding) -->
+              <div
+                class="toc-scene-title-hitbox"
+                (click)="selectSceneNode(scene)"
+                tabindex="0"
+                role="button"
+                [attr.aria-label]="'Select Scene ' + scene.sceneNumber + ' overview'"
+              >
+                <span class="toc-scene-label" [title]="scene.title">
+                  <strong>Scene {{ scene.sceneNumber }}</strong>
+                </span>
               </div>
-              <span
-                class="toc-scene-score-val"
-                [style.color]="getScoreColor(scene.humanScore)"
-                [style.background-color]="getScoreBgColor(scene.humanScore)"
+
+              <!-- Overall Scene Score Badge on the right of the Scene title -->
+              <div
+                class="toc-scene-score-box"
+                (click)="selectSceneNode(scene)"
+                [title]="'Overall Human German score: ' + getScoreDisplay(scene.humanScore) + (scene.units ? ' (' + scene.units + ' dialogues)' : '')"
+                role="button"
+                tabindex="0"
+                [attr.aria-label]="'Overall score: ' + getScoreDisplay(scene.humanScore)"
               >
-                {{ getScoreDisplay(scene.humanScore) }}
-              </span>
+                <div class="toc-score-microbar" *ngIf="scene.humanScore !== null">
+                  <div
+                    class="toc-score-microfill"
+                    [style.width]="getScoreWidth(scene.humanScore)"
+                    [style.background-color]="getScoreColor(scene.humanScore)"
+                  ></div>
+                </div>
+                <span
+                  class="toc-scene-score-val"
+                  [style.color]="getScoreColor(scene.humanScore)"
+                  [style.background-color]="getScoreBgColor(scene.humanScore)"
+                >
+                  {{ getScoreDisplay(scene.humanScore) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Line 2: 7 Compact Donut Charts in one horizontal row -->
+            <div class="toc-scene-donuts-row" role="group" [attr.aria-label]="'Scene ' + scene.sceneNumber + ' literary dimension scores'">
+              <button
+                *ngFor="let donut of scene.donuts"
+                type="button"
+                class="toc-donut-btn"
+                [class.toc-donut-btn--active]="selectedSceneId === scene.id && selectedDimension === donut.key"
+                (click)="onSceneDonutClick(scene, donut.key, $event)"
+                [title]="donut.tooltip"
+                [attr.aria-label]="donut.tooltip"
+              >
+                <div class="toc-donut-svg-wrap">
+                  <svg class="toc-donut-svg" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+                    <circle class="toc-donut-track" cx="15" cy="15" r="11" fill="none" stroke="#e2e8f0" stroke-width="2.8" />
+                    <circle
+                      class="toc-donut-fill"
+                      cx="15"
+                      cy="15"
+                      r="11"
+                      fill="none"
+                      [attr.stroke]="donut.color"
+                      stroke-width="2.8"
+                      stroke-linecap="round"
+                      [attr.stroke-dasharray]="donut.circumference"
+                      [attr.stroke-dashoffset]="donut.dashOffset"
+                      transform="rotate(-90 15 15)"
+                    />
+                    <text
+                      class="toc-donut-center-text"
+                      x="15"
+                      y="15"
+                      dy="0.32em"
+                      text-anchor="middle"
+                      [attr.fill]="donut.color"
+                    >{{ donut.centerText }}</text>
+                  </svg>
+                </div>
+                <span class="toc-donut-label" [class.toc-donut-label--active]="selectedSceneId === scene.id && selectedDimension === donut.key">
+                  {{ donut.label }}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -173,17 +259,40 @@
               tabindex="0"
               role="treeitem"
             >
-              <div class="toc-dialogue-dot"></div>
-              <div class="toc-dialogue-text-block">
-                <span class="toc-dialogue-id">{{ dlg.id }}</span>
-                <span class="toc-dialogue-sep">—</span>
-                <span class="toc-dialogue-speaker">{{ dlg.speaker }}</span>
-                <span class="toc-dialogue-sep">—</span>
-                <span class="toc-dialogue-preview">{{ dlg.textPreview }}</span>
+              <!-- Dialogue Header Line: Speaker, Short ID, Review Flag -->
+              <div class="toc-dialogue-header-line">
+                <div class="toc-dialogue-meta">
+                  <span class="toc-dialogue-speaker">{{ dlg.speaker }}</span>
+                  <span class="toc-dialogue-dot-sep">·</span>
+                  <span class="toc-dialogue-id">{{ dlg.shortId }}</span>
+                </div>
+                <span *ngIf="dlg.needsReview" class="toc-dialogue-flag" title="Requires expert review" aria-label="Requires expert review">⚑</span>
               </div>
-              <span *ngIf="dlg.score !== null" class="toc-dialogue-score" [style.color]="getScoreColor(dlg.score)">
-                {{ dlg.score }}
-              </span>
+
+              <!-- English text preview -->
+              <div class="toc-dialogue-preview">
+                {{ dlg.textPreview }}
+              </div>
+
+              <!-- 8 Compact Literary Dimension Indicators -->
+              <div class="toc-dim-indicators" role="toolbar" aria-label="Dimension indicators">
+                <button
+                  *ngFor="let ind of dlg.indicators"
+                  type="button"
+                  class="toc-dim-indicator-btn"
+                  [class.toc-dim-indicator-btn--green]="ind.status === 'green'"
+                  [class.toc-dim-indicator-btn--amber]="ind.status === 'amber'"
+                  [class.toc-dim-indicator-btn--red]="ind.status === 'red'"
+                  [class.toc-dim-indicator-btn--gray]="ind.status === 'gray'"
+                  [class.toc-dim-indicator-btn--active]="selectedDialogueId === dlg.id && selectedDimension === ind.key"
+                  (click)="onIndicatorClick(scene, dlg, ind.key, $event)"
+                  [title]="ind.tooltip"
+                  [attr.aria-label]="ind.name + ': ' + (ind.score !== null ? ind.score + '%' : 'N/A')"
+                >
+                  <span class="toc-dim-letter">{{ ind.letter }}</span>
+                  <span class="toc-dim-glyph">{{ ind.symbol }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
