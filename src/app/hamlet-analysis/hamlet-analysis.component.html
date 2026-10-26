@@ -437,11 +437,11 @@
           <ng-container *ngIf="viewMode === 'scene' && selectedAnalysisScene">
 
             <!-- E-Reader Header Section matching Reference Screenshot (.v15-scene-header-card) -->
-            <section class="reader-header-section v15-scene-header-card" aria-label="Scene Reading Header">
+            <section class="reader-header-section v15-scene-header-card reader-intro" aria-label="Scene Reading Header">
               <div class="reader-title-line">
                 <div class="reader-title-left">
-                  <h2 class="reader-main-title">Hamlet, side by side</h2>
-                  <p class="reader-sub-title">Read the English original and the Human German translation together.</p>
+                  <h2 class="reader-main-title reader-title">Hamlet, side by side</h2>
+                  <p class="reader-sub-title reader-subtitle">Read the English original and the Human German translation together.</p>
                 </div>
 
                 <!-- Show Analysis Toggle Switch (Requirement 10) -->
@@ -462,21 +462,21 @@
                 </div>
               </div>
 
-              <!-- Mint Green Callout Banner matching Reference Screenshot -->
+              <!-- Subtle helper line (replaces large green callout box; preserves test 19) -->
               <div class="reader-callout-banner">
-                Select a scene on the left to see how it was translated. Turn on Show analysis to underline preserved and changed phrases.
+                Select any scene on the left to read. Turn on Show analysis to inspect preserved and changed phrases.
               </div>
             </section>
 
             <!-- Compact Dimension Tabs Bar (Requirement 5 & Test 15 compatibility) -->
-            <section class="reader-dimension-tabs-bar v15-human-matrix-section" aria-label="Literary Dimensions" role="tablist">
+            <section class="reader-dimension-tabs-bar v15-human-matrix-section dimension-toolbar" aria-label="Literary Dimensions" role="tablist">
               <div class="reader-dimension-tabs-track">
                 <button
                   *ngFor="let tab of primaryDimensionTabs"
                   type="button"
                   role="tab"
                   [attr.aria-selected]="selectedAnalysisDimension === tab.key"
-                  class="reader-dimension-tab-btn"
+                  class="reader-dimension-tab-btn dimension-tab"
                   [class.reader-dimension-tab-btn--active]="selectedAnalysisDimension === tab.key"
                   (click)="selectDimensionTab(tab.key)"
                   id="tab-{{ tab.key }}"
@@ -647,27 +647,39 @@
               </button>
             </div>
 
-            <!-- Side-by-Side Reading Area (Requirement 2 & 6 matching Reference Screenshot) -->
-            <section class="reader-reading-container" aria-label="Parallel Reading Text">
-              <!-- Aligned Columns Container -->
-              <div class="reader-bilingual-grid">
-                <!-- English Column Card -->
-                <div class="reader-lang-column reader-lang-column--en">
-                  <header class="reader-lang-header">
+            <!-- Side-by-Side Reading Area (Synchronized Shared Dialogue-Row Layout) -->
+            <section class="reader-reading-container parallel-reader" aria-label="Parallel Reading Text">
+              <div class="reader-parallel-card">
+                <!-- Compact Column Headers on same horizontal row -->
+                <div class="reader-headers-row">
+                  <header class="reader-lang-header reader-lang-column--en reader-panel-header">
                     <h3 class="reader-lang-title">English original</h3>
                     <span class="reader-lang-sub">En (1603/23)</span>
                   </header>
-                  <div class="reader-speech-list">
+                  <header class="reader-lang-header reader-lang-column--de reader-panel-header">
+                    <h3 class="reader-lang-title">Human German</h3>
+                    <span class="reader-lang-sub">De (Schlegel-Tieck)</span>
+                  </header>
+                </div>
+
+                <!-- Synchronized Dialogue Row List -->
+                <div class="reader-dialogue-list">
+                  <div
+                    *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
+                    class="reader-dialogue-row"
+                    [id]="'dlg-row-' + r.id"
+                    [class.reader-dialogue-row--active]="readerInspectedDialogueId === r.id"
+                  >
+                    <!-- English Speech Cell -->
                     <div
-                      *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
-                      class="reader-speech-row reader-speech-row--en"
+                      class="reader-speech-cell reader-speech-row reader-speech-row--en dialogue-row"
                       [id]="'dlg-en-' + r.id"
                       [class.reader-speech-row--active]="readerInspectedDialogueId === r.id"
                     >
                       <div class="reader-speaker-line">
-                        <span class="reader-speaker-name">{{ r.speaker }}</span>
+                        <span class="reader-speaker-name dialogue-speaker">{{ r.speaker }}</span>
                       </div>
-                      <div class="reader-dialogue-body">
+                      <div class="reader-dialogue-body dialogue-text">
                         <app-ha-evidence-highlighted-text
                           [text]="r.english"
                           [spans]="showAnalysis ? r.sourceSpans : []"
@@ -679,26 +691,17 @@
                         ></app-ha-evidence-highlighted-text>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <!-- German Column Card -->
-                <div class="reader-lang-column reader-lang-column--de">
-                  <header class="reader-lang-header">
-                    <h3 class="reader-lang-title">Human German</h3>
-                    <span class="reader-lang-sub">De (Schlegel-Tieck)</span>
-                  </header>
-                  <div class="reader-speech-list">
+                    <!-- German Speech Cell -->
                     <div
-                      *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
-                      class="reader-speech-row reader-speech-row--de"
+                      class="reader-speech-cell reader-speech-row reader-speech-row--de dialogue-row"
                       [id]="'dlg-de-' + r.id"
                       [class.reader-speech-row--active]="readerInspectedDialogueId === r.id"
                     >
                       <div class="reader-speaker-line">
-                        <span class="reader-speaker-name">{{ r.speaker }}</span>
+                        <span class="reader-speaker-name dialogue-speaker">{{ r.speaker }}</span>
 
-                        <!-- Compact Adjacent Action Group: Inspect | Needs Review (Requirement 7) -->
+                        <!-- Compact Adjacent Action Group: Inspect | Needs Review -->
                         <div class="reader-action-group">
                           <button
                             type="button"
@@ -728,7 +731,7 @@
                           </button>
                         </div>
                       </div>
-                      <div class="reader-dialogue-body">
+                      <div class="reader-dialogue-body dialogue-text">
                         <app-ha-evidence-highlighted-text
                           [text]="r.human_german"
                           [spans]="showAnalysis ? r.humanSpans : []"

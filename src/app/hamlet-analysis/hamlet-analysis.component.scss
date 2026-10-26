@@ -3258,10 +3258,10 @@ app-ha-phrase-evidence-workspace {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   background: #f8fafc;
-  padding: 24px 28px 80px 28px;
+  padding: 12px 18px 40px 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -3306,44 +3306,51 @@ app-ha-phrase-evidence-workspace {
 }
 
 /* ==========================================================================
-   PARALLEL E-READER HEADER & SHOW ANALYSIS TOGGLE (REFERENCE SCREENSHOT)
+   PARALLEL E-READER HEADER & SHOW ANALYSIS TOGGLE (COMPACT TOOLBAR)
    ========================================================================== */
-.reader-header-section {
+.reader-header-section,
+.reader-intro {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  background: transparent;
-  border: none;
-  padding: 0;
-  box-shadow: none;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-height: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .reader-title-line {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
 }
 
 .reader-title-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.reader-main-title {
+.reader-main-title,
+.reader-title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 26px;
+  font-size: 23px;
+  line-height: 1.2;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
   letter-spacing: -0.01em;
 }
 
-.reader-sub-title {
-  font-size: 13.5px;
+.reader-sub-title,
+.reader-subtitle {
+  font-size: 12.5px;
   color: #64748b;
   margin: 0;
+  line-height: 1.3;
 }
 
 /* Show Analysis Toggle Switch */
@@ -3356,13 +3363,13 @@ app-ha-phrase-evidence-workspace {
 .reader-toggle-label {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
 }
 
 .reader-toggle-text {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #334155;
 }
@@ -3407,37 +3414,47 @@ app-ha-phrase-evidence-workspace {
   transition: transform 0.2s ease;
 }
 
-/* Mint Green Callout Banner */
+/* Subtle helper line (compact, replacing large green box) */
 .reader-callout-banner {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #065f46;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: #94a3b8;
+  margin: 0;
 }
 
 /* ==========================================================================
-   COMPACT DIMENSION TABS BAR (REQUIREMENT 5)
+   COMPACT DIMENSION TABS BAR (REQUIREMENT 2)
    ========================================================================== */
-.reader-dimension-tabs-bar {
+.reader-dimension-tabs-bar,
+.dimension-toolbar {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 6px;
+  padding: 4px 8px !important;
+  margin: 0 !important;
+  min-height: 0 !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: center;
 }
 
 .reader-dimension-tabs-track {
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 5px;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
+  width: 100%;
+  min-height: 32px;
 
   &::-webkit-scrollbar {
-    height: 4px;
+    height: 3px;
   }
   &::-webkit-scrollbar-thumb {
     background: #cbd5e1;
@@ -3445,19 +3462,24 @@ app-ha-phrase-evidence-workspace {
   }
 }
 
-.reader-dimension-tab-btn {
+.reader-dimension-tab-btn,
+.dimension-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 4px 10px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: #475569;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 
   &:hover {
@@ -3471,7 +3493,7 @@ app-ha-phrase-evidence-workspace {
     font-weight: 600;
 
     .tab-score-pill {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.22);
       color: #ffffff !important;
     }
 
@@ -3579,40 +3601,45 @@ app-ha-phrase-evidence-workspace {
 }
 
 /* ==========================================================================
-   SIDE-BY-SIDE PARALLEL READING CONTAINER (REQUIREMENTS 2, 6, 7)
+   SIDE-BY-SIDE PARALLEL READING CONTAINER (SYNCHRONIZED SHARED DIALOGUE ROWS)
    ========================================================================== */
-.reader-reading-container {
+.reader-reading-container,
+.parallel-reader {
   display: flex;
   flex-direction: column;
+  margin-top: 0;
 }
 
-.reader-bilingual-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.reader-lang-column {
+.reader-parallel-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.reader-lang-header {
-  padding: 14px 20px 10px 20px;
-  border-bottom: 1px solid #f1f5f9;
+.reader-headers-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #e2e8f0;
   background: #fafafa;
+}
+
+.reader-lang-header,
+.reader-panel-header {
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+
+  &.reader-lang-column--en {
+    border-right: 1px solid #e2e8f0;
+  }
 }
 
 .reader-lang-title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
@@ -3621,18 +3648,19 @@ app-ha-phrase-evidence-workspace {
 .reader-lang-sub {
   font-size: 12px;
   color: #64748b;
+  margin-left: 8px;
 }
 
-.reader-speech-list {
+.reader-dialogue-list {
   display: flex;
   flex-direction: column;
 }
 
-.reader-speech-row {
-  padding: 14px 20px;
+.reader-dialogue-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.15s ease;
-  min-height: 80px;
 
   &:last-child {
     border-bottom: none;
@@ -3644,7 +3672,24 @@ app-ha-phrase-evidence-workspace {
 
   &--active {
     background-color: #f0f7ff;
-    border-left: 3px solid #2563eb;
+
+    .reader-speech-row--en {
+      border-left: 3px solid #2563eb;
+    }
+  }
+}
+
+.reader-speech-cell,
+.dialogue-row {
+  padding: 8px 14px;
+  margin: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+
+  &.reader-speech-row--en {
+    border-right: 1px solid #f1f5f9;
   }
 }
 
@@ -3652,22 +3697,32 @@ app-ha-phrase-evidence-workspace {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
+  min-height: 18px;
 }
 
-.reader-speaker-name {
-  font-size: 11px;
+.reader-speaker-name,
+.dialogue-speaker {
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #64748b;
+  margin-bottom: 0;
 }
 
-.reader-dialogue-body {
+.reader-dialogue-body,
+.dialogue-text {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 15.5px;
+  line-height: 1.45;
   color: #1e293b;
+  margin: 0;
+
+  .literary-text {
+    font-size: 15.5px;
+    line-height: 1.45;
+  }
 }
 
 /* Adjacent Action Group: Inspect | Needs Review (Requirement 7) */
@@ -3678,8 +3733,8 @@ app-ha-phrase-evidence-workspace {
 }
 
 .reader-action-btn {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3711,6 +3766,18 @@ app-ha-phrase-evidence-workspace {
     border-color: #fca5a5;
     color: #b91c1c;
   }
+}
+
+/* Backward compatibility */
+.reader-bilingual-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-speech-row {
+  padding: 8px 14px;
+  min-height: 0;
+  border-bottom: none;
 }
 
 /* ==========================================================================
@@ -4116,9 +4183,10 @@ app-ha-phrase-evidence-workspace {
 .v15-scene-header-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 20px 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-height: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .v15-scene-header-main {
