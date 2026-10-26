@@ -938,9 +938,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.selectedAnalysisDimension = dimKey;
     this.activeInspectorDim = dimKey;
     this.selectionService.selectDimension(dimKey);
-    if (this.selectedActChartDimension !== 'overall') {
-      this.selectedActChartDimension = dimKey;
-    }
+    this.selectedActChartDimension = dimKey;
   }
 
   onSceneDimensionRowClick(dimKey: string): void {
@@ -1389,6 +1387,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.selectedAnalysisDimension = dimKey;
     this.activeInspectorDim = dimKey;
     this.selectionService.selectDimension(dimKey);
+    this.selectedActChartDimension = dimKey;
     if (this.readerInspectedDialogueId) {
       this.updateSelectedEvidencePhrase(this.readerInspectedDialogueId);
     }

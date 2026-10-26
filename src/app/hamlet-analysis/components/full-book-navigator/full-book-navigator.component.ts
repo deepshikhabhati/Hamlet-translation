@@ -210,6 +210,12 @@ export class FullBookNavigatorComponent implements OnChanges {
     this.miniLegendOpen = !this.miniLegendOpen;
   }
 
+  getDimensionLabel(dimKey?: string): string {
+    const key = dimKey || this.selectedDimension;
+    const d = this.dimensions.find(dim => dim.value === key);
+    return d ? d.label : key;
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (
       changes['actsData'] ||
@@ -275,20 +281,32 @@ export class FullBookNavigatorComponent implements OnChanges {
           ? existingScene.expanded
           : (scene.scene_id === this.selectedSceneId && !!this.selectedDialogueId) || !!query;
 
-        // Overall Human German score using shared aggregation function
+        // Human German score for the selected dimension (or overall if specified)
         let humanScore: number | null = null;
         let units = 0;
+        const targetDim = this.selectedDimension || 'semantic';
+
         if (this.aggregationService) {
-          humanScore = this.aggregationService.getSceneOverallScore(scene);
-          units = (scene.dialogues && scene.dialogues.length > 0)
-            ? scene.dialogues.filter(dlg => Object.values(dlg.analysis?.human_german || {}).some(a => a?.applicable !== false && a?.score !== null)).length
-            : (scene.total_dialogues || 0);
+          if (targetDim === 'overall') {
+            humanScore = this.aggregationService.getSceneOverallScore(scene);
+            units = (scene.dialogues && scene.dialogues.length > 0)
+              ? scene.dialogues.filter(dlg => Object.values(dlg.analysis?.human_german || {}).some(a => a?.applicable !== false && a?.score !== null)).length
+              : (scene.total_dialogues || 0);
+          } else {
+            humanScore = this.aggregationService.getSceneDimensionScore(scene, targetDim, 'human_german');
+            units = this.aggregationService.getSceneDimensionUnits(scene, targetDim, 'human_german');
+          }
         } else if (scene.scores?.human_german) {
-          const scs = Object.values(scene.scores.human_german)
-            .map(s => s?.score)
-            .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
-          humanScore = scs.length > 0 ? Math.round((scs.reduce((a, b) => a + b, 0) / scs.length) * 10) / 10 : null;
-          units = scene.total_dialogues || 0;
+          if (targetDim !== 'overall' && scene.scores.human_german[targetDim]) {
+            humanScore = scene.scores.human_german[targetDim].score ?? null;
+            units = scene.scores.human_german[targetDim].units ?? 0;
+          } else {
+            const scs = Object.values(scene.scores.human_german)
+              .map(s => s?.score)
+              .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
+            humanScore = scs.length > 0 ? Math.round((scs.reduce((a, b) => a + b, 0) / scs.length) * 10) / 10 : null;
+            units = scene.total_dialogues || 0;
+          }
         }
 
         const scoredCount = (scene.dialogues && scene.dialogues.length > 0)
@@ -369,7 +387,8 @@ export class FullBookNavigatorComponent implements OnChanges {
         }
       }
 
-      // Generate sparkline miniBars
+      // Generate sparkline miniBars based on selected dimension
+      const dimLabel = this.getDimensionLabel(this.selectedDimension);
       const miniBars: ActMiniBar[] = scenes.map(s => {
         const sc = s.humanScore ?? 75;
         const h = Math.max(4, Math.min(14, Math.round(((sc - 50) / 50) * 14)));
@@ -378,7 +397,7 @@ export class FullBookNavigatorComponent implements OnChanges {
           height: h,
           color: this.getScoreColor(s.humanScore),
           score: s.humanScore,
-          tooltip: `Scene ${s.sceneNumber}: ${this.getScoreDisplay(s.humanScore)}%`
+          tooltip: `Scene ${s.sceneNumber} (${dimLabel}): ${this.getScoreDisplay(s.humanScore)}%`
         };
       });
 

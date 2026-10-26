@@ -134,7 +134,7 @@
             {{ act.scenes.length }} scenes<ng-container *ngIf="act.scoredCount"> · {{ act.scoredCount }} scored</ng-container>
           </span>
           <!-- Mini-bar sparkline distribution -->
-          <div class="toc-act-sparkline" [title]="'Act ' + act.actNumber + ' scene scores'">
+          <div class="toc-act-sparkline" [title]="'Act ' + act.actNumber + ' ' + getDimensionLabel(selectedDimension) + ' scene scores'">
             <div
               *ngFor="let bar of act.miniBars"
               class="toc-spark-bar"
@@ -180,7 +180,7 @@
               </div>
 
               <!-- Score and Status Icon -->
-              <div class="toc-scene-score-box">
+              <div class="toc-scene-score-box" [title]="scene.shortTitle + ' ' + getDimensionLabel(selectedDimension) + ' score: ' + getScoreDisplay(scene.humanScore)">
                 <div class="toc-scene-score-top">
                   <span *ngIf="scene.statusIcon === 'flag'" class="toc-status-icon toc-status-icon--flag" title="Review needed">⚑</span>
                   <span *ngIf="scene.statusIcon === 'warn'" class="toc-status-icon toc-status-icon--warn" title="Noticeable differences">⚠</span>
@@ -220,54 +220,6 @@
               </button>
             </div>
 
-            <!-- Requirement 4: 7 Compact Donut Charts / Dimension Score Strip under selected scene -->
-            <div
-              *ngIf="selectedSceneId === scene.id"
-              class="toc-scene-donuts-row"
-              role="group"
-              [attr.aria-label]="'Scene ' + scene.sceneNumber + ' literary dimension scores'"
-              (click)="$event.stopPropagation()"
-            >
-              <button
-                *ngFor="let donut of scene.donuts"
-                type="button"
-                class="toc-donut-btn"
-                [class.toc-donut-btn--active]="selectedDimension === donut.key"
-                (click)="onSceneDonutClick(scene, donut.key, $event)"
-                [title]="donut.tooltip"
-                [attr.aria-label]="donut.tooltip"
-              >
-                <div class="toc-donut-svg-wrap">
-                  <svg class="toc-donut-svg" width="28" height="28" viewBox="0 0 30 30" aria-hidden="true">
-                    <circle class="toc-donut-track" cx="15" cy="15" r="11" fill="none" stroke="#e2e8f0" stroke-width="2.6" />
-                    <circle
-                      class="toc-donut-fill"
-                      cx="15"
-                      cy="15"
-                      r="11"
-                      fill="none"
-                      [attr.stroke]="donut.color"
-                      stroke-width="2.6"
-                      stroke-linecap="round"
-                      [attr.stroke-dasharray]="donut.circumference"
-                      [attr.stroke-dashoffset]="donut.dashOffset"
-                      transform="rotate(-90 15 15)"
-                    />
-                    <text
-                      class="toc-donut-center-text"
-                      x="15"
-                      y="15"
-                      dy="0.32em"
-                      text-anchor="middle"
-                      [attr.fill]="donut.color"
-                    >{{ donut.centerText }}</text>
-                  </svg>
-                </div>
-                <span class="toc-donut-label" [class.toc-donut-label--active]="selectedDimension === donut.key">
-                  {{ donut.label }}
-                </span>
-              </button>
-            </div>
           </div>
 
           <!-- Dialogues Under Scene (when expanded by user) -->
