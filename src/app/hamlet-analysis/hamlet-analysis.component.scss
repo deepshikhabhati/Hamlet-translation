@@ -4267,18 +4267,25 @@ app-ha-phrase-evidence-workspace {
       background: #f8fafc;
     }
 
-    &.v15-dim-row--active {
-      background: #eff6ff;
-      border-left: 3px solid #2563eb;
-
-      .v15-dim-name {
-        color: #1e3a8a;
-      }
-    }
-
     td {
       padding: 12px 14px;
       vertical-align: middle;
+
+      &:first-child {
+        border-left: 3px solid transparent;
+      }
+    }
+
+    &.v15-dim-row--active {
+      background: #eff6ff;
+
+      td:first-child {
+        border-left-color: #2563eb;
+      }
+
+      .v15-dim-name {
+        color: #1d4ed8;
+      }
     }
   }
 }
@@ -4291,7 +4298,7 @@ app-ha-phrase-evidence-workspace {
 
 .v15-dim-microbar-track {
   width: 100%;
-  max-width: 180px;
+  max-width: 220px;
   height: 8px;
   background: #f1f5f9;
   border-radius: 999px;

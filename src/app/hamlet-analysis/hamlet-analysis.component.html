@@ -492,6 +492,110 @@
               </div>
             </section>
 
+            <!-- Human German Literary Dimensions Table Card (Shown when Show Analysis is enabled) -->
+            <section *ngIf="showAnalysis" class="v15-human-matrix-section" aria-label="Human German 8-Dimension Literary Analysis">
+              <div class="v15-section-title-row">
+                <div>
+                  <h3 class="v15-section-title">Human German Literary Dimensions</h3>
+                  <p class="v15-section-sub">Preservation and literary scores across 8 dimensions. Click any dimension to inspect supporting phrases.</p>
+                </div>
+                <div class="v15-section-ctrls">
+                  <button type="button" class="v15-toggle-read-btn" (click)="toggleSceneReading()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline [attr.points]="sceneReadingOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'"></polyline>
+                    </svg>
+                    {{ sceneReadingOpen ? 'Hide scene reading' : 'Read scene' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Dimension Table -->
+              <div class="v15-table-wrap">
+                <table class="v15-human-dim-table" role="table">
+                  <thead>
+                    <tr>
+                      <th style="width:25%">Dimension</th>
+                      <th style="width:25%">Score visualization</th>
+                      <th style="width:15%; text-align:right">Human DE score</th>
+                      <th style="width:15%; text-align:right">Units (N)</th>
+                      <th style="width:20%; text-align:right">Review status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="let dim of v15Dimensions"
+                      class="v15-dim-row"
+                      [class.v15-dim-row--active]="selectedAnalysisDimension === dim.key"
+                      (click)="selectDimensionTab(dim.key)"
+                      tabindex="0"
+                      role="row"
+                      [title]="'Click to inspect ' + dim.name + ' phrase evidence'"
+                    >
+                      <td class="v15-dim-name-cell">
+                        <strong class="v15-dim-name">{{ dim.name }}</strong>
+                      </td>
+                      <td class="v15-dim-bar-cell">
+                        <div class="v15-dim-microbar-track">
+                          <div
+                            class="v15-dim-microbar-fill"
+                            [style.width]="getHumanScoreWidth(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
+                            [style.background-color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
+                          ></div>
+                        </div>
+                      </td>
+                      <td class="v15-dim-score-cell" style="text-align:right">
+                        <span
+                          class="v15-score-badge"
+                          [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
+                          [style.background-color]="getHumanScoreBgColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
+                        >
+                          {{ formatHumanScore(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german')) }}
+                        </span>
+                      </td>
+                      <td class="v15-dim-units-cell" style="text-align:right">
+                        <span class="v15-units-text">
+                          {{ getSceneDimensionUnits(selectedAnalysisScene, dim.key) }}/{{ selectedAnalysisScene.dialogues.length }}
+                        </span>
+                      </td>
+                      <td class="v15-dim-rev-cell" style="text-align:right">
+                        <span
+                          *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) > 0"
+                          class="v15-rev-flag-pill"
+                          title="Unique dialogues in this scene flagged for review in this dimension"
+                        >
+                          {{ getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) }} to review
+                        </span>
+                        <span
+                          *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) === 0"
+                          class="v15-rev-clear-pill"
+                        >
+                          Clear
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Score Heatmap Legend -->
+              <div class="v15-heatmap-legend-bar">
+                <div class="v15-legend-title">Human DE Score Scale:</div>
+                <div class="v15-legend-scale">
+                  <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
+                    <span class="v15-legend-color-dot" [style.background-color]="th.color"></span>
+                    <span class="v15-legend-step-lbl">{{ th.label }} ({{ th.level }})</span>
+                  </div>
+                  <div class="v15-legend-step">
+                    <span class="v15-legend-color-dot" style="background-color:#94a3b8"></span>
+                    <span class="v15-legend-step-lbl">N/A (Not applicable)</span>
+                  </div>
+                </div>
+                <div class="v15-legend-note">
+                  Single-shade green intensity communicating preservation. Missing scores are never converted to zero.
+                </div>
+              </div>
+            </section>
+
             <!-- Optional Analysis Summary Bar (Requirement 10) -->
             <section *ngIf="showAnalysis" class="reader-analysis-summary-bar" aria-label="Scene Analysis Summary">
               <div class="analysis-summary-row">
