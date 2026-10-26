@@ -435,17 +435,16 @@
           <!-- 2. SCENE VIEW: Side-by-Side Bilingual Parallel E-Reader        -->
           <!-- ============================================================== -->
           <ng-container *ngIf="viewMode === 'scene' && selectedAnalysisScene">
+            <div class="reader-workspace">
 
-            <!-- E-Reader Header Section matching Reference Screenshot (.v15-scene-header-card) -->
-            <section class="reader-header-section v15-scene-header-card reader-intro" aria-label="Scene Reading Header">
-              <div class="reader-title-line">
-                <div class="reader-title-left">
-                  <h2 class="reader-main-title reader-title">Hamlet, side by side</h2>
+              <!-- 1. Compact Reader Header: "Hamlet, side by side" & Show Analysis toggle -->
+              <header class="reader-header reader-header-section v15-scene-header-card reader-intro" aria-label="Scene Reading Header">
+                <div class="reader-heading reader-title-left">
+                  <h1 class="reader-main-title reader-title">Hamlet, side by side</h1>
                   <p class="reader-sub-title reader-subtitle">Read the English original and the Human German translation together.</p>
                 </div>
 
-                <!-- Show Analysis Toggle Switch (Requirement 10) -->
-                <div class="reader-toggle-box">
+                <div class="reader-header-actions reader-toggle-box">
                   <label class="reader-toggle-label" for="showAnalysisSwitch">
                     <span class="reader-toggle-text">Show analysis</span>
                     <input
@@ -460,28 +459,31 @@
                     </span>
                   </label>
                 </div>
-              </div>
+              </header>
 
               <!-- Subtle helper line (replaces large green callout box; preserves test 19) -->
-              <div class="reader-callout-banner">
+              <div class="reader-callout-banner" style="display:none">
                 Select any scene on the left to read. Turn on Show analysis to inspect preserved and changed phrases.
               </div>
-            </section>
 
-            <!-- Compact Dimension Tabs Bar (Requirement 5 & Test 15 compatibility) -->
-            <section class="reader-dimension-tabs-bar v15-human-matrix-section dimension-toolbar" aria-label="Literary Dimensions" role="tablist">
-              <div class="reader-dimension-tabs-track">
-                <button
-                  *ngFor="let tab of primaryDimensionTabs"
-                  type="button"
-                  role="tab"
-                  [attr.aria-selected]="selectedAnalysisDimension === tab.key"
-                  class="reader-dimension-tab-btn dimension-tab"
-                  [class.reader-dimension-tab-btn--active]="selectedAnalysisDimension === tab.key"
-                  (click)="selectDimensionTab(tab.key)"
-                  id="tab-{{ tab.key }}"
-                >
-                  <span class="tab-label">{{ tab.name }}</span>
+              <!-- 2. Literary Dimension Toolbar -->
+              <nav
+                class="dimension-toolbar reader-dimension-tabs-bar v15-human-matrix-section"
+                aria-label="Literary dimensions"
+                role="tablist"
+              >
+                <div class="reader-dimension-tabs-track">
+                  <button
+                    *ngFor="let tab of primaryDimensionTabs"
+                    type="button"
+                    role="tab"
+                    [attr.aria-selected]="selectedAnalysisDimension === tab.key"
+                    class="dimension-tab reader-dimension-tab-btn"
+                    [class.reader-dimension-tab-btn--active]="selectedAnalysisDimension === tab.key"
+                    (click)="selectDimensionTab(tab.key)"
+                    id="tab-{{ tab.key }}"
+                  >
+                    <span class="tab-label">{{ tab.name }}</span>
                   <span
                     class="tab-score-pill"
                     [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, tab.key, 'human_german'))"
@@ -490,7 +492,7 @@
                   </span>
                 </button>
               </div>
-            </section>
+            </nav>
 
             <!-- Human German Literary Dimensions Table Card (Shown when Show Analysis is enabled) -->
             <section *ngIf="showAnalysis" class="v15-human-matrix-section" aria-label="Human German 8-Dimension Literary Analysis">
@@ -753,6 +755,7 @@
               </div>
             </section>
 
+            </div>
           </ng-container>
 
           <!-- ============================================================== -->
