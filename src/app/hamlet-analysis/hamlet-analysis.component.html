@@ -45,10 +45,10 @@
     <!-- VIEW 1: Read and analyze (Version 1.5 Main Dashboard & Detail) -->
     <!-- ============================================================== -->
     <ng-container *ngIf="activeTab === 'passage'">
-      <div class="ha-layout-three-col">
+      <div class="ha-layout-three-col" [class.ha-layout-two-col]="viewMode !== 'scene'">
 
-        <!-- Left Column: Hierarchical Table of Contents (~21% width) -->
-        <aside class="ha-col-toc" [class.ha-col-toc--mobile-open]="mobileTocOpen" aria-label="Hamlet Table of Contents">
+        <!-- Left Column: Hierarchical Table of Contents (TOC) -->
+        <aside class="ha-col-toc table-of-contents toc-panel" [class.ha-col-toc--mobile-open]="mobileTocOpen" aria-label="Hamlet Table of Contents">
           <app-full-book-navigator
             [actsData]="analysisActs"
             [selectedActId]="selectedAnalysisAct"
@@ -63,8 +63,8 @@
           ></app-full-book-navigator>
         </aside>
 
-        <!-- Right Workspace: Scene Analysis & Dialogue Reading (~75% width) -->
-        <main #workspaceContainer class="ha-col-workspace" aria-label="Academic Workspace">
+        <!-- Right Workspace: Scene Analysis & Dialogue Reading -->
+        <main #workspaceContainer class="ha-col-workspace reader-panel" aria-label="Academic Workspace">
 
           <!-- ============================================================== -->
           <!-- 1. DIALOGUE VIEW: Dedicated Single-Dialogue Analysis ONLY      -->
@@ -495,14 +495,14 @@
             </nav>
 
             <!-- Human German Literary Dimensions Table Card (Shown when Show Analysis is enabled) -->
-            <section *ngIf="showAnalysis" class="v15-human-matrix-section" aria-label="Human German 8-Dimension Literary Analysis">
-              <div class="v15-section-title-row">
+            <section *ngIf="showAnalysis" class="v15-human-matrix-section analysis-card" aria-label="Human German 8-Dimension Literary Analysis">
+              <div class="v15-section-title-row analysis-header">
                 <div>
                   <h3 class="v15-section-title">Human German Literary Dimensions</h3>
-                  <p class="v15-section-sub">Preservation and literary scores across 8 dimensions. Click any dimension to inspect supporting phrases.</p>
+                  <p class="v15-section-sub analysis-subtitle">Preservation and literary scores across 8 dimensions. Click any dimension to inspect supporting phrases.</p>
                 </div>
                 <div class="v15-section-ctrls">
-                  <button type="button" class="v15-toggle-read-btn" (click)="toggleSceneReading()">
+                  <button type="button" class="v15-toggle-read-btn analysis-toggle-button" (click)="toggleSceneReading()">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline [attr.points]="sceneReadingOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'"></polyline>
                     </svg>
@@ -513,7 +513,7 @@
 
               <!-- Dimension Table -->
               <div class="v15-table-wrap">
-                <table class="v15-human-dim-table" role="table">
+                <table class="v15-human-dim-table analysis-table" role="table">
                   <thead>
                     <tr>
                       <th style="width:25%">Dimension</th>
@@ -537,7 +537,7 @@
                         <strong class="v15-dim-name">{{ dim.name }}</strong>
                       </td>
                       <td class="v15-dim-bar-cell">
-                        <div class="v15-dim-microbar-track">
+                        <div class="v15-dim-microbar-track analysis-score-bar">
                           <div
                             class="v15-dim-microbar-fill"
                             [style.width]="getHumanScoreWidth(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
@@ -562,14 +562,14 @@
                       <td class="v15-dim-rev-cell" style="text-align:right">
                         <span
                           *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) > 0"
-                          class="v15-rev-flag-pill"
+                          class="v15-rev-flag-pill analysis-review-badge"
                           title="Unique dialogues in this scene flagged for review in this dimension"
                         >
                           {{ getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) }} to review
                         </span>
                         <span
                           *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) === 0"
-                          class="v15-rev-clear-pill"
+                          class="v15-rev-clear-pill analysis-review-badge"
                         >
                           Clear
                         </span>
@@ -580,7 +580,7 @@
               </div>
 
               <!-- Score Heatmap Legend -->
-              <div class="v15-heatmap-legend-bar">
+              <div class="v15-heatmap-legend-bar score-legend">
                 <div class="v15-legend-title">Human DE Score Scale:</div>
                 <div class="v15-legend-scale">
                   <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
@@ -1066,7 +1066,7 @@
         </main>
 
         <!-- Right Column: Evidence Inspector (Requirement 2, 8, 9, 15) -->
-        <aside class="ha-col-inspector" *ngIf="viewMode === 'scene'" aria-label="Evidence Inspector">
+        <aside class="ha-col-inspector inspector-panel" *ngIf="viewMode === 'scene'" aria-label="Evidence Inspector">
           <div *ngIf="getReaderInspectedDialogue() as inspectedDlg" class="inspector-content-panel">
             <header class="inspector-header">
               <div class="inspector-header-left">
