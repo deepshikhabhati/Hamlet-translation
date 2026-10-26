@@ -131,70 +131,7 @@
                 </div>
               </div>
 
-              <!-- Reading Section: 2 Primary Text Columns (English & Human German) -->
-              <div class="v15-reading-columns-wrap">
-                <div class="v15-reading-col">
-                  <div class="v15-reading-col-header">
-                    <strong>Original English</strong>
-                    <span class="v15-reading-badge">Source Text</span>
-                  </div>
-                  <div class="v15-reading-text-body">
-                    <p class="v15-passage-paragraph">{{ inspectedDialogue.texts.english }}</p>
-                  </div>
-                </div>
 
-                <div class="v15-reading-col">
-                  <div class="v15-reading-col-header">
-                    <strong>Human German</strong>
-                    <span class="v15-reading-badge v15-reading-badge--de">Schlegel-Tieck</span>
-                  </div>
-                  <div class="v15-reading-text-body">
-                    <p class="v15-passage-paragraph">{{ inspectedDialogue.texts.human_german || '[No Human German text recorded]' }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Human German Back-Translation Aid (Section 5) -->
-              <div class="v15-back-trans-box">
-                <div class="v15-back-trans-header">
-                  <div class="v15-back-trans-title-area">
-                    <strong class="v15-back-trans-title">Back-translation — German to English</strong>
-                    <span class="v15-back-trans-disclaimer">Reading aid only — not automatically scored</span>
-                  </div>
-                  <button
-                    type="button"
-                    class="v15-back-trans-btn"
-                    [disabled]="backTranslationLoading"
-                    (click)="translateActiveDialogueBackToEnglish()"
-                  >
-                    <svg *ngIf="!backTranslationLoading" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6M4 14h16M19 10L13 4"></path></svg>
-                    <span *ngIf="backTranslationLoading">Translating…</span>
-                    <span *ngIf="!backTranslationLoading">Translate German to English</span>
-                  </button>
-                </div>
-
-                <div *ngIf="backTranslationResult" class="v15-back-trans-result" [ngClass]="'v15-back-trans--' + backTranslationResult.status">
-                  <div *ngIf="backTranslationResult.status === 'success'" class="v15-back-trans-success">
-                    <span class="v15-back-trans-source-label">From Human German: “{{ backTranslationResult.sourceGerman }}”</span>
-                    <p class="v15-back-trans-eng-text">{{ backTranslationResult.translatedEnglish }}</p>
-                    <span *ngIf="backTranslationResult.cached" class="v15-cached-tag">Cached rendering</span>
-                  </div>
-                  <div *ngIf="backTranslationResult.status === 'unavailable'" class="v15-back-trans-msg">
-                    <div class="v15-msg-icon">ℹ</div>
-                    <div>
-                      <strong>Translation Service Unavailable</strong>
-                      <p>{{ backTranslationResult.message }}</p>
-                    </div>
-                  </div>
-                  <div *ngIf="backTranslationResult.status === 'error'" class="v15-back-trans-msg v15-back-trans-msg--error">
-                    <div class="v15-msg-icon">⚠️</div>
-                    <div>
-                      <strong>Translation Notice</strong>
-                      <p>{{ backTranslationResult.message }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <!-- 2. Human Dimension Score Summary (All 8 Dimensions) -->
               <div class="v15-human-dim-summary-block">
@@ -440,7 +377,7 @@
               <!-- 1. Compact Reader Header: "Hamlet, side by side" & Show Analysis toggle -->
               <header class="reader-header reader-header-section v15-scene-header-card reader-intro" aria-label="Scene Reading Header">
                 <div class="reader-heading reader-title-left">
-                  <h1 class="reader-main-title reader-title">Hamlet, side by side</h1>
+                  <h5 class="reader-main-title reader-title">Hamlet, side by side</h5>
                   <p class="reader-sub-title reader-subtitle">Read the English original and the Human German translation together.</p>
                 </div>
 
@@ -649,32 +586,19 @@
               </button>
             </div>
 
-            <!-- Side-by-Side Reading Area (Synchronized Shared Dialogue-Row Layout) -->
+            <!-- Side-by-Side Reading Area (2 Separate Cards for English Original and Human German) -->
             <section class="reader-reading-container parallel-reader" aria-label="Parallel Reading Text">
-              <div class="reader-parallel-card">
-                <!-- Compact Column Headers on same horizontal row -->
-                <div class="reader-headers-row">
-                  <header class="reader-lang-header reader-lang-column--en reader-panel-header">
+              <div class="reader-bilingual-grid">
+                <!-- English Original Card -->
+                <div class="reader-card reader-lang-column reader-lang-column--en reader-panel-column">
+                  <header class="reader-lang-header reader-panel-header">
                     <h3 class="reader-lang-title">English original</h3>
                     <span class="reader-lang-sub">En (1603/23)</span>
                   </header>
-                  <header class="reader-lang-header reader-lang-column--de reader-panel-header">
-                    <h3 class="reader-lang-title">Human German</h3>
-                    <span class="reader-lang-sub">De (Schlegel-Tieck)</span>
-                  </header>
-                </div>
-
-                <!-- Synchronized Dialogue Row List -->
-                <div class="reader-dialogue-list">
-                  <div
-                    *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
-                    class="reader-dialogue-row"
-                    [id]="'dlg-row-' + r.id"
-                    [class.reader-dialogue-row--active]="readerInspectedDialogueId === r.id"
-                  >
-                    <!-- English Speech Cell -->
+                  <div class="reader-speech-list">
                     <div
-                      class="reader-speech-cell reader-speech-row reader-speech-row--en dialogue-row"
+                      *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
+                      class="reader-speech-row reader-speech-row--en dialogue-row"
                       [id]="'dlg-en-' + r.id"
                       [class.reader-speech-row--active]="readerInspectedDialogueId === r.id"
                     >
@@ -693,10 +617,19 @@
                         ></app-ha-evidence-highlighted-text>
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    <!-- German Speech Cell -->
+                <!-- Human German Card -->
+                <div class="reader-card reader-lang-column reader-lang-column--de reader-panel-column">
+                  <header class="reader-lang-header reader-panel-header">
+                    <h3 class="reader-lang-title">Human German</h3>
+                    <span class="reader-lang-sub">De (Schlegel-Tieck)</span>
+                  </header>
+                  <div class="reader-speech-list">
                     <div
-                      class="reader-speech-cell reader-speech-row reader-speech-row--de dialogue-row"
+                      *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
+                      class="reader-speech-row reader-speech-row--de dialogue-row"
                       [id]="'dlg-de-' + r.id"
                       [class.reader-speech-row--active]="readerInspectedDialogueId === r.id"
                     >

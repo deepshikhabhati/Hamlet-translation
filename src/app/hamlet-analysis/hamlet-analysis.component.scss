@@ -3331,11 +3331,13 @@ app-ha-phrase-evidence-workspace {
 .reader-workspace {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  min-height: 0;
+  min-height: auto;
+  height: auto;
   width: 100%;
   position: relative;
+  flex-shrink: 0;
 }
 
 .reader-header,
@@ -3566,6 +3568,8 @@ app-ha-phrase-evidence-workspace {
   border-radius: 8px;
   padding: 10px 16px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .analysis-summary-row {
@@ -3646,45 +3650,49 @@ app-ha-phrase-evidence-workspace {
 }
 
 /* ==========================================================================
-   SIDE-BY-SIDE PARALLEL READING CONTAINER (SYNCHRONIZED SHARED DIALOGUE ROWS)
+   SIDE-BY-SIDE PARALLEL READING CONTAINER: 2 DISTINCT CARDS
    ========================================================================== */
 .reader-reading-container,
 .parallel-reader {
   display: flex;
   flex-direction: column;
   margin-top: 0;
+  width: 100%;
 }
 
-.reader-parallel-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.reader-headers-row {
+.reader-bilingual-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fafafa;
+  gap: 14px;
+  align-items: start;
+  width: 100%;
+}
+
+.reader-card.reader-lang-column,
+.reader-lang-column {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
 }
 
 .reader-lang-header,
 .reader-panel-header {
-  padding: 10px 14px;
+  padding: 12px 16px 10px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafafa;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-
-  &.reader-lang-column--en {
-    border-right: 1px solid #e2e8f0;
-  }
+  align-items: baseline;
+  flex-shrink: 0;
 }
 
 .reader-lang-title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
@@ -3696,16 +3704,18 @@ app-ha-phrase-evidence-workspace {
   margin-left: 8px;
 }
 
-.reader-dialogue-list {
+.reader-speech-list {
   display: flex;
   flex-direction: column;
 }
 
-.reader-dialogue-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.reader-speech-row,
+.dialogue-row {
+  padding: 10px 14px;
   border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.15s ease;
+  min-height: 52px;
+  box-sizing: border-box;
 
   &:last-child {
     border-bottom: none;
@@ -3716,25 +3726,7 @@ app-ha-phrase-evidence-workspace {
   }
 
   &--active {
-    background-color: #f0f7ff;
-
-    .reader-speech-row--en {
-      border-left: 3px solid #2563eb;
-    }
-  }
-}
-
-.reader-speech-cell,
-.dialogue-row {
-  padding: 8px 14px;
-  margin: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-
-  &.reader-speech-row--en {
-    border-right: 1px solid #f1f5f9;
+    background-color: #f0f7ff !important;
   }
 }
 
@@ -3743,7 +3735,7 @@ app-ha-phrase-evidence-workspace {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 3px;
-  min-height: 18px;
+  min-height: 20px;
 }
 
 .reader-speaker-name,
@@ -3770,7 +3762,7 @@ app-ha-phrase-evidence-workspace {
   }
 }
 
-/* Adjacent Action Group: Inspect | Needs Review (Requirement 7) */
+/* Adjacent Action Group: Inspect | Needs Review */
 .reader-action-group {
   display: flex;
   align-items: center;
@@ -3813,17 +3805,7 @@ app-ha-phrase-evidence-workspace {
   }
 }
 
-/* Backward compatibility */
-.reader-bilingual-grid {
-  display: flex;
-  flex-direction: column;
-}
 
-.reader-speech-row {
-  padding: 8px 14px;
-  min-height: 0;
-  border-bottom: none;
-}
 
 /* ==========================================================================
    RIGHT COLUMN: EVIDENCE INSPECTOR (REQUIREMENTS 2, 8, 9, 15)
@@ -4310,7 +4292,10 @@ app-ha-phrase-evidence-workspace {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 0;
+  min-height: auto;
+  height: auto;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
 .v15-section-title-row,
@@ -4365,7 +4350,10 @@ app-ha-phrase-evidence-workspace {
 
 .v15-table-wrap {
   overflow-x: auto;
-  min-height: 0;
+  min-height: auto;
+  height: auto;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .v15-human-dim-table,
