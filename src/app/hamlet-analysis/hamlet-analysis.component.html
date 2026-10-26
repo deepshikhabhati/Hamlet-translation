@@ -45,20 +45,21 @@
     <!-- VIEW 1: Read and analyze (Version 1.5 Main Dashboard & Detail) -->
     <!-- ============================================================== -->
     <ng-container *ngIf="activeTab === 'passage'">
-      <div class="ha-layout-two-col">
+      <div class="ha-layout-three-col">
 
-        <!-- Left Column: Hierarchical Table of Contents (~25% width) -->
+        <!-- Left Column: Hierarchical Table of Contents (~21% width) -->
         <aside class="ha-col-toc" [class.ha-col-toc--mobile-open]="mobileTocOpen" aria-label="Hamlet Table of Contents">
           <app-full-book-navigator
             [actsData]="analysisActs"
             [selectedActId]="selectedAnalysisAct"
             [selectedSceneId]="selectedAnalysisScene?.scene_id || null"
-            [selectedDialogueId]="activeInspectedDialogueId"
+            [selectedDialogueId]="activeInspectedDialogueId || readerInspectedDialogueId"
             [selectedDimension]="selectedAnalysisDimension"
             (actSelected)="onTocActSelected($event)"
             (sceneSelected)="onTocSceneSelected($event)"
             (dialogueSelected)="onTocDialogueSelected($event)"
             (dimensionChange)="onTocDimensionChange($event)"
+            (filterSelected)="onTocFilterSelected($event)"
           ></app-full-book-navigator>
         </aside>
 
@@ -430,329 +431,213 @@
           </ng-container>
 
           <!-- ============================================================== -->
-          <!-- 2. SCENE VIEW: Complete Scene Analysis                         -->
+          <!-- ============================================================== -->
+          <!-- 2. SCENE VIEW: Side-by-Side Bilingual Parallel E-Reader        -->
           <!-- ============================================================== -->
           <ng-container *ngIf="viewMode === 'scene' && selectedAnalysisScene">
 
-            <!-- Workspace Top Bar: Breadcrumbs & Quick Document / Export Actions -->
-            <div class="v15-workspace-topbar">
-              <nav class="v15-breadcrumbs" aria-label="Breadcrumb">
-                <button type="button" class="v15-crumb-btn" (click)="selectAnalysisScene(null)">Hamlet</button>
-                <span class="v15-crumb-sep">/</span>
-                <button type="button" class="v15-crumb-btn" (click)="activeInspectedDialogueId = null">Act {{ selectedAnalysisScene.act }}</button>
-                <span class="v15-crumb-sep">/</span>
-                <button
-                  type="button"
-                  class="v15-crumb-btn"
-                  [class.v15-crumb-btn--current]="!activeInspectedDialogueId"
-                  (click)="activeInspectedDialogueId = null"
-                >
-                  Scene {{ selectedAnalysisScene.scene_number || selectedAnalysisScene.scene_id }}
-                </button>
-                <ng-container *ngIf="activeInspectedDialogueId">
-                  <span class="v15-crumb-sep">/</span>
-                  <span class="v15-crumb-btn v15-crumb-btn--current">{{ activeInspectedDialogueId }}</span>
-                </ng-container>
-              </nav>
-
-              <div class="v15-workspace-actions">
-                <!-- Research Data Export Dropdown -->
-                <div class="v15-export-dropdown">
-                  <button type="button" class="v15-export-trigger-btn" title="Export research data">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Export Data <span style="font-size:10px">▼</span>
-                  </button>
-                  <div class="v15-export-menu">
-                    <button type="button" class="v15-export-item-btn" (click)="exportFlaggedDialoguesCsv()">
-                      <i class="fas fa-file-csv"></i> Flagged Dialogues (CSV)
-                    </button>
-                    <button type="button" class="v15-export-item-btn" (click)="exportFlaggedAssessmentsCsv()">
-                      <i class="fas fa-file-csv"></i> Flagged Assessments (CSV)
-                    </button>
-                    <button type="button" class="v15-export-item-btn" (click)="exportSceneSummariesCsv()">
-                      <i class="fas fa-table"></i> Scene Score Summaries (CSV)
-                    </button>
-                    <button type="button" class="v15-export-item-btn" (click)="exportReviewsJson()">
-                      <i class="fas fa-file-code"></i> Expert Decisions (JSON)
-                    </button>
-                    <button type="button" class="v15-export-item-btn" (click)="exportValidationReport()">
-                      <i class="fas fa-check-double"></i> Validation Report (JSON)
-                    </button>
-                  </div>
+            <!-- E-Reader Header Section matching Reference Screenshot (.v15-scene-header-card) -->
+            <section class="reader-header-section v15-scene-header-card" aria-label="Scene Reading Header">
+              <div class="reader-title-line">
+                <div class="reader-title-left">
+                  <h2 class="reader-main-title">Hamlet, side by side</h2>
+                  <p class="reader-sub-title">Read the English original and the Human German translation together.</p>
                 </div>
 
-                <!-- Document Buttons: Open Scene in PDF Viewer -->
-                <button type="button" class="v15-pdf-action-btn" (click)="openPdfBook('english')" title="Open English Hamlet PDF book">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                  View English PDF
-                </button>
-                <button type="button" class="v15-pdf-action-btn v15-pdf-action-btn--de" (click)="openPdfBook('german')" title="Open German Hamlet PDF book">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                  View Human German PDF
+                <!-- Show Analysis Toggle Switch (Requirement 10) -->
+                <div class="reader-toggle-box">
+                  <label class="reader-toggle-label" for="showAnalysisSwitch">
+                    <span class="reader-toggle-text">Show analysis</span>
+                    <input
+                      type="checkbox"
+                      id="showAnalysisSwitch"
+                      class="reader-toggle-input"
+                      [checked]="showAnalysis"
+                      (change)="onToggleShowAnalysis()"
+                    />
+                    <span class="reader-toggle-track">
+                      <span class="reader-toggle-thumb"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Mint Green Callout Banner matching Reference Screenshot -->
+              <div class="reader-callout-banner">
+                Select a scene on the left to see how it was translated. Turn on Show analysis to underline preserved and changed phrases.
+              </div>
+            </section>
+
+            <!-- Compact Dimension Tabs Bar (Requirement 5 & Test 15 compatibility) -->
+            <section class="reader-dimension-tabs-bar v15-human-matrix-section" aria-label="Literary Dimensions" role="tablist">
+              <div class="reader-dimension-tabs-track">
+                <button
+                  *ngFor="let tab of primaryDimensionTabs"
+                  type="button"
+                  role="tab"
+                  [attr.aria-selected]="selectedAnalysisDimension === tab.key"
+                  class="reader-dimension-tab-btn"
+                  [class.reader-dimension-tab-btn--active]="selectedAnalysisDimension === tab.key"
+                  (click)="selectDimensionTab(tab.key)"
+                  id="tab-{{ tab.key }}"
+                >
+                  <span class="tab-label">{{ tab.name }}</span>
+                  <span
+                    class="tab-score-pill"
+                    [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, tab.key, 'human_german'))"
+                  >
+                    {{ getSceneDimensionScoreDisplay(selectedAnalysisScene, tab.key) }}
+                  </span>
                 </button>
               </div>
+            </section>
+
+            <!-- Optional Analysis Summary Bar (Requirement 10) -->
+            <section *ngIf="showAnalysis" class="reader-analysis-summary-bar" aria-label="Scene Analysis Summary">
+              <div class="analysis-summary-row">
+                <div class="analysis-stat-pill">
+                  <span class="stat-lbl">{{ getDimensionName(selectedAnalysisDimension) }} Avg:</span>
+                  <strong class="stat-val" [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, selectedAnalysisDimension, 'human_german'))">
+                    {{ getSceneDimensionScoreDisplay(selectedAnalysisScene, selectedAnalysisDimension) }}
+                  </strong>
+                </div>
+                <div class="analysis-stat-pill">
+                  <span class="stat-lbl">Scored:</span>
+                  <strong class="stat-val">{{ getSceneDimensionUnits(selectedAnalysisScene, selectedAnalysisDimension) }}/{{ selectedAnalysisScene.dialogues.length }}</strong>
+                </div>
+                <div class="analysis-stat-pill">
+                  <span class="stat-lbl">Flagged:</span>
+                  <strong class="stat-val text-amber">{{ getSceneDimensionHumanReviewCount(selectedAnalysisScene, selectedAnalysisDimension) }}</strong>
+                </div>
+                <div class="analysis-filter-shortcuts">
+                  <button
+                    type="button"
+                    class="analysis-shortcut-btn"
+                    [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'all'"
+                    (click)="analysisPhraseFilter = 'all'"
+                  >All ({{ getAllPhrasesCount() }})</button>
+                  <button
+                    type="button"
+                    class="analysis-shortcut-btn"
+                    [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'review'"
+                    (click)="analysisPhraseFilter = 'review'"
+                  >Needs Review ({{ getNeedsReviewCount() }})</button>
+                  <button
+                    type="button"
+                    class="analysis-shortcut-btn"
+                    [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'diff'"
+                    (click)="analysisPhraseFilter = 'diff'"
+                  >Biggest Differences ({{ getDifferencesCount() }})</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Filter Status Banner if filtered -->
+            <div *ngIf="analysisPhraseFilter !== 'all'" class="reader-filter-indicator-bar">
+              <span>
+                Showing <strong>{{ getFilteredPhraseRows().length }}</strong>
+                {{ analysisPhraseFilter === 'review' ? 'dialogues requiring review' : 'dialogues ranked by biggest differences' }}
+              </span>
+              <button type="button" class="reader-filter-clear-btn" (click)="analysisPhraseFilter = 'all'">
+                Show all dialogues ({{ getAllPhrasesCount() }})
+              </button>
             </div>
 
-            <!-- Scene Header Card & Information -->
-            <section class="v15-scene-header-card" aria-label="Scene Information">
-              <div class="v15-scene-header-main">
-                <div class="v15-scene-heading-box">
-                  <h2 class="v15-scene-title">Act {{ selectedAnalysisScene.act }}, Scene {{ selectedAnalysisScene.scene_number || selectedAnalysisScene.scene_id }}</h2>
-                  <p class="v15-scene-subtitle">{{ selectedAnalysisScene.title || ('Act ' + selectedAnalysisScene.act + ', Scene ' + (selectedAnalysisScene.scene_number || selectedAnalysisScene.scene_id)) }}</p>
-                </div>
-                <div class="v15-scene-info-chips">
-                  <div class="v15-info-chip">
-                    <span class="v15-info-chip-lbl">Total Dialogues</span>
-                    <strong class="v15-info-chip-val">{{ selectedAnalysisScene.dialogues.length }}</strong>
-                  </div>
-                  <div class="v15-info-chip">
-                    <span class="v15-info-chip-lbl">Scored Dialogues</span>
-                    <strong class="v15-info-chip-val">{{ getSceneScoredDialoguesCount(selectedAnalysisScene) }}</strong>
-                  </div>
-                  <div
-                    class="v15-info-chip v15-info-chip--interactive"
-                    (click)="openReviewDrilldown(selectedAnalysisScene)"
-                    title="Click to view unique dialogues requiring review in this scene"
-                  >
-                    <span class="v15-info-chip-lbl">Requiring Review</span>
-                    <strong class="v15-info-chip-val" [style.color]="getSceneHumanReviewCount(selectedAnalysisScene) > 0 ? '#b91c1c' : '#15803d'">
-                      {{ getSceneHumanReviewCount(selectedAnalysisScene) }}
-                    </strong>
-                  </div>
-                  <div class="v15-info-chip">
-                    <span class="v15-info-chip-lbl">Source Documents</span>
-                    <span class="v15-info-chip-text">En (1603/23) · De (Schlegel-Tieck)</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Human-Only 8-Dimension Table (Section 3) -->
-            <section class="v15-human-matrix-section" aria-label="Human German 8-Dimension Literary Analysis">
-              <div class="v15-section-title-row">
-                <div>
-                  <h3 class="v15-section-title">Human German Literary Dimensions</h3>
-                  <p class="v15-section-sub">Preservation and literary scores across 8 dimensions. Click any dimension to inspect supporting phrases.</p>
-                </div>
-                <div class="v15-section-ctrls">
-                  <button type="button" class="v15-toggle-read-btn" (click)="toggleSceneReading()">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline [attr.points]="sceneReadingOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'"></polyline>
-                    </svg>
-                    {{ sceneReadingOpen ? 'Hide scene reading' : 'Read scene' }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Dimension Table -->
-              <div class="v15-table-wrap">
-                <table class="v15-human-dim-table" role="table">
-                  <thead>
-                    <tr>
-                      <th style="width:25%">Dimension</th>
-                      <th style="width:25%">Score visualization</th>
-                      <th style="width:15%; text-align:right">Human DE score</th>
-                      <th style="width:15%; text-align:right">Units (N)</th>
-                      <th style="width:20%; text-align:right">Review status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      *ngFor="let dim of v15Dimensions"
-                      class="v15-dim-row"
-                      [class.v15-dim-row--active]="selectedAnalysisDimension === dim.key"
-                      (click)="onSceneDimensionRowClick(dim.key)"
-                      tabindex="0"
-                      role="row"
-                      [title]="'Click to inspect ' + dim.name + ' phrase evidence'"
+            <!-- Side-by-Side Reading Area (Requirement 2 & 6 matching Reference Screenshot) -->
+            <section class="reader-reading-container" aria-label="Parallel Reading Text">
+              <!-- Aligned Columns Container -->
+              <div class="reader-bilingual-grid">
+                <!-- English Column Card -->
+                <div class="reader-lang-column reader-lang-column--en">
+                  <header class="reader-lang-header">
+                    <h3 class="reader-lang-title">English original</h3>
+                    <span class="reader-lang-sub">En (1603/23)</span>
+                  </header>
+                  <div class="reader-speech-list">
+                    <div
+                      *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
+                      class="reader-speech-row reader-speech-row--en"
+                      [id]="'dlg-en-' + r.id"
+                      [class.reader-speech-row--active]="readerInspectedDialogueId === r.id"
                     >
-                      <td class="v15-dim-name-cell">
-                        <strong class="v15-dim-name">{{ dim.name }}</strong>
-                      </td>
-                      <td class="v15-dim-bar-cell">
-                        <div class="v15-dim-microbar-track">
-                          <div
-                            class="v15-dim-microbar-fill"
-                            [style.width]="getHumanScoreWidth(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                            [style.background-color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                          ></div>
+                      <div class="reader-speaker-line">
+                        <span class="reader-speaker-name">{{ r.speaker }}</span>
+                      </div>
+                      <div class="reader-dialogue-body">
+                        <app-ha-evidence-highlighted-text
+                          [text]="r.english"
+                          [spans]="showAnalysis ? r.sourceSpans : []"
+                          [activeLinkId]="activeLinkedSpanId"
+                          (segmentHover)="onSegmentHover($event, 'english', r)"
+                          (segmentLeave)="onSegmentLeave()"
+                          (segmentClick)="onSegmentClick($event, 'english', r)"
+                          (linkClick)="onLinkClick($event)"
+                        ></app-ha-evidence-highlighted-text>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- German Column Card -->
+                <div class="reader-lang-column reader-lang-column--de">
+                  <header class="reader-lang-header">
+                    <h3 class="reader-lang-title">Human German</h3>
+                    <span class="reader-lang-sub">De (Schlegel-Tieck)</span>
+                  </header>
+                  <div class="reader-speech-list">
+                    <div
+                      *ngFor="let r of getFilteredPhraseRows(); trackBy: trackByDialogueRow"
+                      class="reader-speech-row reader-speech-row--de"
+                      [id]="'dlg-de-' + r.id"
+                      [class.reader-speech-row--active]="readerInspectedDialogueId === r.id"
+                    >
+                      <div class="reader-speaker-line">
+                        <span class="reader-speaker-name">{{ r.speaker }}</span>
+
+                        <!-- Compact Adjacent Action Group: Inspect | Needs Review (Requirement 7) -->
+                        <div class="reader-action-group">
+                          <button
+                            type="button"
+                            class="reader-action-btn reader-inspect-btn"
+                            [class.reader-action-btn--active]="readerInspectedDialogueId === r.id"
+                            (click)="onReaderInspectDialogue(r.id)"
+                            [attr.aria-label]="'Inspect evidence for dialogue ' + r.dialogue_id"
+                            title="Inspect evidence & scholarly assessment"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="8"></circle>
+                              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                          </button>
+                          <button
+                            *ngIf="r.humanNeedsReview"
+                            type="button"
+                            class="reader-action-btn reader-review-btn"
+                            (click)="openDetailedReviewModal(r.id)"
+                            [attr.aria-label]="'Review flagged dialogue ' + r.dialogue_id"
+                            title="Flagged for expert review"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                              <line x1="4" y1="22" x2="4" y2="15"></line>
+                            </svg>
+                          </button>
                         </div>
-                      </td>
-                      <td class="v15-dim-score-cell" style="text-align:right">
-                        <span
-                          class="v15-score-badge"
-                          [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                          [style.background-color]="getHumanScoreBgColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                        >
-                          {{ formatHumanScore(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german')) }}
-                        </span>
-                      </td>
-                      <td class="v15-dim-units-cell" style="text-align:right">
-                        <span class="v15-units-text">
-                          {{ getSceneDimensionUnits(selectedAnalysisScene, dim.key) }}/{{ selectedAnalysisScene.dialogues.length }}
-                        </span>
-                      </td>
-                      <td class="v15-dim-rev-cell" style="text-align:right">
-                        <span
-                          *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) as dRev"
-                          class="v15-rev-flag-pill"
-                          title="Unique dialogues in this scene flagged for review in this dimension"
-                        >
-                          {{ dRev }} to review
-                        </span>
-                        <span
-                          *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) === 0"
-                          class="v15-rev-clear-pill"
-                        >
-                          Clear
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Score Heatmap Legend (Section 4) -->
-              <div class="v15-heatmap-legend-bar">
-                <div class="v15-legend-title">Human DE Score Scale:</div>
-                <div class="v15-legend-scale">
-                  <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
-                    <span class="v15-legend-color-dot" [style.background-color]="th.color"></span>
-                    <span class="v15-legend-step-lbl">{{ th.label }} ({{ th.level }})</span>
+                      </div>
+                      <div class="reader-dialogue-body">
+                        <app-ha-evidence-highlighted-text
+                          [text]="r.human_german"
+                          [spans]="showAnalysis ? r.humanSpans : []"
+                          fallbackText="[German text from dataset]"
+                          [activeLinkId]="activeLinkedSpanId"
+                          (segmentHover)="onSegmentHover($event, 'human_german', r)"
+                          (segmentLeave)="onSegmentLeave()"
+                          (segmentClick)="onSegmentClick($event, 'human_german', r)"
+                          (linkClick)="onLinkClick($event)"
+                        ></app-ha-evidence-highlighted-text>
+                      </div>
+                    </div>
                   </div>
-                  <div class="v15-legend-step">
-                    <span class="v15-legend-color-dot" style="background-color:#94a3b8"></span>
-                    <span class="v15-legend-step-lbl">N/A (Not applicable)</span>
-                  </div>
-                </div>
-                <div class="v15-legend-note">
-                  Single-shade green intensity communicating preservation. Missing scores are never converted to zero.
-                </div>
-              </div>
-            </section>
-
-
-
-            <!-- Scene Reading & Phrase Evidence Parallel Table (Section 3 & 6) -->
-            <section *ngIf="sceneReadingOpen" class="v15-scene-reading-section" aria-label="Scene Reading and Phrase Evidence">
-              <div class="v15-read-header">
-                <div>
-                  <h3 class="v15-read-h3">Read Scene {{ selectedAnalysisScene.scene_number || selectedAnalysisScene.scene_id }}</h3>
-                  <span class="v15-read-summary">Human German parallel dialogue reading and phrase-level evidence</span>
-                </div>
-                <button type="button" class="v15-close-scene-reading-btn" (click)="toggleSceneReading()" title="Hide scene reading">✕ Close Reading</button>
-              </div>
-
-              <!-- Filter Controls Bar -->
-              <div class="v15-read-controls-bar">
-                <div role="group" aria-label="Show rows" class="v15-filter-btn-group">
-                  <button
-                    type="button"
-                    class="v15-filter-btn"
-                    [class.v15-filter-btn--active]="analysisPhraseFilter === 'all'"
-                    (click)="analysisPhraseFilter = 'all'"
-                  >All dialogues ({{ getAllPhrasesCount() }})</button>
-                  <button
-                    type="button"
-                    class="v15-filter-btn"
-                    [class.v15-filter-btn--active]="analysisPhraseFilter === 'diff'"
-                    (click)="analysisPhraseFilter = 'diff'"
-                  >Differences only ({{ getDifferencesCount() }})</button>
-                  <button
-                    type="button"
-                    class="v15-filter-btn"
-                    [class.v15-filter-btn--active]="analysisPhraseFilter === 'review'"
-                    (click)="analysisPhraseFilter = 'review'"
-                    title="Unique dialogues in this scene requiring review"
-                  >Needs review ({{ getNeedsReviewCount() }})</button>
-                </div>
-
-                <!-- Dimension Selector -->
-                <label class="v15-dim-select-label">Dimension
-                  <select class="v15-dim-select" [(ngModel)]="selectedAnalysisDimension" (ngModelChange)="activeInspectorDim = selectedAnalysisDimension">
-                    <option *ngFor="let d of v15Dimensions" [value]="d.key">{{ d.name }}</option>
-                  </select>
-                </label>
-
-                <!-- Search Input -->
-                <label class="v15-search-label">
-                  <input
-                    type="text"
-                    class="v15-search-input"
-                    [(ngModel)]="analysisSearchText"
-                    placeholder="Search dialogue ID or speaker..."
-                  />
-                </label>
-
-                <!-- Legend Chips -->
-                <div class="v15-legend-chips">
-                  <span><span class="v15-chip v15-chip--preserved">Preserved</span></span>
-                  <span><span class="v15-chip v15-chip--changed">Changed</span></span>
-                  <span><span class="v15-chip v15-chip--lost">Lost</span></span>
-                  <span><span class="v15-chip v15-chip--added">Added</span></span>
-                </div>
-              </div>
-
-              <!-- 3-Column Parallel Table (Speech, English, Human German) - NO AI COLUMNS! -->
-              <div class="v15-parallel-scroll">
-                <div class="v15-parallel-grid v15-parallel-grid--human-only">
-                  <div class="v15-parallel-thead" style="width:20%">SPEECH</div>
-                  <div class="v15-parallel-thead" style="width:40%">ORIGINAL ENGLISH</div>
-                  <div class="v15-parallel-thead" style="width:40%">HUMAN GERMAN TRANSLATION</div>
-
-                  <ng-container *ngFor="let r of getFilteredPhraseRows()">
-                    <!-- 1. Speech -->
-                    <div class="v15-speech-col" [class.v15-col--inspected]="activeInspectedDialogueId === r.id">
-                      <div style="display:flex; align-items:baseline; gap:6px">
-                        <strong class="v15-speaker-name">{{ r.speaker }}</strong>
-                        <span *ngIf="r.tag" class="v15-speech-tag">{{ r.tag }}</span>
-                      </div>
-                      <span class="v15-speech-id">{{ r.dialogue_id }}</span>
-                      <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px">
-                        <button
-                          type="button"
-                          class="v15-inspect-btn"
-                          [class.v15-inspect-btn--active]="activeInspectedDialogueId === r.id"
-                          (click)="openInspector(r.id)"
-                        >
-                          {{ activeInspectedDialogueId === r.id ? 'Inspecting' : 'Inspect' }}
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- 2. Original English -->
-                    <div class="v15-text-col" [class.v15-col--inspected]="activeInspectedDialogueId === r.id">
-                      <app-ha-evidence-highlighted-text
-                        [text]="r.english"
-                        [spans]="r.sourceSpans"
-                        [activeLinkId]="activeLinkedSpanId"
-                        (segmentHover)="onSegmentHover($event, 'english', r)"
-                        (segmentLeave)="onSegmentLeave()"
-                        (segmentClick)="onSegmentClick($event, 'english', r)"
-                        (linkClick)="onLinkClick($event)"
-                      ></app-ha-evidence-highlighted-text>
-                    </div>
-
-                    <!-- 3. Human German Translation -->
-                    <div class="v15-text-col" [class.v15-col--inspected]="activeInspectedDialogueId === r.id">
-                      <div class="v15-cell-status-wrap">
-                        <span
-                          class="v15-chip"
-                          [ngClass]="getChipClass(r.humanStatus, r.humanNeedsReview)"
-                        >{{ getStatusBadgeLabel(r.humanStatus, r.humanNeedsReview) }}</span>
-                      </div>
-                      <app-ha-evidence-highlighted-text
-                        [text]="r.human_german"
-                        [spans]="r.humanSpans"
-                        fallbackText="[German text from dataset]"
-                        [activeLinkId]="activeLinkedSpanId"
-                        (segmentHover)="onSegmentHover($event, 'human_german', r)"
-                        (segmentLeave)="onSegmentLeave()"
-                        (segmentClick)="onSegmentClick($event, 'human_german', r)"
-                        (linkClick)="onLinkClick($event)"
-                      ></app-ha-evidence-highlighted-text>
-                    </div>
-                  </ng-container>
                 </div>
               </div>
 
@@ -839,141 +724,94 @@
                       {{ getActTotalReviewCount(selectedAnalysisAct) }}
                     </strong>
                   </div>
+                  <div class="v15-info-chip">
+                    <span class="v15-info-chip-lbl">Source Documents</span>
+                    <span class="v15-info-chip-text">En (1603/23) · De (Schlegel-Tieck)</span>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <!-- Act-Level Bar Chart Showing Scene Average Preservation Scores -->
-            <section class="v15-act-chart-card" aria-label="Act Scene Average Preservation Bar Chart">
-              <div class="v15-card-head-row">
+            <!-- Human-Only 8-Dimension Table (Act Level) -->
+            <section class="v15-human-matrix-section" aria-label="Human German 8-Dimension Literary Analysis">
+              <div class="v15-section-title-row">
                 <div>
-                  <h3 class="v15-card-h3">Act {{ selectedAnalysisAct }} — Scene Average Preservation Scores</h3>
-                  <p class="v15-card-sub">
-                    Average across scored dialogues and applicable literary dimensions.
-                    <span class="v15-methodology-info" title="Aggregation methodology: Scene dimension average = sum of valid Human German scores for dimension / applicable dialogues. Overall Average = mean of applicable dimension scores per dialogue, averaged across scored dialogues. Missing scores excluded (not counted as 0). Expert overrides take precedence.">ℹ️</span>
-                  </p>
-                </div>
-
-                <div class="v15-chart-controls">
-                  <label class="v15-chart-dim-label">
-                    <span>Dimension:</span>
-                    <select
-                      class="v15-chart-dim-select"
-                      [ngModel]="selectedActChartDimension"
-                      (ngModelChange)="onActChartDimensionChange($event)"
-                    >
-                      <option value="overall">Overall Average</option>
-                      <option *ngFor="let d of v15Dimensions" [value]="d.key">{{ d.name }}</option>
-                    </select>
-                  </label>
-
-                  <div class="v15-provenance-badge v15-provenance-badge--expert" title="Human German translation (Schlegel-Tieck) with expert review overrides applied">
-                    <span>Source: Human German (Schlegel-Tieck)</span>
-                  </div>
+                  <h3 class="v15-section-title">Human German Literary Dimensions</h3>
+                  <p class="v15-section-sub">Preservation and literary scores across 8 dimensions for Act {{ selectedAnalysisAct }}. Click any dimension to filter scenes or view evidence.</p>
                 </div>
               </div>
 
-              <!-- SVG Interactive Bar Chart -->
-              <div class="v15-act-svg-chart-wrap">
-                <svg
-                  class="v15-act-svg-chart"
-                  viewBox="0 0 760 270"
-                  preserveAspectRatio="xMidYMid meet"
-                  role="img"
-                  [attr.aria-label]="'Bar chart of scene average preservation scores for Act ' + selectedAnalysisAct"
-                >
-                  <!-- Horizontal Grid Lines & Y-Axis Labels -->
-                  <g class="v15-svg-grid">
-                    <!-- 100% -->
-                    <line x1="45" y1="30" x2="745" y2="30" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                    <text x="38" y="34" text-anchor="end" font-size="11" fill="#64748b">100</text>
-
-                    <!-- 75% -->
-                    <line x1="45" y1="82.5" x2="745" y2="82.5" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                    <text x="38" y="86.5" text-anchor="end" font-size="11" fill="#64748b">75</text>
-
-                    <!-- 50% -->
-                    <line x1="45" y1="135" x2="745" y2="135" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                    <text x="38" y="139" text-anchor="end" font-size="11" fill="#64748b">50</text>
-
-                    <!-- 25% -->
-                    <line x1="45" y1="187.5" x2="745" y2="187.5" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                    <text x="38" y="191.5" text-anchor="end" font-size="11" fill="#64748b">25</text>
-
-                    <!-- Baseline 0% -->
-                    <line x1="45" y1="240" x2="745" y2="240" stroke="#cbd5e1" stroke-width="1.5" />
-                    <text x="38" y="244" text-anchor="end" font-size="11" fill="#64748b">0</text>
-                  </g>
-
-                  <!-- Dynamic Scene Bars -->
-                  <g
-                    *ngFor="let sc of getActScenes(selectedAnalysisAct); let i = index"
-                    class="v15-svg-bar-col"
-                    (click)="selectAnalysisScene(sc)"
-                    (keydown.enter)="selectAnalysisScene(sc)"
-                    tabindex="0"
-                    role="button"
-                    [attr.aria-label]="'Scene ' + (sc.scene_number || sc.scene_id) + ', Score: ' + formatHumanScore(getSceneChartScore(sc)) + '. Click to view scene details.'"
-                  >
-                    <title>Scene {{ sc.scene_number || sc.scene_id }}: {{ formatHumanScore(getSceneChartScore(sc)) }}% ({{ getSceneScoredDialoguesCount(sc, selectedActChartDimension) }} applicable scored dialogues)</title>
-
-                    <!-- Column Hover Background Area -->
-                    <rect
-                      [attr.x]="50 + i * (690 / getActScenes(selectedAnalysisAct).length)"
-                      y="20"
-                      [attr.width]="690 / getActScenes(selectedAnalysisAct).length"
-                      height="220"
-                      class="v15-svg-bar-col-bg"
-                    />
-
-                    <!-- Actual Bar Rect -->
-                    <rect
-                      class="v15-svg-bar-rect"
-                      [attr.x]="getBarX(i, getActScenes(selectedAnalysisAct).length)"
-                      [attr.y]="getBarY(getSceneChartScore(sc))"
-                      [attr.width]="getBarWidth(getActScenes(selectedAnalysisAct).length)"
-                      [attr.height]="getBarHeight(getSceneChartScore(sc))"
-                      rx="4"
-                      [attr.fill]="getHumanScoreColor(getSceneChartScore(sc))"
-                    />
-
-                    <!-- Score Text Above Bar -->
-                    <text
-                      class="v15-svg-bar-score"
-                      [attr.x]="getBarCenterX(i, getActScenes(selectedAnalysisAct).length)"
-                      [attr.y]="getBarY(getSceneChartScore(sc)) - 6"
-                      text-anchor="middle"
-                      [attr.fill]="getHumanScoreColor(getSceneChartScore(sc))"
+              <!-- Dimension Table -->
+              <div class="v15-table-wrap">
+                <table class="v15-human-dim-table" role="table">
+                  <thead>
+                    <tr>
+                      <th style="width:25%">Dimension</th>
+                      <th style="width:25%">Score visualization</th>
+                      <th style="width:15%; text-align:right">Human DE score</th>
+                      <th style="width:15%; text-align:right">Units (N)</th>
+                      <th style="width:20%; text-align:right">Review status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="let dim of v15Dimensions"
+                      class="v15-dim-row"
+                      [class.v15-dim-row--active]="selectedAnalysisDimension === dim.key"
+                      (click)="onActDimensionRowClick(dim.key)"
+                      tabindex="0"
+                      role="row"
+                      [title]="'Click to select ' + dim.name + ' dimension'"
                     >
-                      {{ formatHumanScore(getSceneChartScore(sc)) }}
-                    </text>
-
-                    <!-- Scene Label Below Baseline -->
-                    <text
-                      class="v15-svg-bar-label"
-                      [attr.x]="getBarCenterX(i, getActScenes(selectedAnalysisAct).length)"
-                      y="256"
-                      text-anchor="middle"
-                    >
-                      Scene {{ sc.scene_number || sc.scene_id }}
-                    </text>
-
-                    <!-- Dialogue Count Subtitle -->
-                    <text
-                      class="v15-svg-bar-sublabel"
-                      [attr.x]="getBarCenterX(i, getActScenes(selectedAnalysisAct).length)"
-                      y="268"
-                      text-anchor="middle"
-                    >
-                      {{ getSceneScoredDialoguesCount(sc, selectedActChartDimension) }} diags
-                    </text>
-                  </g>
-                </svg>
+                      <td class="v15-dim-name-cell">
+                        <strong class="v15-dim-name">{{ dim.name }}</strong>
+                      </td>
+                      <td class="v15-dim-bar-cell">
+                        <div class="v15-dim-microbar-track">
+                          <div
+                            class="v15-dim-microbar-fill"
+                            [style.width]="getHumanScoreWidth(getActDimensionScore(selectedAnalysisAct, dim.key))"
+                            [style.background-color]="getHumanScoreColor(getActDimensionScore(selectedAnalysisAct, dim.key))"
+                          ></div>
+                        </div>
+                      </td>
+                      <td class="v15-dim-score-cell" style="text-align:right">
+                        <span
+                          class="v15-score-badge"
+                          [style.color]="getHumanScoreColor(getActDimensionScore(selectedAnalysisAct, dim.key))"
+                          [style.background-color]="getHumanScoreBgColor(getActDimensionScore(selectedAnalysisAct, dim.key))"
+                        >
+                          {{ formatHumanScore(getActDimensionScore(selectedAnalysisAct, dim.key)) }}
+                        </span>
+                      </td>
+                      <td class="v15-dim-units-cell" style="text-align:right">
+                        <span class="v15-units-text">
+                          {{ getActDimensionUnits(selectedAnalysisAct, dim.key).units }}/{{ getActTotalDialogues(selectedAnalysisAct) }}
+                        </span>
+                      </td>
+                      <td class="v15-dim-rev-cell" style="text-align:right">
+                        <span
+                          *ngIf="getActDimensionHumanReviewCount(selectedAnalysisAct, dim.key) as aRev"
+                          class="v15-rev-flag-pill"
+                          title="Dialogues requiring review in this dimension across Act {{ selectedAnalysisAct }}"
+                        >
+                          {{ aRev }} to review
+                        </span>
+                        <span
+                          *ngIf="getActDimensionHumanReviewCount(selectedAnalysisAct, dim.key) === 0"
+                          class="v15-rev-clear-pill"
+                        >
+                          Clear
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               <!-- Score Heatmap Legend -->
-              <div class="v15-heatmap-legend-bar" style="margin-top: 14px;">
-                <div class="v15-legend-title">Preservation Scale:</div>
+              <div class="v15-heatmap-legend-bar">
+                <div class="v15-legend-title">Human DE Score Scale:</div>
                 <div class="v15-legend-scale">
                   <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
                     <span class="v15-legend-color-dot" [style.background-color]="th.color"></span>
@@ -981,8 +819,11 @@
                   </div>
                   <div class="v15-legend-step">
                     <span class="v15-legend-color-dot" style="background-color:#94a3b8"></span>
-                    <span class="v15-legend-step-lbl">N/A</span>
+                    <span class="v15-legend-step-lbl">N/A (Not applicable)</span>
                   </div>
+                </div>
+                <div class="v15-legend-note">
+                  Single-shade green intensity communicating preservation. Missing scores are never converted to zero.
                 </div>
               </div>
             </section>
@@ -1113,6 +954,161 @@
           </ng-container>
 
         </main>
+
+        <!-- Right Column: Evidence Inspector (Requirement 2, 8, 9, 15) -->
+        <aside class="ha-col-inspector" *ngIf="viewMode === 'scene'" aria-label="Evidence Inspector">
+          <div *ngIf="getReaderInspectedDialogue() as inspectedDlg" class="inspector-content-panel">
+            <header class="inspector-header">
+              <div class="inspector-header-left">
+                <span class="inspector-kicker">Evidence Inspector</span>
+                <h4 class="inspector-dlg-id">{{ inspectedDlg.dialogue_id }}</h4>
+              </div>
+              <button
+                type="button"
+                class="inspector-close-btn"
+                (click)="closeReaderInspector()"
+                aria-label="Close inspector"
+                title="Close inspector (Esc)"
+              >✕</button>
+            </header>
+
+            <div class="inspector-body">
+              <!-- Meta Badge Strip -->
+              <div class="inspector-meta-strip">
+                <span class="inspector-speaker-badge">{{ inspectedDlg.speaker }}</span>
+                <span class="inspector-dim-badge">{{ getDimensionName(selectedAnalysisDimension) }}</span>
+                <span
+                  class="inspector-status-badge"
+                  [ngClass]="'status-' + ((selectedEvidencePhrase?.category || getInspectedDialogueStatus(inspectedDlg, selectedAnalysisDimension)) | lowercase)"
+                >
+                  {{ selectedEvidencePhrase?.category || getInspectedDialogueStatus(inspectedDlg, selectedAnalysisDimension) }}
+                </span>
+              </div>
+
+              <!-- Scores Card -->
+              <div class="inspector-score-card">
+                <div class="score-metric">
+                  <span class="score-metric-lbl">Score</span>
+                  <strong
+                    class="score-metric-val"
+                    [style.color]="getInspectorScoreColor(inspectedDlg)"
+                  >
+                    {{ getInspectorScoreDisplay(inspectedDlg) }}
+                  </strong>
+                </div>
+                <div class="score-metric">
+                  <span class="score-metric-lbl">Confidence</span>
+                  <strong class="score-metric-val">
+                    {{ getInspectorConfidenceDisplay(inspectedDlg) }}
+                  </strong>
+                </div>
+                <div class="score-metric">
+                  <span class="score-metric-lbl">Review</span>
+                  <strong
+                    class="score-metric-val"
+                    [class.text-amber]="isDialogueFlagged(inspectedDlg, 'human_german', selectedAnalysisDimension)"
+                  >
+                    {{ isDialogueFlagged(inspectedDlg, 'human_german', selectedAnalysisDimension) ? 'Flagged' : 'Clear' }}
+                  </strong>
+                </div>
+              </div>
+
+              <!-- Aligned Quotes Section (Requirement 8) -->
+              <div class="inspector-quotes-section">
+                <div class="inspector-quote-block">
+                  <span class="quote-header-lbl">Original English:</span>
+                  <blockquote class="quote-text quote-text--en">
+                    “{{ selectedEvidencePhrase?.sourceText || inspectedDlg.texts.english }}”
+                  </blockquote>
+                </div>
+
+                <div class="inspector-quote-block">
+                  <span class="quote-header-lbl">Human German:</span>
+                  <blockquote class="quote-text quote-text--de">
+                    “{{ selectedEvidencePhrase?.targetText || inspectedDlg.texts.human_german }}”
+                  </blockquote>
+                </div>
+              </div>
+
+              <!-- Scholarly Assessment / Explanation (Requirement 8) -->
+              <div class="inspector-explanation-block">
+                <span class="explanation-lbl">Scholarly Assessment</span>
+                <p class="explanation-text">
+                  {{ selectedEvidencePhrase?.explanation || getInspectedDialogueExplanation(inspectedDlg, selectedAnalysisDimension) || 'Aligned phrase evidence from Schlegel-Tieck translation.' }}
+                </p>
+              </div>
+
+              <!-- Provenance & Evidence ID (Requirement 8) -->
+              <div class="inspector-provenance-block">
+                <div class="provenance-item">
+                  <span class="provenance-lbl">Evidence ID:</span>
+                  <code class="provenance-code">{{ selectedEvidencePhrase?.evidenceId || inspectedDlg.dialogue_id }}</code>
+                </div>
+                <div class="provenance-item">
+                  <span class="provenance-lbl">Provenance:</span>
+                  <span class="provenance-val">{{ selectedEvidencePhrase?.provenance || 'Schlegel-Tieck (1839/40)' }}</span>
+                </div>
+              </div>
+
+              <!-- Original-Document Verification (Requirement 9) -->
+              <div class="inspector-pdf-verification-block">
+                <span class="verification-title">Original Source Verification</span>
+                <div class="verification-btn-group">
+                  <button
+                    type="button"
+                    class="verification-btn"
+                    (click)="openPdfBook('english', selectedEvidencePhrase?.sourceText || inspectedDlg.texts.english)"
+                    title="Open English Hamlet PDF book"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    View in English Source PDF
+                  </button>
+                  <button
+                    type="button"
+                    class="verification-btn verification-btn--de"
+                    (click)="openPdfBook('german', selectedEvidencePhrase?.targetText || inspectedDlg.texts.human_german)"
+                    title="Open Human German Hamlet PDF book"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    View in German Source PDF
+                  </button>
+                </div>
+                <p class="verification-note">
+                  Passage matching uses text search within source editions. Exact historical facsimile pagination is approximate.
+                </p>
+              </div>
+
+              <!-- Detailed Review Launcher (Requirement 15) -->
+              <div class="inspector-detailed-review-block">
+                <button
+                  type="button"
+                  class="inspector-open-review-btn"
+                  (click)="openInspector(inspectedDlg.dialogue_id, 'human_german')"
+                >
+                  Open Detailed Expert Review →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State when nothing selected (Requirement 2) -->
+          <div *ngIf="!getReaderInspectedDialogue()" class="inspector-empty-state">
+            <div class="inspector-empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+            </div>
+            <h4 class="inspector-empty-title">Evidence Inspector</h4>
+            <p class="inspector-empty-text">
+              Click <strong>Inspect (🔍)</strong> on any dialogue or click an underlined phrase to view aligned translation evidence, scores, and source documents.
+            </p>
+            <div class="inspector-empty-tip">
+              <span class="tip-pill">Tip</span>
+              <span>Toggle <strong>Show analysis</strong> to view phrase-level underlines.</span>
+            </div>
+          </div>
+        </aside>
       </div>
     </ng-container>
 

@@ -225,10 +225,10 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
     fixture.detectChanges();
   });
 
-  it('should initialize and not select any scene by default', () => {
+  it('should initialize and open the first available Scene by default', () => {
     expect(component).toBeTruthy();
     expect(component.selectedAnalysisAct).toBe(1);
-    expect(component.selectedAnalysisScene).toBeNull();
+    expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
   });
 
   it('should distinguish analyzed scenes from unanalyzed scenes', () => {
@@ -619,7 +619,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
   });
 
   describe('Navigation Levels & Scene vs Dialogue Selection (v1.5 Distinct Modes)', () => {
-    it('13. defaults to "act" viewMode and renders the Act Scene Average Bar Chart and 8-dim matrix', () => {
+    it('13. defaults to "act" viewMode and renders the Act 8-dim matrix table and scene matrix without bar chart', () => {
       component.selectedAnalysisAct = 1;
       component.selectedAnalysisScene = null;
       component.activeInspectedDialogueId = null;
@@ -629,8 +629,9 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       expect(compiled.querySelector('.v15-act-header-card')).toBeTruthy();
-      expect(compiled.querySelector('.v15-act-chart-card')).toBeTruthy();
+      expect(compiled.querySelector('.v15-human-matrix-section')).toBeTruthy();
       expect(compiled.querySelector('.v15-act-matrix-card')).toBeTruthy();
+      expect(compiled.querySelector('.v15-act-chart-card')).toBeNull();
       expect(compiled.querySelector('.v15-scene-header-card')).toBeNull();
       expect(compiled.querySelector('.v15-dialogue-detail-panel')).toBeNull();
     });
@@ -649,6 +650,27 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       component.onActChartDimensionChange('semantic');
       expect(component.selectedActChartDimension).toBe('semantic');
       expect(component.getSceneChartScore(act1Scene1)).toBe(90);
+    });
+
+    it('14b. calculates Act-level dimension scores, units, and review counts for the Act 8-dimension table', () => {
+      component.selectedAnalysisAct = 1;
+      component.selectedAnalysisScene = null;
+      component.activeInspectedDialogueId = null;
+
+      const semScore = component.getActDimensionScore(1, 'semantic');
+      expect(semScore).toBeGreaterThanOrEqual(0);
+      expect(semScore).toBeLessThanOrEqual(100);
+
+      const unitsObj = component.getActDimensionUnits(1, 'semantic');
+      expect(unitsObj.units).toBeGreaterThanOrEqual(1);
+      expect(unitsObj.total).toBe(component.getActTotalDialogues(1));
+
+      const revCount = component.getActDimensionHumanReviewCount(1, 'semantic');
+      expect(revCount).toBeGreaterThanOrEqual(0);
+
+      component.onActDimensionRowClick('metaphor_imagery');
+      expect(component.selectedAnalysisDimension).toBe('metaphor_imagery');
+      expect(component.activeInspectorDim).toBe('metaphor_imagery');
     });
 
     it('15. selecting a Scene switches viewMode to "scene", displays scene analysis, and hides dialogue panel and act chart', () => {
@@ -779,6 +801,59 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       };
 
       expect(component.hasExplanationMismatch(mockDialogueAligned, 'semantic')).toBeFalse();
+    });
+
+    it('19. October 25 Redesign: starting page defaults to Act 1 Scene 1 with showAnalysis=false and parallel bilingual reader', () => {
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      // Starting page defaults
+      expect(component.viewMode).toBe('scene');
+      expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
+      expect(component.showAnalysis).toBeFalse();
+
+      // Parallel reader elements
+      expect(compiled.querySelector('.reader-main-title')?.textContent).toContain('Hamlet, side by side');
+      expect(compiled.querySelector('.reader-sub-title')?.textContent).toContain('Read the English original and the Human German translation together.');
+      expect(compiled.querySelector('.reader-callout-banner')).toBeTruthy();
+      expect(compiled.querySelector('.reader-lang-column--en')).toBeTruthy();
+      expect(compiled.querySelector('.reader-lang-column--de')).toBeTruthy();
+
+      // Show analysis toggle
+      component.onToggleShowAnalysis();
+      expect(component.showAnalysis).toBeTrue();
+      fixture.detectChanges();
+      expect(compiled.querySelector('.reader-analysis-summary-bar')).toBeTruthy();
+    });
+
+    it('20. October 25 Redesign: dimension tab switching updates selectedAnalysisDimension and updates evidence', () => {
+      component.selectDimensionTab('metaphor_imagery');
+      expect(component.selectedAnalysisDimension).toBe('metaphor_imagery');
+      expect(component.activeInspectorDim).toBe('metaphor_imagery');
+    });
+
+    it('21. October 25 Redesign: reader evidence inspection, escape dismissal, and PDF opening', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+
+      // Inspect dialogue in reader
+      component.onReaderInspectDialogue(diag1.dialogue_id);
+      expect(component.readerInspectedDialogueId).toBe(diag1.dialogue_id);
+      expect(component.selectedEvidencePhrase).toBeTruthy();
+      expect(component.viewMode).toBe('scene'); // Must remain in scene view
+
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.ha-col-inspector')).toBeTruthy();
+      expect(compiled.querySelector('.inspector-content-panel')).toBeTruthy();
+
+      // Escape key dismissal
+      component.onEscapeKey();
+      expect(component.readerInspectedDialogueId).toBeNull();
+      expect(component.selectedEvidencePhrase).toBeNull();
+
+      fixture.detectChanges();
+      expect(compiled.querySelector('.inspector-empty-state')).toBeTruthy();
     });
   });
 });

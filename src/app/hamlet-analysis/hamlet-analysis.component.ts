@@ -274,8 +274,33 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   readonly versions = VERSIONS;
 
-  /** Meeting-Approved UI Redesign State */
-  sceneReadingOpen = false;
+  /** October 25 Meeting UI Redesign State */
+  showAnalysis = false;
+  detailedReviewModalOpen = false;
+  readerInspectedDialogueId: string | null = null;
+  selectedEvidencePhrase: {
+    dimension: string;
+    sourceText: string;
+    targetText: string;
+    category: string;
+    score: number | null;
+    confidence: number | null;
+    explanation: string;
+    evidenceId: string;
+    provenance: string;
+  } | null = null;
+
+  readonly primaryDimensionTabs = [
+    { key: 'semantic', label: 'Semantic', name: 'Semantic' },
+    { key: 'emotion', label: 'Emotion', name: 'Emotion' },
+    { key: 'metaphor_imagery', label: 'Metaphor', name: 'Metaphor' },
+    { key: 'tone', label: 'Tone', name: 'Tone' },
+    { key: 'character_voice', label: 'Voice', name: 'Voice' },
+    { key: 'cultural_archaic', label: 'Cultural', name: 'Cultural' },
+    { key: 'omissions_additions', label: 'Omissions', name: 'Omissions' }
+  ];
+
+  sceneReadingOpen = true;
   mobileTocOpen = false;
   backTranslationResult: BackTranslationResult | null = null;
   backTranslationLoading = false;
@@ -527,7 +552,10 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     if (this.analysisActs.length > 0) {
       this.reviewCountingService.buildIndex(this.analysisActs);
       this.selectedAnalysisAct = 1;
-      this.selectedAnalysisScene = null;
+      const firstScene = this.analysisActs[0]?.scenes?.[0] || null;
+      this.selectedAnalysisScene = firstScene;
+      this.sceneReadingOpen = true;
+      this.showAnalysis = false;
     }
   }
 
@@ -815,8 +843,13 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       for (const dlg of scene.dialogues || []) {
         const ana = dlg.analysis?.human_german?.[dimKey];
         if (ana && ana.applicable && ana.score !== null && ana.score !== undefined) {
-          const weight = dlg.texts?.english?.length || 10;
-          totalWeightedScore += ana.score * weight;
+          let scoreToUse = Number(ana.score);
+          const review = dlg.expert_review?.dimension_reviews?.human_german?.[dimKey];
+          if (review && review.score_override !== null && review.score_override !== undefined && !isNaN(review.score_override)) {
+            scoreToUse = Number(review.score_override);
+          }
+          const weight = Math.max(1, dlg.texts?.english?.length || 10);
+          totalWeightedScore += scoreToUse * weight;
           totalWeight += weight;
         }
       }
@@ -825,6 +858,17 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       return Math.round((totalWeightedScore / totalWeight) * 10) / 10;
     }
     return null;
+  }
+
+  getActDimensionHumanReviewCount(actNum: number, dimKey: string): number {
+    const act = this.analysisActs.find((a) => a.act === actNum);
+    if (!act) return 0;
+    return (act.scenes || []).reduce((acc, s) => acc + this.getSceneDimensionHumanReviewCount(s, dimKey), 0);
+  }
+
+  onActDimensionRowClick(dimKey: string): void {
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
   }
 
   getActDimensionUnits(actNum: number, dimKey: string): { units: number; total: number } {
@@ -1315,10 +1359,18 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   getFilteredPhraseRows(): any[] {
     let rows = this.getParallelPhraseRows();
+    const dim = this.selectedAnalysisDimension;
+
     if (this.analysisPhraseFilter === 'diff') {
-      rows = rows.filter((r) => r.isDiff);
+      rows = rows.filter((r) => r.isDiff || (r.dialogue?.analysis?.human_german?.[dim]?.score !== null && r.dialogue?.analysis?.human_german?.[dim]?.score < 85));
+      // Rank by largest score difference / deviation from 100
+      rows.sort((a, b) => {
+        const scA = a.dialogue?.analysis?.human_german?.[dim]?.score ?? 100;
+        const scB = b.dialogue?.analysis?.human_german?.[dim]?.score ?? 100;
+        return scA - scB;
+      });
     } else if (this.analysisPhraseFilter === 'review') {
-      rows = rows.filter((r) => r.needsReview);
+      rows = rows.filter((r) => r.needsReview || r.humanNeedsReview);
     }
 
     if (this.analysisSearchText && this.analysisSearchText.trim()) {
@@ -1333,8 +1385,149 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     return rows;
   }
 
+  selectDimensionTab(dimKey: string): void {
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
+    this.selectionService.selectDimension(dimKey);
+    if (this.readerInspectedDialogueId) {
+      this.updateSelectedEvidencePhrase(this.readerInspectedDialogueId);
+    }
+  }
+
+  onToggleShowAnalysis(): void {
+    this.showAnalysis = !this.showAnalysis;
+  }
+
+  onReaderInspectDialogue(dialogueId: string): void {
+    this.readerInspectedDialogueId = dialogueId;
+    this.updateSelectedEvidencePhrase(dialogueId);
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('dlg-en-' + dialogueId);
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }
+
+  closeReaderInspector(): void {
+    this.readerInspectedDialogueId = null;
+    this.selectedEvidencePhrase = null;
+  }
+
+  getReaderInspectedDialogue(): AnalysisDialogue | null {
+    if (!this.readerInspectedDialogueId) return null;
+    return this.selectedAnalysisScene?.dialogues?.find((d) => d.dialogue_id === this.readerInspectedDialogueId) || null;
+  }
+
+  updateSelectedEvidencePhrase(dialogueId: string): void {
+    const diag = this.selectedAnalysisScene?.dialogues?.find((d) => d.dialogue_id === dialogueId);
+    if (!diag) return;
+    const dim = this.selectedAnalysisDimension;
+    const ana = diag.analysis?.['human_german']?.[dim];
+    const ev = ana?.evidence?.[0];
+
+    this.selectedEvidencePhrase = {
+      dimension: dim,
+      sourceText: ev?.source_span?.text || ev?.source_quote || diag.texts.english,
+      targetText: ev?.target_span?.text || ev?.target_quote || (diag.texts.human_german || ''),
+      category: ev?.status || ana?.status || 'Preserved',
+      score: ana?.score ?? null,
+      confidence: ana?.confidence ?? null,
+      explanation: ev?.explanation || ana?.explanation || 'Aligned phrase evidence from Schlegel-Tieck translation.',
+      evidenceId: ev?.evidence_id || diag.dialogue_id,
+      provenance: (ev as any)?.provenance || 'Schlegel-Tieck (1839/40)'
+    };
+  }
+
+  openDetailedReviewModal(dialogueId?: string): void {
+    if (dialogueId) {
+      this.openInspector(dialogueId, 'human_german');
+    } else if (this.readerInspectedDialogueId) {
+      this.openInspector(this.readerInspectedDialogueId, 'human_german');
+    }
+    this.detailedReviewModalOpen = true;
+  }
+
+  closeDetailedReviewModal(): void {
+    this.detailedReviewModalOpen = false;
+  }
+
+  onTocFilterSelected(filter: 'all' | 'diff' | 'review'): void {
+    this.analysisPhraseFilter = filter;
+  }
+
+  getInspectedDialogueDimScore(diag: AnalysisDialogue | null, dimKey: string): number | null {
+    if (!diag) return null;
+    const review = diag.expert_review?.dimension_reviews?.['human_german']?.[dimKey];
+    if (review && review.score_override !== null && review.score_override !== undefined && !isNaN(review.score_override)) {
+      return Number(review.score_override);
+    }
+    const ana = diag.analysis?.['human_german']?.[dimKey];
+    return (ana && ana.applicable && ana.score !== null && ana.score !== undefined) ? Number(ana.score) : null;
+  }
+
+  getInspectedDialogueStatus(diag: AnalysisDialogue | null, dimKey: string): string {
+    if (!diag) return 'Not computed';
+    return this.getDialogueStatus(diag, 'human_german', dimKey);
+  }
+
+  getInspectedDialogueConfidence(diag: AnalysisDialogue | null, dimKey: string): number | null {
+    if (!diag) return null;
+    const ana = diag.analysis?.['human_german']?.[dimKey];
+    return ana?.confidence ?? null;
+  }
+
+  getInspectedDialogueExplanation(diag: AnalysisDialogue | null, dimKey: string): string {
+    if (!diag) return '';
+    const ana = diag.analysis?.['human_german']?.[dimKey];
+    return ana?.explanation || '';
+  }
+
+  getInspectedDialogueEvidence(diag: AnalysisDialogue | null, dimKey: string): any | null {
+    if (!diag) return null;
+    const ana = diag.analysis?.['human_german']?.[dimKey];
+    return ana?.evidence?.[0] || null;
+  }
+
+  getSceneDimensionScoreDisplay(scene: AnalysisScene | null, dimKey: string): string {
+    if (!scene) return '—';
+    const sc = this.getSceneDimensionScore(scene, dimKey, 'human_german');
+    return sc !== null ? sc.toFixed(1) : '—';
+  }
+
+  trackByDialogueRow(index: number, item: any): string {
+    return item.dialogue_id || item.id || index.toString();
+  }
+
   formatHumanScore(val: number | null | undefined): string {
     return formatHumanScore(val);
+  }
+
+  getInspectorScoreValue(inspectedDlg: AnalysisDialogue | null): number | null {
+    if (this.selectedEvidencePhrase && this.selectedEvidencePhrase.score !== null && this.selectedEvidencePhrase.score !== undefined) {
+      return this.selectedEvidencePhrase.score;
+    }
+    if (!inspectedDlg) return null;
+    return this.getInspectedDialogueDimScore(inspectedDlg, this.selectedAnalysisDimension);
+  }
+
+  getInspectorScoreDisplay(inspectedDlg: AnalysisDialogue | null): string {
+    const val = this.getInspectorScoreValue(inspectedDlg);
+    return val !== null && val !== undefined ? val.toString() : 'N/A';
+  }
+
+  getInspectorScoreColor(inspectedDlg: AnalysisDialogue | null): string {
+    const val = this.getInspectorScoreValue(inspectedDlg);
+    return this.getHumanScoreColor(val);
+  }
+
+  getInspectorConfidenceDisplay(inspectedDlg: AnalysisDialogue | null): string {
+    if (this.selectedEvidencePhrase && this.selectedEvidencePhrase.confidence !== null && this.selectedEvidencePhrase.confidence !== undefined) {
+      return `${Math.round(this.selectedEvidencePhrase.confidence * 100)}%`;
+    }
+    if (!inspectedDlg) return 'N/A';
+    const conf = this.getInspectedDialogueConfidence(inspectedDlg, this.selectedAnalysisDimension);
+    return conf !== null ? `${Math.round(conf * 100)}%` : 'N/A';
   }
 
   getHumanSourceSpansForDialogue(diag: AnalysisDialogue, dimKey: string): any[] {
@@ -1578,11 +1771,53 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     }
   }
 
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.detailedReviewModalOpen) {
+      this.detailedReviewModalOpen = false;
+    } else if (this.readerInspectedDialogueId) {
+      this.closeReaderInspector();
+    } else if (this.activeInspectedDialogueId) {
+      this.closeInspector();
+    } else if (this.activePopover) {
+      this.closeEvidencePopover();
+    } else if (this.pdfPanelOpen) {
+      this.closePdfPanel();
+    }
+  }
+
   onSegmentClick(data: { segment: any; event: MouseEvent }, verKey: string, dialogueContext?: any): void {
     if (data.event) {
       data.event.stopPropagation();
     }
     clearTimeout(this.popoverCloseTimer);
+
+    let diagId = dialogueContext?.dialogue_id || dialogueContext?.id;
+    if (!diagId && dialogueContext?.texts) {
+      diagId = dialogueContext.dialogue_id;
+    }
+
+    if (diagId) {
+      this.readerInspectedDialogueId = diagId;
+    }
+
+    const seg = data.segment;
+    const ev = seg?.evidence;
+    const diag = this.getReaderInspectedDialogue();
+    const ana = diag?.analysis?.['human_german']?.[this.selectedAnalysisDimension];
+
+    this.selectedEvidencePhrase = {
+      dimension: this.selectedAnalysisDimension,
+      sourceText: ev?.source_span?.text || ev?.source_quote || (verKey === 'english' ? seg.text : diag?.texts?.english || ''),
+      targetText: ev?.target_span?.text || ev?.target_quote || (verKey !== 'english' ? seg.text : diag?.texts?.human_german || ''),
+      category: seg.status || ev?.status || ana?.status || 'Preserved',
+      score: ev?.score !== undefined ? ev.score : (ana?.score ?? null),
+      confidence: ev?.confidence !== undefined ? ev.confidence : (ana?.confidence ?? null),
+      explanation: ev?.explanation || ana?.explanation || 'Aligned phrase evidence from Schlegel-Tieck translation.',
+      evidenceId: ev?.evidence_id || `${diagId || 'EV'}-PHRASE`,
+      provenance: (ev as any)?.provenance || 'Schlegel-Tieck (1839/40)'
+    };
+
     this.openEvidencePopover(data, verKey, dialogueContext, 'pinned');
   }
 

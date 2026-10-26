@@ -72,13 +72,49 @@ export const SCENE_DONUT_DIMENSIONS = [
   { key: 'omissions_additions', name: 'Omissions / Additions', label: 'OMI' }
 ];
 
+export const SCENE_SHORT_TITLES: Record<string, string> = {
+  'A1-S1': 'Platform before the castle',
+  'A1-S2': 'Room of state',
+  'A1-S3': "Polonius's house",
+  'A1-S4': 'The platform',
+  'A1-S5': 'Another part of the platform',
+  'A2-S1': "Polonius's house",
+  'A2-S2': 'A room in the castle',
+  'A3-S1': 'A room in the castle',
+  'A3-S2': 'A hall in the castle',
+  'A3-S3': 'The King at prayer',
+  'A3-S4': "The Queen's closet",
+  'A4-S1': 'A room in the castle',
+  'A4-S2': 'Another room in the castle',
+  'A4-S3': 'Another room in the castle',
+  'A4-S4': 'A plain in Denmark',
+  'A4-S5': 'A room in the castle',
+  'A4-S6': 'Another room in the castle',
+  'A4-S7': 'Another room in the castle',
+  'A5-S1': 'A churchyard',
+  'A5-S2': 'A hall in the castle',
+};
+
+export interface ActMiniBar {
+  sceneNumber: number;
+  height: number;
+  color: string;
+  score: number | null;
+  tooltip: string;
+}
+
 export interface SceneNode {
   id: string;
   actNumber: number;
   sceneNumber: number;
   title: string;
+  shortTitle: string;
   humanScore: number | null;
   units: number;
+  scoredCount: number;
+  flaggedCount: number;
+  isLowestInAct: boolean;
+  statusIcon: 'flag' | 'warn' | 'check';
   expanded: boolean;
   donuts: SceneDonutDimension[];
   dialogues: DialogueNode[];
@@ -89,6 +125,8 @@ export interface ActNode {
   id: string;
   actNumber: number;
   expanded: boolean;
+  scoredCount: number;
+  miniBars: ActMiniBar[];
   scenes: SceneNode[];
 }
 
@@ -127,6 +165,18 @@ export class FullBookNavigatorComponent implements OnChanges {
   @Output() actSelected = new EventEmitter<number>();
   @Output() sceneSelected = new EventEmitter<{ act: number; sceneId: string; sceneNumber: number }>();
   @Output() dialogueSelected = new EventEmitter<{ act: number; sceneId: string; dialogueId: string; dialogue: AnalysisDialogue }>();
+  @Output() filterSelected = new EventEmitter<'all' | 'diff' | 'review'>();
+
+  activeFilter: 'all' | 'diff' | 'review' = 'all';
+
+  onFilterClick(filter: 'all' | 'diff' | 'review'): void {
+    if (this.activeFilter === filter) {
+      this.activeFilter = 'all';
+    } else {
+      this.activeFilter = filter;
+    }
+    this.filterSelected.emit(this.activeFilter);
+  }
 
   searchQuery = '';
   acts: ActNode[] = [];
@@ -218,6 +268,7 @@ export class FullBookNavigatorComponent implements OnChanges {
         ? existingAct.expanded
         : act.act === 1 || !!query;
 
+      let actScoredCount = 0;
       const scenes: SceneNode[] = act.scenes.map(scene => {
         const existingScene = existingAct?.scenes.find(s => s.id === scene.scene_id);
         const isSceneExpanded = existingScene
@@ -238,6 +289,22 @@ export class FullBookNavigatorComponent implements OnChanges {
             .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
           humanScore = scs.length > 0 ? Math.round((scs.reduce((a, b) => a + b, 0) / scs.length) * 10) / 10 : null;
           units = scene.total_dialogues || 0;
+        }
+
+        const scoredCount = (scene.dialogues && scene.dialogues.length > 0)
+          ? scene.dialogues.filter(dlg => Object.values(dlg.analysis?.human_german || {}).some(a => a?.applicable !== false && a?.score !== null)).length
+          : (scene.total_dialogues || 0);
+        actScoredCount += scoredCount;
+
+        const flaggedCount = this.reviewCountingService
+          ? this.reviewCountingService.getSceneFlaggedDialogueCount(scene.scene_id)
+          : (scene.review_dialogues_count || 0);
+
+        let statusIcon: 'flag' | 'warn' | 'check' = 'check';
+        if (flaggedCount >= 20 || (humanScore !== null && humanScore < 79)) {
+          statusIcon = 'flag';
+        } else if (flaggedCount > 0 || (humanScore !== null && humanScore < 85)) {
+          statusIcon = 'warn';
         }
 
         const donuts = this.buildSceneDonuts(scene);
@@ -271,17 +338,47 @@ export class FullBookNavigatorComponent implements OnChanges {
             )
           : dialogues;
 
+        const shortTitle = SCENE_SHORT_TITLES[scene.scene_id] || scene.title || `Scene ${scene.scene_number || scene.scene_id}`;
+
         return {
           id: scene.scene_id,
           actNumber: act.act,
           sceneNumber: scene.scene_number || Number(scene.scene_id.replace(/\D/g, '')),
           title: scene.title || `Scene ${scene.scene_number || scene.scene_id}`,
+          shortTitle,
           humanScore,
           units,
+          scoredCount,
+          flaggedCount,
+          isLowestInAct: false,
+          statusIcon,
           expanded: query ? filteredDialogues.length > 0 : isSceneExpanded,
           donuts,
           dialogues: filteredDialogues,
           data: scene
+        };
+      });
+
+      // Mark lowest in Act
+      const validScores = scenes.map(s => s.humanScore).filter((s): s is number => s !== null);
+      if (validScores.length > 1) {
+        const lowestScore = Math.min(...validScores);
+        const lowestScene = scenes.find(s => s.humanScore === lowestScore);
+        if (lowestScene) {
+          lowestScene.isLowestInAct = true;
+        }
+      }
+
+      // Generate sparkline miniBars
+      const miniBars: ActMiniBar[] = scenes.map(s => {
+        const sc = s.humanScore ?? 75;
+        const h = Math.max(4, Math.min(14, Math.round(((sc - 50) / 50) * 14)));
+        return {
+          sceneNumber: s.sceneNumber,
+          height: h,
+          color: this.getScoreColor(s.humanScore),
+          score: s.humanScore,
+          tooltip: `Scene ${s.sceneNumber}: ${this.getScoreDisplay(s.humanScore)}%`
         };
       });
 
@@ -298,6 +395,8 @@ export class FullBookNavigatorComponent implements OnChanges {
         id: `act-${act.act}`,
         actNumber: act.act,
         expanded: query ? filteredScenes.length > 0 : isActExpanded,
+        scoredCount: actScoredCount,
+        miniBars,
         scenes: filteredScenes
       };
     });
@@ -315,6 +414,8 @@ export class FullBookNavigatorComponent implements OnChanges {
           id: `act-${actNum}`,
           actNumber: actNum,
           expanded: actNum === 1,
+          scoredCount: 0,
+          miniBars: [],
           scenes: []
         });
       }
@@ -329,13 +430,19 @@ export class FullBookNavigatorComponent implements OnChanges {
       }
 
       const donuts = this.buildSceneDonuts(sceneData);
+      const shortTitle = SCENE_SHORT_TITLES[sceneData.scene_id] || sceneData.title || `Scene ${sceneNum}`;
       act.scenes.push({
         id: sceneData.scene_id || `A${actNum}-S${sceneNum}`,
         actNumber: actNum,
         sceneNumber: sceneNum,
         title: sceneData.title || `Scene ${sceneNum}`,
+        shortTitle,
         humanScore,
         units: 0,
+        scoredCount: 0,
+        flaggedCount: 0,
+        isLowestInAct: false,
+        statusIcon: 'check',
         expanded: false,
         donuts,
         dialogues: [],
