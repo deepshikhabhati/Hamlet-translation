@@ -170,10 +170,6 @@
       <div class="tech-details-body" *ngIf="showTechnicalDetails">
         <div class="tech-grid">
           <div class="tech-item">
-            <span class="tech-item__label">Alignment Confidence</span>
-            <strong class="tech-item__val">{{ alignment.confidence ? (alignment.confidence * 100 | number:'1.0-0') + '%' : 'N/A' }}</strong>
-          </div>
-          <div class="tech-item">
             <span class="tech-item__label">Review Status</span>
             <strong class="tech-item__val">{{ alignment.review_status }}</strong>
           </div>

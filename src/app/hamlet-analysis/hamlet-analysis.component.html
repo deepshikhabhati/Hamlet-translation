@@ -45,7 +45,7 @@
     <!-- VIEW 1: Read and analyze (Version 1.5 Main Dashboard & Detail) -->
     <!-- ============================================================== -->
     <ng-container *ngIf="activeTab === 'passage'">
-      <div class="ha-layout-three-col" [class.ha-layout-two-col]="viewMode !== 'scene'">
+      <div class="ha-layout-three-col" [class.ha-layout-two-col]="viewMode !== 'scene'" [class.ha-toc-collapsed]="tocCollapsed">
 
         <!-- Left Column: Hierarchical Table of Contents (TOC) -->
         <aside class="ha-col-toc table-of-contents toc-panel" [class.ha-col-toc--mobile-open]="mobileTocOpen" aria-label="Hamlet Table of Contents">
@@ -106,7 +106,7 @@
 
             <!-- Dialogue Analysis Section (Header, Texts, Back-translation, 8 Dimensions, Explanation, Phrase Evidence, Expert Review) -->
             <section class="v15-dialogue-detail-panel v15-dialogue-detail-panel--standalone" aria-label="Dialogue Analysis and Expert Review">
-              <!-- 1. Dialogue Heading and Status -->
+              <!-- 1. Compact Dialogue Heading and Status (A) -->
               <div class="v15-dialogue-head">
                 <div class="v15-dialogue-meta">
                   <div class="v15-dialogue-id-badge">{{ inspectedDialogue.dialogue_id }}</div>
@@ -122,6 +122,9 @@
                   <span class="v15-dialogue-cur-dim">
                     Dimension: <strong>{{ getDimensionName(activeInspectorDim) }}</strong>
                   </span>
+                  <span class="v15-dialogue-cur-score" *ngIf="getDialogueHumanScore(inspectedDialogue, activeInspectorDim) !== null">
+                    Score: <strong [style.color]="getHumanScoreColor(getDialogueHumanScore(inspectedDialogue, activeInspectorDim))">{{ formatHumanScore(getDialogueHumanScore(inspectedDialogue, activeInspectorDim)) }}</strong>
+                  </span>
                 </div>
                 <div class="v15-dialogue-head-actions">
                   <button type="button" class="v15-insp-next-btn" (click)="nextReview()" title="Jump to next review candidate in this scene">
@@ -131,88 +134,15 @@
                 </div>
               </div>
 
-
-
-              <!-- 2. Human Dimension Score Summary (All 8 Dimensions) -->
-              <div class="v15-human-dim-summary-block">
-                <div class="v15-block-heading">Human German Dimension Scores</div>
-                <div class="v15-dim-chips-grid">
-                  <button
-                    *ngFor="let d of v15Dimensions"
-                    type="button"
-                    class="v15-dim-chip-btn"
-                    [class.v15-dim-chip-btn--active]="activeInspectorDim === d.key"
-                    (click)="onInspectorDimensionChange(d.key)"
-                  >
-                    <span class="v15-dim-chip-name">{{ d.short }}</span>
-                    <span
-                      class="v15-dim-chip-score"
-                      [style.color]="getHumanScoreColor(getDialogueHumanScore(inspectedDialogue, d.key))"
-                    >
-                      {{ formatHumanScore(getDialogueHumanScore(inspectedDialogue, d.key)) }}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 3. Review Cards & Literary Explanation with Provenance -->
-              <div class="v15-explanation-card">
-                <div class="v15-card-head-row">
-                  <h4 class="v15-card-h4">{{ getDimensionName(activeInspectorDim) }} — Literary Explanation</h4>
-                  <div class="v15-provenance-badge" [class.v15-provenance-badge--expert]="isDialogueExpertReviewed(inspectedDialogue, activeInspectorDim)">
-                    <span *ngIf="isDialogueExpertReviewed(inspectedDialogue, activeInspectorDim)">
-                      ✓ Expert-Reviewed Decision
-                    </span>
-                    <span *ngIf="!isDialogueExpertReviewed(inspectedDialogue, activeInspectorDim)">
-                      Machine-Generated Initial Assessment (Provisional)
-                    </span>
-                  </div>
-                </div>
-
-                <div class="v15-eval-metrics-row">
-                  <div class="v15-eval-metric">
-                    <span class="v15-eval-metric-lbl">Preservation Category:</span>
-                    <span class="v15-chip" [ngClass]="'v15-chip--' + getDialogueStatus(inspectedDialogue, 'human_german', activeInspectorDim).toLowerCase()">
-                      {{ getDialogueStatus(inspectedDialogue, 'human_german', activeInspectorDim) }}
-                    </span>
-                  </div>
-                  <div class="v15-eval-metric">
-                    <span class="v15-eval-metric-lbl">Human Score:</span>
-                    <strong class="v15-eval-metric-val" [style.color]="getHumanScoreColor(getDialogueHumanScore(inspectedDialogue, activeInspectorDim))">
-                      {{ formatHumanScore(getDialogueHumanScore(inspectedDialogue, activeInspectorDim)) }}
-                    </strong>
-                  </div>
-                  <div class="v15-eval-metric">
-                    <span class="v15-eval-metric-lbl">Confidence:</span>
-                    <span class="v15-eval-metric-val">{{ getActiveInspectorConfidence() }}</span>
-                  </div>
-                </div>
-
-                <p class="v15-explanation-body">
-                  {{ getActiveInspectorExplanation() }}
-                </p>
-
-                <!-- Text Provenance & Phrasing Variation Notice (TASK 4) -->
-                <div *ngIf="hasExplanationMismatch(inspectedDialogue, activeInspectorDim)" class="v15-mismatch-banner">
-                  <div class="v15-mismatch-header">
-                    <span class="v15-mismatch-icon">⚠️</span>
-                    <strong>Text Provenance & Phrasing Variation Notice</strong>
-                  </div>
-                  <p class="v15-mismatch-desc">
-                    The initial model assessment references German phrasing ("Wer ist da?") distinct from the Schlegel-Tieck Human German text ("Wer da?"). Flagged for philological review.
-                  </p>
-                </div>
-              </div>
-
-              <!-- 4. Phrase-Level Evidence with Exact Spans and Highlighting -->
+              <!-- 2. Phrase-Level Evidence & Alignment (B) -->
               <div class="v15-phrase-evidence-card">
                 <div class="v15-card-head-row">
                   <h4 class="v15-card-h4">Phrase-Level Evidence & Alignment</h4>
-                  <div class="v15-evidence-legend">
-                    <span class="v15-chip v15-chip--preserved">Preserved</span>
-                    <span class="v15-chip v15-chip--changed">Changed</span>
-                    <span class="v15-chip v15-chip--lost">Lost</span>
-                    <span class="v15-chip v15-chip--added">Added</span>
+                  <div class="v15-evidence-legend" role="region" aria-label="Phrase Highlight Legend">
+                    <span class="v15-chip v15-chip--preserved" title="Preserved meaning">Preserved</span>
+                    <span class="v15-chip v15-chip--changed" title="Changed meaning">Changed</span>
+                    <span class="v15-chip v15-chip--lost" title="Lost meaning">Lost</span>
+                    <span class="v15-chip v15-chip--added" title="Added meaning">Added</span>
                   </div>
                 </div>
 
@@ -252,6 +182,51 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                     View in Original German Document
                   </button>
+                </div>
+              </div>
+
+              <!-- 3. Review Cards & Specific Literary Explanation (C) -->
+              <div class="v15-explanation-card">
+                <div class="v15-card-head-row">
+                  <h4 class="v15-card-h4">{{ getDimensionName(activeInspectorDim) }} — Literary Explanation</h4>
+                  <div class="v15-provenance-badge" [class.v15-provenance-badge--expert]="isDialogueExpertReviewed(inspectedDialogue, activeInspectorDim)">
+                    <span *ngIf="isDialogueExpertReviewed(inspectedDialogue, activeInspectorDim)">
+                      ✓ Expert-Reviewed Decision
+                    </span>
+                    <span *ngIf="!isDialogueExpertReviewed(inspectedDialogue, activeInspectorDim)">
+                      Machine-Generated Initial Assessment (Provisional)
+                    </span>
+                  </div>
+                </div>
+
+                <div class="v15-eval-metrics-row">
+                  <div class="v15-eval-metric">
+                    <span class="v15-eval-metric-lbl">Preservation Category:</span>
+                    <span class="v15-chip" [ngClass]="'v15-chip--' + getDialogueStatus(inspectedDialogue, 'human_german', activeInspectorDim).toLowerCase()">
+                      {{ getDialogueStatus(inspectedDialogue, 'human_german', activeInspectorDim) }}
+                    </span>
+                  </div>
+                  <div class="v15-eval-metric">
+                    <span class="v15-eval-metric-lbl">Human Score:</span>
+                    <strong class="v15-eval-metric-val" [style.color]="getHumanScoreColor(getDialogueHumanScore(inspectedDialogue, activeInspectorDim))">
+                      {{ formatHumanScore(getDialogueHumanScore(inspectedDialogue, activeInspectorDim)) }}
+                    </strong>
+                  </div>
+                </div>
+
+                <p class="v15-explanation-body">
+                  {{ getActiveInspectorExplanation() }}
+                </p>
+
+                <!-- Text Provenance & Phrasing Variation Notice (TASK 4) -->
+                <div *ngIf="hasExplanationMismatch(inspectedDialogue, activeInspectorDim)" class="v15-mismatch-banner">
+                  <div class="v15-mismatch-header">
+                    <span class="v15-mismatch-icon">⚠️</span>
+                    <strong>Text Provenance & Phrasing Variation Notice</strong>
+                  </div>
+                  <p class="v15-mismatch-desc">
+                    The initial model assessment references German phrasing ("Wer ist da?") distinct from the Schlegel-Tieck Human German text ("Wer da?"). Flagged for philological review.
+                  </p>
                 </div>
               </div>
 
@@ -376,9 +351,22 @@
 
               <!-- 1. Compact Reader Header: "Hamlet, side by side" & Show Analysis toggle -->
               <header class="reader-header reader-header-section v15-scene-header-card reader-intro" aria-label="Scene Reading Header">
-                <div class="reader-heading reader-title-left">
-                  <h5 class="reader-main-title reader-title">Hamlet, side by side</h5>
-                  <p class="reader-sub-title reader-subtitle">Read the English original and the Human German translation together.</p>
+                <div class="reader-header-left-group">
+                  <button
+                    type="button"
+                    class="v15-toc-toggle-btn"
+                    (click)="toggleToc()"
+                    [title]="tocCollapsed ? 'Show Table of Contents' : 'Collapse Table of Contents'"
+                    [attr.aria-expanded]="!tocCollapsed"
+                    aria-label="Toggle Table of Contents"
+                  >
+                    <span class="toc-icon">{{ tocCollapsed ? '▶' : '◀' }}</span>
+                    <span class="toc-btn-text">{{ tocCollapsed ? 'Show TOC' : 'Hide TOC' }}</span>
+                  </button>
+                  <div class="reader-heading reader-title-left">
+                    <h5 class="reader-main-title reader-title">Hamlet, side by side</h5>
+                    <p class="reader-sub-title reader-subtitle">Read the English original and the Human German translation together.</p>
+                  </div>
                 </div>
 
                 <div class="reader-header-actions reader-toggle-box">
@@ -421,159 +409,73 @@
                     id="tab-{{ tab.key }}"
                   >
                     <span class="tab-label">{{ tab.name }}</span>
-                  <span
-                    class="tab-score-pill"
-                    [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, tab.key, 'human_german'))"
-                  >
-                    {{ getSceneDimensionScoreDisplay(selectedAnalysisScene, tab.key) }}
-                  </span>
-                </button>
-              </div>
-            </nav>
-
-            <!-- Human German Literary Dimensions Table Card (Shown when Show Analysis is enabled) -->
-            <section *ngIf="showAnalysis" class="v15-human-matrix-section analysis-card" aria-label="Human German 8-Dimension Literary Analysis">
-              <div class="v15-section-title-row analysis-header">
-                <div>
-                  <h3 class="v15-section-title">Human German Literary Dimensions</h3>
-                  <p class="v15-section-sub analysis-subtitle">Preservation and literary scores across 8 dimensions. Click any dimension to inspect supporting phrases.</p>
-                </div>
-                <div class="v15-section-ctrls">
-                  <button type="button" class="v15-toggle-read-btn analysis-toggle-button" (click)="toggleSceneReading()">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline [attr.points]="sceneReadingOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'"></polyline>
-                    </svg>
-                    {{ sceneReadingOpen ? 'Hide scene reading' : 'Read scene' }}
+                    <span
+                      class="tab-score-pill"
+                      [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, tab.key, 'human_german'))"
+                    >
+                      {{ getSceneDimensionScoreDisplay(selectedAnalysisScene, tab.key) }}
+                    </span>
                   </button>
                 </div>
-              </div>
+              </nav>
 
-              <!-- Dimension Table -->
-              <div class="v15-table-wrap">
-                <table class="v15-human-dim-table analysis-table" role="table">
-                  <thead>
-                    <tr>
-                      <th style="width:25%">Dimension</th>
-                      <th style="width:25%">Score visualization</th>
-                      <th style="width:15%; text-align:right">Human DE score</th>
-                      <th style="width:15%; text-align:right">Units (N)</th>
-                      <th style="width:20%; text-align:right">Review status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      *ngFor="let dim of v15Dimensions"
-                      class="v15-dim-row"
-                      [class.v15-dim-row--active]="selectedAnalysisDimension === dim.key"
-                      (click)="selectDimensionTab(dim.key)"
-                      tabindex="0"
-                      role="row"
-                      [title]="'Click to inspect ' + dim.name + ' phrase evidence'"
-                    >
-                      <td class="v15-dim-name-cell">
-                        <strong class="v15-dim-name">{{ dim.name }}</strong>
-                      </td>
-                      <td class="v15-dim-bar-cell">
-                        <div class="v15-dim-microbar-track analysis-score-bar">
-                          <div
-                            class="v15-dim-microbar-fill"
-                            [style.width]="getHumanScoreWidth(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                            [style.background-color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                          ></div>
-                        </div>
-                      </td>
-                      <td class="v15-dim-score-cell" style="text-align:right">
-                        <span
-                          class="v15-score-badge"
-                          [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                          [style.background-color]="getHumanScoreBgColor(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german'))"
-                        >
-                          {{ formatHumanScore(getSceneDimensionScore(selectedAnalysisScene, dim.key, 'human_german')) }}
-                        </span>
-                      </td>
-                      <td class="v15-dim-units-cell" style="text-align:right">
-                        <span class="v15-units-text">
-                          {{ getSceneDimensionUnits(selectedAnalysisScene, dim.key) }}/{{ selectedAnalysisScene.dialogues.length }}
-                        </span>
-                      </td>
-                      <td class="v15-dim-rev-cell" style="text-align:right">
-                        <span
-                          *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) > 0"
-                          class="v15-rev-flag-pill analysis-review-badge"
-                          title="Unique dialogues in this scene flagged for review in this dimension"
-                        >
-                          {{ getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) }} to review
-                        </span>
-                        <span
-                          *ngIf="getSceneDimensionHumanReviewCount(selectedAnalysisScene, dim.key) === 0"
-                          class="v15-rev-clear-pill analysis-review-badge"
-                        >
-                          Clear
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Score Heatmap Legend -->
-              <div class="v15-heatmap-legend-bar score-legend">
-                <div class="v15-legend-title">Human DE Score Scale:</div>
-                <div class="v15-legend-scale">
-                  <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
-                    <span class="v15-legend-color-dot" [style.background-color]="th.color"></span>
-                    <span class="v15-legend-step-lbl">{{ th.label }} ({{ th.level }})</span>
+              <!-- Compact Phrase-Highlight Legend and Filter Strip (Shown when Show Analysis is enabled; replaces redundant 8-dim table) -->
+              <section *ngIf="showAnalysis" class="reader-analysis-summary-bar" aria-label="Scene Analysis Controls and Legend">
+                <div class="analysis-summary-row">
+                  <!-- Phrase Highlight Color Legend (Requirement 5) -->
+                  <div class="analysis-legend-group" role="region" aria-label="Phrase Highlight Legend">
+                    <span class="legend-header-lbl">Phrase Annotation:</span>
+                    <div class="legend-items-list">
+                      <span class="legend-item legend-item--preserved" title="Preserved meaning: translation conveys source meaning faithfully">
+                        <span class="legend-dot" style="background:#16a34a"></span>
+                        <span class="legend-text">Preserved</span>
+                      </span>
+                      <span class="legend-item legend-item--changed" title="Changed meaning: translation alters nuance, metaphor, or register">
+                        <span class="legend-dot" style="background:#2563eb"></span>
+                        <span class="legend-text">Changed</span>
+                      </span>
+                      <span class="legend-item legend-item--lost" title="Lost meaning: source nuance, wordplay, or phrasing omitted">
+                        <span class="legend-dot" style="background:#dc2626"></span>
+                        <span class="legend-text">Lost</span>
+                      </span>
+                      <span class="legend-item legend-item--added" title="Added meaning: translation introduces new semantic content">
+                        <span class="legend-dot" style="background:#9333ea"></span>
+                        <span class="legend-text">Added</span>
+                      </span>
+                    </div>
                   </div>
-                  <div class="v15-legend-step">
-                    <span class="v15-legend-color-dot" style="background-color:#94a3b8"></span>
-                    <span class="v15-legend-step-lbl">N/A (Not applicable)</span>
+
+                  <div class="analysis-summary-stats">
+                    <div class="analysis-stat-pill">
+                      <span class="stat-lbl">{{ getDimensionName(selectedAnalysisDimension) }}:</span>
+                      <strong class="stat-val" [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, selectedAnalysisDimension, 'human_german'))">
+                        {{ getSceneDimensionScoreDisplay(selectedAnalysisScene, selectedAnalysisDimension) }}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div class="analysis-filter-shortcuts">
+                    <button
+                      type="button"
+                      class="analysis-shortcut-btn"
+                      [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'all'"
+                      (click)="analysisPhraseFilter = 'all'"
+                    >All ({{ getAllPhrasesCount() }})</button>
+                    <button
+                      type="button"
+                      class="analysis-shortcut-btn"
+                      [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'review'"
+                      (click)="analysisPhraseFilter = 'review'"
+                    >Needs Review ({{ getNeedsReviewCount() }})</button>
+                    <button
+                      type="button"
+                      class="analysis-shortcut-btn"
+                      [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'diff'"
+                      (click)="analysisPhraseFilter = 'diff'"
+                    >Biggest Differences ({{ getDifferencesCount() }})</button>
                   </div>
                 </div>
-                <div class="v15-legend-note">
-                  Single-shade green intensity communicating preservation. Missing scores are never converted to zero.
-                </div>
-              </div>
-            </section>
-
-            <!-- Optional Analysis Summary Bar (Requirement 10) -->
-            <section *ngIf="showAnalysis" class="reader-analysis-summary-bar" aria-label="Scene Analysis Summary">
-              <div class="analysis-summary-row">
-                <div class="analysis-stat-pill">
-                  <span class="stat-lbl">{{ getDimensionName(selectedAnalysisDimension) }} Avg:</span>
-                  <strong class="stat-val" [style.color]="getHumanScoreColor(getSceneDimensionScore(selectedAnalysisScene, selectedAnalysisDimension, 'human_german'))">
-                    {{ getSceneDimensionScoreDisplay(selectedAnalysisScene, selectedAnalysisDimension) }}
-                  </strong>
-                </div>
-                <div class="analysis-stat-pill">
-                  <span class="stat-lbl">Scored:</span>
-                  <strong class="stat-val">{{ getSceneDimensionUnits(selectedAnalysisScene, selectedAnalysisDimension) }}/{{ selectedAnalysisScene.dialogues.length }}</strong>
-                </div>
-                <div class="analysis-stat-pill">
-                  <span class="stat-lbl">Flagged:</span>
-                  <strong class="stat-val text-amber">{{ getSceneDimensionHumanReviewCount(selectedAnalysisScene, selectedAnalysisDimension) }}</strong>
-                </div>
-                <div class="analysis-filter-shortcuts">
-                  <button
-                    type="button"
-                    class="analysis-shortcut-btn"
-                    [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'all'"
-                    (click)="analysisPhraseFilter = 'all'"
-                  >All ({{ getAllPhrasesCount() }})</button>
-                  <button
-                    type="button"
-                    class="analysis-shortcut-btn"
-                    [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'review'"
-                    (click)="analysisPhraseFilter = 'review'"
-                  >Needs Review ({{ getNeedsReviewCount() }})</button>
-                  <button
-                    type="button"
-                    class="analysis-shortcut-btn"
-                    [class.analysis-shortcut-btn--active]="analysisPhraseFilter === 'diff'"
-                    (click)="analysisPhraseFilter = 'diff'"
-                  >Biggest Differences ({{ getDifferencesCount() }})</button>
-                </div>
-              </div>
-            </section>
+              </section>
 
             <!-- Filter Status Banner if filtered -->
             <div *ngIf="analysisPhraseFilter !== 'all'" class="reader-filter-indicator-bar">
@@ -1028,10 +930,10 @@
                 </span>
               </div>
 
-              <!-- Scores Card -->
+              <!-- Scores Card (Confidence removed per Requirement 9) -->
               <div class="inspector-score-card">
                 <div class="score-metric">
-                  <span class="score-metric-lbl">Score</span>
+                  <span class="score-metric-lbl">Human Score</span>
                   <strong
                     class="score-metric-val"
                     [style.color]="getInspectorScoreColor(inspectedDlg)"
@@ -1040,13 +942,7 @@
                   </strong>
                 </div>
                 <div class="score-metric">
-                  <span class="score-metric-lbl">Confidence</span>
-                  <strong class="score-metric-val">
-                    {{ getInspectorConfidenceDisplay(inspectedDlg) }}
-                  </strong>
-                </div>
-                <div class="score-metric">
-                  <span class="score-metric-lbl">Review</span>
+                  <span class="score-metric-lbl">Review Status</span>
                   <strong
                     class="score-metric-val"
                     [class.text-amber]="isDialogueFlagged(inspectedDlg, 'human_german', selectedAnalysisDimension)"
@@ -1073,11 +969,11 @@
                 </div>
               </div>
 
-              <!-- Scholarly Assessment / Explanation (Requirement 8) -->
+              <!-- Scholarly Assessment / Explanation (Requirement 8 & 10) -->
               <div class="inspector-explanation-block">
                 <span class="explanation-lbl">Scholarly Assessment</span>
                 <p class="explanation-text">
-                  {{ selectedEvidencePhrase?.explanation || getInspectedDialogueExplanation(inspectedDlg, selectedAnalysisDimension) || 'Aligned phrase evidence from Schlegel-Tieck translation.' }}
+                  {{ selectedEvidencePhrase?.explanation || getInspectedDialogueExplanation(inspectedDlg, selectedAnalysisDimension) || 'Explanation requires review' }}
                 </p>
               </div>
 
@@ -1093,7 +989,7 @@
                 </div>
               </div>
 
-              <!-- Original-Document Verification (Requirement 9) -->
+              <!-- Original-Document Verification (Requirement 9 & 13) -->
               <div class="inspector-pdf-verification-block">
                 <span class="verification-title">Original Source Verification</span>
                 <div class="verification-btn-group">
@@ -1121,6 +1017,81 @@
                 </p>
               </div>
 
+              <!-- Compact Expert Validation (Requirements 8, 12, 13) -->
+              <div class="inspector-validation-section">
+                <div class="inspector-validation-header">
+                  <span class="validation-title">Scholarly Validation</span>
+                  <span
+                    class="validation-badge"
+                    [class.validation-badge--verified]="isDialogueExpertReviewed(inspectedDlg, selectedAnalysisDimension)"
+                  >
+                    {{ isDialogueExpertReviewed(inspectedDlg, selectedAnalysisDimension) ? 'Verified' : 'Pending' }}
+                  </span>
+                </div>
+
+                <div class="inspector-decision-buttons">
+                  <button
+                    type="button"
+                    class="inspector-decision-btn inspector-decision-btn--accept"
+                    [class.active]="valDecision === 'Accept'"
+                    (click)="valDecision = 'Accept'"
+                  >Accept</button>
+                  <button
+                    type="button"
+                    class="inspector-decision-btn inspector-decision-btn--revise"
+                    [class.active]="valDecision === 'Needs Revision'"
+                    (click)="valDecision = 'Needs Revision'"
+                  >Revise</button>
+                  <button
+                    type="button"
+                    class="inspector-decision-btn inspector-decision-btn--reject"
+                    [class.active]="valDecision === 'Reject'"
+                    (click)="valDecision = 'Reject'"
+                  >Reject</button>
+                </div>
+
+                <div class="inspector-val-row">
+                  <label class="inspector-val-label" for="insp-score-input">Score Override:</label>
+                  <input
+                    type="number"
+                    id="insp-score-input"
+                    class="inspector-val-input"
+                    min="0"
+                    max="100"
+                    step="1"
+                    placeholder="e.g. 95"
+                    [(ngModel)]="valScoreOverride"
+                  />
+                </div>
+
+                <div class="inspector-val-row">
+                  <label class="inspector-val-label" for="insp-comment-input">Scholar Notes:</label>
+                  <textarea
+                    id="insp-comment-input"
+                    class="inspector-val-textarea"
+                    rows="2"
+                    placeholder="Philological notes..."
+                    [(ngModel)]="valComment"
+                  ></textarea>
+                </div>
+
+                <div class="inspector-val-actions">
+                  <button
+                    type="button"
+                    class="inspector-save-decision-btn"
+                    (click)="saveInspectorReviewFromEvidence()"
+                  >Save Decision</button>
+                  <button
+                    type="button"
+                    class="inspector-reset-decision-btn"
+                    (click)="resetInspectorDraft()"
+                  >Reset</button>
+                </div>
+                <div *ngIf="valSaveMessage" class="inspector-save-message">
+                  {{ valSaveMessage }}
+                </div>
+              </div>
+
               <!-- Detailed Review Launcher (Requirement 15) -->
               <div class="inspector-detailed-review-block">
                 <button
@@ -1128,7 +1099,7 @@
                   class="inspector-open-review-btn"
                   (click)="openInspector(inspectedDlg.dialogue_id, 'human_german')"
                 >
-                  Open Detailed Expert Review →
+                  Open Dedicated Dialogue View →
                 </button>
               </div>
             </div>
@@ -1308,9 +1279,6 @@
       </span>
       <span *ngIf="activePopover.score !== null" class="v15-pop-metric">
         Score: <strong>{{ activePopover.score }}</strong>
-      </span>
-      <span *ngIf="activePopover.confidence !== null" class="v15-pop-metric">
-        Conf: <strong>{{ activePopover.confidence | number:'1.2-2' }}</strong>
       </span>
       <span class="v15-pop-speaker-badge">
         {{ activePopover.speaker }} ({{ activePopover.dialogueId }})
@@ -1496,7 +1464,6 @@
                 <strong>{{ issue.dimensionName }} ({{ issue.translationName }}):</strong>
                 {{ issue.reasons.join(', ') }}
                 <span *ngIf="issue.score !== null">· Score: {{ issue.score }}</span>
-                <span *ngIf="issue.confidence !== null">· Conf: {{ (issue.confidence * 100).toFixed(0) }}%</span>
                 <span *ngIf="issue.resolved" class="flag-resolved-tag">· [Resolved]</span>
               </span>
             </div>
