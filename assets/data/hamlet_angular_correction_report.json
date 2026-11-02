@@ -1,0 +1,1384 @@
+{
+  "stats": {
+    "dialogues": 1107,
+    "assessments": 26568,
+    "evidence_checked": 38655,
+    "valid_evidence": 34544,
+    "assessments_needing_review": 16674,
+    "invalid_evidence": 4111,
+    "scores_suppressed_missing_target": 1027
+  },
+  "issues_sample": [
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00007:human_german:semantic:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00007:human_german:tone:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00007:ai_german:semantic:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00007:ai_german:tone:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "context_ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00007:context_ai_german:semantic:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "context_ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00007:context_ai_german:tone:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00007",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00007:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00009",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00009:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00011",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00011:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00011",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00011:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00014",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00014:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00017",
+      "version": "ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00017:ai_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00019",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00019:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00021",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00021:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00022",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00022:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00022",
+      "version": "ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00022:ai_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00024",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00024:human_german:tone:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00024",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00024:human_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00024",
+      "version": "context_ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00024:context_ai_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00024",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00024:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00026",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00026:human_german:emotion:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00026",
+      "version": "human_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S1-D00026:human_german:metaphor_imagery:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00026",
+      "version": "ai_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S1-D00026:ai_german:metaphor_imagery:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00026",
+      "version": "context_ai_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S1-D00026:context_ai_german:metaphor_imagery:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00029",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00029:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00029",
+      "version": "ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00029:ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00029",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00029:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00030",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00030:human_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00030",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00030:human_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00030",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00030:human_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00030",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S1-D00030:human_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00030",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00030:human_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00035",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00035:human_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00035",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00035:human_german:semantic:003",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00035",
+      "version": "human_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S1-D00035:human_german:metaphor_imagery:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00035",
+      "version": "human_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S1-D00035:human_german:metaphor_imagery:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00035",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S1-D00035:human_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00038",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00038:human_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00040:human_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00040:human_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S1-D00040:human_german:character_voice:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00040:human_german:cultural_archaic:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "ai_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S1-D00040:ai_german:character_voice:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00040:ai_german:cultural_archaic:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "context_ai_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S1-D00040:context_ai_german:character_voice:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00040",
+      "version": "context_ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00040:context_ai_german:cultural_archaic:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00043",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00043:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00045",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00045:human_german:tone:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00045",
+      "version": "ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00045:ai_german:tone:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00045",
+      "version": "context_ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00045:context_ai_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00045",
+      "version": "context_ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00045:context_ai_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00046",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00046:human_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00046",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00046:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00047",
+      "version": "ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00047:ai_german:cultural_archaic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00049:human_german:semantic:003",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00049:human_german:tone:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00049:human_german:omissions_additions:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00049:ai_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00049:ai_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "context_ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00049:context_ai_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00049",
+      "version": "context_ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00049:context_ai_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00050:human_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00050:human_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S1-D00050:human_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00050:ai_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00050:ai_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "context_ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00050:context_ai_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00050",
+      "version": "context_ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00050:context_ai_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00051",
+      "version": "ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00051:ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00051",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00051:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00056",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00056:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00057:human_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00057:human_german:emotion:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00057:human_german:tone:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00057:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00057:ai_german:emotion:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00057:ai_german:tone:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00057:ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "context_ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S1-D00057:context_ai_german:emotion:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "context_ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S1-D00057:context_ai_german:tone:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00057",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S1-D00057:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00059",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S1-D00059:human_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S1-D00059",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S1-D00059:human_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00060",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00060:human_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00062",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00062:human_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00064",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00064:human_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00064",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00064:human_german:character_voice:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00065",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00065:human_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00068",
+      "version": "ai_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S2-D00068:ai_german:metaphor_imagery:003",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00071",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00071:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00071",
+      "version": "ai_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S2-D00071:ai_german:metaphor_imagery:003",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00072",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00072:human_german:character_voice:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00072",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00072:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00072",
+      "version": "ai_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S2-D00072:ai_german:metaphor_imagery:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00072",
+      "version": "context_ai_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00072:context_ai_german:character_voice:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00074",
+      "version": "ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00074:ai_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00074",
+      "version": "ai_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00074:ai_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00074",
+      "version": "context_ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00074:context_ai_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00074",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00074:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00075",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00075:human_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00075",
+      "version": "human_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S2-D00075:human_german:metaphor_imagery:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00075",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00075:human_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00075",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00075:human_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00079",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00079:human_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00079",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00079:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00080:human_german:semantic:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00080:human_german:semantic:003",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S2-D00080:human_german:emotion:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S2-D00080:human_german:tone:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00080:human_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "wordplay",
+      "evidence_id": "EN-A1-S2-D00080:human_german:wordplay:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00080:human_german:omissions_additions:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00080:ai_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S2-D00080:ai_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00080:ai_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00080:ai_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "wordplay",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:wordplay:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:cultural_archaic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00080",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00080:context_ai_german:omissions_additions:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00082",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00082:human_german:omissions_additions:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00082",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00082:human_german:omissions_additions:003",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00082",
+      "version": "ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00082:ai_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00082",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00082:context_ai_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00082",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00082:context_ai_german:omissions_additions:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00086",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00086:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00087",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00087:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00088",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00088:human_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00088",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00088:human_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00088",
+      "version": "ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00088:ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00088",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00088:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets",
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00091",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00091:context_ai_german:omissions_additions:001",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00091",
+      "version": "context_ai_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00091:context_ai_german:omissions_additions:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00095",
+      "version": "human_german",
+      "dimension": "emotion",
+      "evidence_id": "EN-A1-S2-D00095:human_german:emotion:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00095",
+      "version": "human_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S2-D00095:human_german:tone:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00095",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00095:human_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00095",
+      "version": "human_german",
+      "dimension": "omissions_additions",
+      "evidence_id": "EN-A1-S2-D00095:human_german:omissions_additions:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00097",
+      "version": "human_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00097:human_german:character_voice:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00097",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00097:human_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00097",
+      "version": "context_ai_german",
+      "dimension": "metaphor_imagery",
+      "evidence_id": "EN-A1-S2-D00097:context_ai_german:metaphor_imagery:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00097",
+      "version": "context_ai_german",
+      "dimension": "wordplay",
+      "evidence_id": "EN-A1-S2-D00097:context_ai_german:wordplay:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00099",
+      "version": "human_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00099:human_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00099",
+      "version": "ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00099:ai_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00099",
+      "version": "context_ai_german",
+      "dimension": "semantic",
+      "evidence_id": "EN-A1-S2-D00099:context_ai_german:semantic:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00099",
+      "version": "context_ai_german",
+      "dimension": "tone",
+      "evidence_id": "EN-A1-S2-D00099:context_ai_german:tone:002",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00099",
+      "version": "context_ai_german",
+      "dimension": "character_voice",
+      "evidence_id": "EN-A1-S2-D00099:context_ai_german:character_voice:001",
+      "issues": [
+        "target_missing_offsets"
+      ]
+    },
+    {
+      "dialogue_id": "EN-A1-S2-D00099",
+      "version": "context_ai_german",
+      "dimension": "cultural_archaic",
+      "evidence_id": "EN-A1-S2-D00099:context_ai_german:cultural_archaic:002",
+      "issues": [
+        "source_missing_offsets"
+      ]
+    }
+  ],
+  "caveats": [
+    "Phrase offset verification is mechanical, not a scholarly validation of semantic status or explanation.",
+    "Scores and literary claims need expert review, particularly heuristic-provisional assessments.",
+    "Invalid spans retained in evidence_needing_review and omitted from evidence used for highlighting.",
+    "UI should use ui_scene_summaries for updated scores and review counts."
+  ]
+}
