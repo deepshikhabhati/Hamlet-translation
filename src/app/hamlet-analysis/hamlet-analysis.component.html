@@ -104,6 +104,35 @@
               </div>
             </div>
 
+            <!-- 8-Dimension Literary Navigation Strip (Requirement 5) -->
+            <nav
+              class="dimension-toolbar reader-dimension-tabs-bar"
+              aria-label="Literary dimensions in dialogue"
+              role="tablist"
+              style="margin-bottom: 10px;"
+            >
+              <div class="reader-dimension-tabs-track">
+                <button
+                  *ngFor="let tab of primaryDimensionTabs"
+                  type="button"
+                  role="tab"
+                  [attr.aria-selected]="activeInspectorDim === tab.key"
+                  class="dimension-tab reader-dimension-tab-btn"
+                  [class.reader-dimension-tab-btn--active]="activeInspectorDim === tab.key"
+                  (click)="selectDimensionTab(tab.key)"
+                  id="dlg-tab-{{ tab.key }}"
+                >
+                  <span class="tab-label">{{ tab.name }}</span>
+                  <span
+                    class="tab-score-pill"
+                    [style.color]="getHumanScoreColor(getDialogueDimensionScore(inspectedDialogue, tab.key))"
+                  >
+                    {{ getDialogueDimensionScoreDisplay(inspectedDialogue, tab.key) }}
+                  </span>
+                </button>
+              </div>
+            </nav>
+
             <!-- Dialogue Analysis Section (Header, Texts, Back-translation, 8 Dimensions, Explanation, Phrase Evidence, Expert Review) -->
             <section class="v15-dialogue-detail-panel v15-dialogue-detail-panel--standalone" aria-label="Dialogue Analysis and Expert Review">
               <!-- 1. Compact Dialogue Heading and Status (A) -->
@@ -134,10 +163,10 @@
                 </div>
               </div>
 
-              <!-- 2. Phrase-Level Evidence & Alignment (B) -->
+              <!-- 2. Four Translation Sections & Phrase-Level Evidence (Requirement 10) -->
               <div class="v15-phrase-evidence-card">
                 <div class="v15-card-head-row">
-                  <h4 class="v15-card-h4">Phrase-Level Evidence & Alignment</h4>
+                  <h4 class="v15-card-h4">Four Translations & Dimension Evidence: {{ getDimensionName(activeInspectorDim) }}</h4>
                   <div class="v15-evidence-legend" role="region" aria-label="Phrase Highlight Legend">
                     <span class="v15-chip v15-chip--preserved" title="Preserved meaning">Preserved</span>
                     <span class="v15-chip v15-chip--changed" title="Changed meaning">Changed</span>
@@ -146,10 +175,13 @@
                   </div>
                 </div>
 
-                <div class="v15-evidence-columns">
-                  <!-- English Source Alignment -->
+                <div class="v15-evidence-columns v15-evidence-columns--four">
+                  <!-- 1. English Source -->
                   <div class="v15-evidence-box">
-                    <div class="v15-evidence-box-title">English Source Spans</div>
+                    <div class="v15-evidence-box-title">
+                      <span>Original English</span>
+                      <span class="v15-box-ver-badge">Shakespeare (1603/23)</span>
+                    </div>
                     <app-ha-evidence-highlighted-text
                       [text]="inspectedDialogue.texts.english || ''"
                       [spans]="getHumanSourceSpansForDialogue(inspectedDialogue, activeInspectorDim)"
@@ -159,9 +191,12 @@
                     ></app-ha-evidence-highlighted-text>
                   </div>
 
-                  <!-- Human German Alignment -->
+                  <!-- 2. Human German -->
                   <div class="v15-evidence-box">
-                    <div class="v15-evidence-box-title">Human German Alignment</div>
+                    <div class="v15-evidence-box-title">
+                      <span>Human German</span>
+                      <span class="v15-box-ver-badge">Schlegel-Tieck</span>
+                    </div>
                     <app-ha-evidence-highlighted-text
                       [text]="inspectedDialogue.texts.human_german || ''"
                       [spans]="getTargetSpansForDialogue(inspectedDialogue, 'human_german', activeInspectorDim)"
@@ -169,6 +204,38 @@
                       (segmentHover)="onSegmentHover($event, 'human_german', inspectedDialogue)"
                       (segmentLeave)="onSegmentLeave()"
                       (segmentClick)="onSegmentClick($event, 'human_german', inspectedDialogue)"
+                    ></app-ha-evidence-highlighted-text>
+                  </div>
+
+                  <!-- 3. AI German -->
+                  <div class="v15-evidence-box">
+                    <div class="v15-evidence-box-title">
+                      <span>AI German</span>
+                      <span class="v15-box-ver-badge">Baseline Model</span>
+                    </div>
+                    <app-ha-evidence-highlighted-text
+                      [text]="inspectedDialogue.texts.ai_german || ''"
+                      [spans]="getTargetSpansForDialogue(inspectedDialogue, 'ai_german', activeInspectorDim)"
+                      fallbackText="[AI translation unavailable]"
+                      (segmentHover)="onSegmentHover($event, 'ai_german', inspectedDialogue)"
+                      (segmentLeave)="onSegmentLeave()"
+                      (segmentClick)="onSegmentClick($event, 'ai_german', inspectedDialogue)"
+                    ></app-ha-evidence-highlighted-text>
+                  </div>
+
+                  <!-- 4. Context-Aware AI German -->
+                  <div class="v15-evidence-box">
+                    <div class="v15-evidence-box-title">
+                      <span>Context-Aware AI German</span>
+                      <span class="v15-box-ver-badge">Context Model</span>
+                    </div>
+                    <app-ha-evidence-highlighted-text
+                      [text]="inspectedDialogue.texts.context_ai_german || ''"
+                      [spans]="getTargetSpansForDialogue(inspectedDialogue, 'context_ai_german', activeInspectorDim)"
+                      fallbackText="[Context AI translation unavailable]"
+                      (segmentHover)="onSegmentHover($event, 'context_ai_german', inspectedDialogue)"
+                      (segmentLeave)="onSegmentLeave()"
+                      (segmentClick)="onSegmentClick($event, 'context_ai_german', inspectedDialogue)"
                     ></app-ha-evidence-highlighted-text>
                   </div>
                 </div>
@@ -182,6 +249,114 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                     View in Original German Document
                   </button>
+                </div>
+              </div>
+
+              <!-- Back-translation: German → English (Requirement 10) -->
+              <div class="v15-back-translation-card">
+                <div class="v15-card-head-row">
+                  <div>
+                    <h4 class="v15-card-h4">Back-translation: German → English</h4>
+                    <p class="v15-card-sub">Select which German translation to back-translate into English using real translation to evaluate reverse fidelity.</p>
+                  </div>
+                  <div class="v15-bt-version-picker">
+                    <button
+                      type="button"
+                      class="v15-bt-ver-btn"
+                      [class.v15-bt-ver-btn--active]="selectedBackTranslationVersion === 'human_german'"
+                      (click)="translateGermanToEnglishVersion('human_german')"
+                    >Human DE</button>
+                    <button
+                      type="button"
+                      class="v15-bt-ver-btn"
+                      [class.v15-bt-ver-btn--active]="selectedBackTranslationVersion === 'ai_german'"
+                      (click)="translateGermanToEnglishVersion('ai_german')"
+                    >AI DE</button>
+                    <button
+                      type="button"
+                      class="v15-bt-ver-btn"
+                      [class.v15-bt-ver-btn--active]="selectedBackTranslationVersion === 'context_ai_german'"
+                      (click)="translateGermanToEnglishVersion('context_ai_german')"
+                    >Context AI</button>
+                  </div>
+                </div>
+
+                <div class="v15-bt-actions-row">
+                  <button
+                    type="button"
+                    class="v15-bt-translate-btn"
+                    (click)="translateActiveDialogueBackToEnglish()"
+                    [disabled]="backTranslationLoading"
+                  >
+                    <span *ngIf="!backTranslationLoading">Translate German to English</span>
+                    <span *ngIf="backTranslationLoading">Translating…</span>
+                  </button>
+                  <span class="v15-bt-source-tag">Source: {{ getVersionLabel(selectedBackTranslationVersion) }}</span>
+                </div>
+
+                <!-- Parallel display: Original English vs Back-translated English -->
+                <div *ngIf="backTranslationResult" class="v15-bt-comparison-grid">
+                  <div class="v15-bt-col">
+                    <div class="v15-bt-col-header">Original English (Shakespeare)</div>
+                    <div class="v15-bt-text-body literary-text">{{ inspectedDialogue.texts.english }}</div>
+                  </div>
+                  <div class="v15-bt-col">
+                    <div class="v15-bt-col-header">
+                      Back-translated English (from {{ getVersionLabel(selectedBackTranslationVersion) }})
+                      <span *ngIf="backTranslationResult.cached" class="v15-bt-cached-pill">Cached</span>
+                    </div>
+                    <div *ngIf="backTranslationResult.status === 'success'" class="v15-bt-text-body literary-text v15-bt-text-body--result">
+                      {{ backTranslationResult.translatedEnglish }}
+                    </div>
+                    <div *ngIf="backTranslationResult.status === 'error'" class="v15-bt-error-message">
+                      {{ backTranslationResult.message }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Dimension-Focused German Translation Generator (Requirement 10) -->
+              <div class="v15-focused-trans-card">
+                <div class="v15-card-head-row">
+                  <div>
+                    <h4 class="v15-card-h4">Generate Dimension-Focused German Translation</h4>
+                    <p class="v15-card-sub">Generate a candidate German rendering targeted at preserving a specific literary feature. Kept separate from research dataset.</p>
+                  </div>
+                </div>
+
+                <div class="v15-focused-controls-row">
+                  <label class="v15-focused-label" for="focusedDimSelect">Target Dimension:
+                    <select
+                      id="focusedDimSelect"
+                      class="v15-focused-select"
+                      [(ngModel)]="selectedFocusedDimension"
+                    >
+                      <option *ngFor="let dim of v15Dimensions" [value]="dim.key">{{ dim.name }}</option>
+                    </select>
+                  </label>
+
+                  <button
+                    type="button"
+                    class="v15-focused-generate-btn"
+                    (click)="generateDimensionFocusedTranslation()"
+                    [disabled]="focusedTranslationLoading"
+                  >
+                    <span *ngIf="!focusedTranslationLoading">Generate Dimension-Focused German Translation</span>
+                    <span *ngIf="focusedTranslationLoading">Generating…</span>
+                  </button>
+                </div>
+
+                <div *ngIf="focusedTranslationResult" class="v15-focused-result-box">
+                  <div class="v15-focused-disclaimer">
+                    <span class="v15-disclaimer-icon">ℹ️</span>
+                    <strong>Translation Objective:</strong> {{ focusedTranslationResult.objective }}
+                  </div>
+                  <div *ngIf="focusedTranslationResult.status === 'success'" class="v15-focused-text literary-text">
+                    "{{ focusedTranslationResult.text }}"
+                  </div>
+                  <div *ngIf="focusedTranslationResult.status === 'error'" class="v15-bt-error-message">
+                    {{ focusedTranslationResult.message }}
+                  </div>
                 </div>
               </div>
 
@@ -314,7 +489,7 @@
                         class="v15-val-textarea"
                         [(ngModel)]="valComment"
                         name="valComment"
-                        rows="3"
+                        rows="5"
                         placeholder="Provide philological explanation or commentary..."
                       ></textarea>
                     </label>
@@ -337,6 +512,58 @@
                     </label>
                   </div>
                 </form>
+              </div>
+
+              <!-- AI Research Assistant Area (Requirement 11) -->
+              <div class="v15-ai-assistant-card">
+                <div class="v15-card-head-row">
+                  <div>
+                    <h4 class="v15-card-h4">AI Research Assistant (Comparative Philology)</h4>
+                    <span class="v15-ai-unverified-badge">⚠️ AI Suggestions Unverified until Accepted by Human Scholar</span>
+                  </div>
+                </div>
+                <p class="v15-ai-desc">
+                  Ask philological inquiries regarding <strong>{{ getDimensionName(activeInspectorDim) }}</strong>, compare translation nuances between Human and AI German, or request a proposed score revision.
+                </p>
+
+                <div class="v15-ai-query-row">
+                  <input
+                    type="text"
+                    class="v15-ai-input"
+                    [(ngModel)]="aiAssistantQuestion"
+                    placeholder="e.g. Compare the metaphor preservation between Schlegel and AI German..."
+                    (keyup.enter)="askAiResearchAssistant()"
+                  />
+                  <button
+                    type="button"
+                    class="v15-ai-submit-btn"
+                    (click)="askAiResearchAssistant()"
+                    [disabled]="aiAssistantLoading"
+                  >
+                    <span *ngIf="!aiAssistantLoading">Ask Assistant</span>
+                    <span *ngIf="aiAssistantLoading">Analyzing…</span>
+                  </button>
+                </div>
+
+                <div *ngIf="aiAssistantResponse" class="v15-ai-response-box">
+                  <div class="v15-ai-response-head">
+                    <strong>Proposed Assessment & Comparative Rationale:</strong>
+                    <span class="v15-unverified-tag">Unverified Proposal</span>
+                  </div>
+                  <p class="v15-ai-answer-text">{{ aiAssistantResponse.answer }}</p>
+                  <div class="v15-ai-suggestion-meta" *ngIf="aiAssistantResponse.suggestedOverride !== undefined">
+                    <span>Suggested Score Override: <strong>{{ aiAssistantResponse.suggestedOverride }}</strong></span>
+                  </div>
+                  <div class="v15-ai-actions">
+                    <button
+                      type="button"
+                      class="v15-ai-apply-btn"
+                      (click)="applyAiSuggestionToReview()"
+                    >
+                      Apply Suggestion to Review Form
+                    </button>
+                  </div>
+                </div>
               </div>
 
             </section>
@@ -365,7 +592,9 @@
                   </button>
                   <div class="reader-heading reader-title-left">
                     <h5 class="reader-main-title reader-title">Hamlet, side by side</h5>
-                    <p class="reader-sub-title reader-subtitle">Read the English original and the Human German translation together.</p>
+                    <span class="reader-header-divider" aria-hidden="true">|</span>
+                    <span class="reader-header-canonical-scene">Act {{ selectedAnalysisAct }} · Scene {{ selectedAnalysisScene?.scene_number || 1 }}</span>
+                    <span class="reader-sub-title reader-subtitle sr-only">Read the English original and the Human German translation together.</span>
                   </div>
                 </div>
 
@@ -677,6 +906,84 @@
               </div>
             </section>
 
+            <!-- Act Scene Averages Bar Chart (Requirement 13) -->
+            <section class="v15-act-chart-card" aria-label="Scene Averages Bar Chart">
+              <div class="v15-act-chart-header">
+                <div>
+                  <h3 class="v15-card-h3">Act {{ selectedAnalysisAct }} — Scene Averages</h3>
+                  <p class="v15-card-sub">Average preservation scores across scenes. Click any bar to navigate directly to that scene.</p>
+                </div>
+                <div class="v15-act-chart-controls">
+                  <label class="v15-chart-ctrl-label">
+                    <span>Dimension:</span>
+                    <select
+                      class="v15-chart-select"
+                      [value]="selectedActChartDimension"
+                      (change)="onActChartDimensionChange($any($event.target).value)"
+                    >
+                      <option value="overall">Overall Average</option>
+                      <option *ngFor="let dim of v15Dimensions" [value]="dim.key">{{ dim.name }}</option>
+                    </select>
+                  </label>
+                  <label class="v15-chart-ctrl-label">
+                    <span>Translation:</span>
+                    <select
+                      class="v15-chart-select"
+                      [value]="selectedActChartVersion"
+                      (change)="onActChartVersionChange($any($event.target).value)"
+                    >
+                      <option value="human_german">Human German</option>
+                      <option value="ai_german">AI German</option>
+                      <option value="context_ai_german">Context-Aware AI German</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="v15-act-bar-chart-track" role="region" aria-label="Scene score bars">
+                <div
+                  *ngFor="let sc of getActScenes(selectedAnalysisAct)"
+                  class="v15-act-chart-col"
+                  (click)="selectAnalysisScene(sc)"
+                  [title]="'Scene ' + (sc.scene_number || sc.scene_id) + ': ' + (getSceneChartScore(sc) !== null ? getSceneChartScore(sc) + '/100' : 'N/A') + ' · ' + getSceneChartApplicableCount(sc) + ' dialogues'"
+                  role="button"
+                  tabindex="0"
+                >
+                  <div class="v15-act-chart-score-label">
+                    <span *ngIf="getSceneChartScore(sc) !== null">{{ getSceneChartScore(sc) }}</span>
+                    <span *ngIf="getSceneChartScore(sc) === null" class="v15-chart-na">N/A</span>
+                  </div>
+                  <div class="v15-act-chart-bar-container">
+                    <div
+                      class="v15-act-chart-bar-fill"
+                      [style.height.%]="getSceneChartScore(sc) !== null ? getSceneChartScore(sc) : 0"
+                      [style.background-color]="getSceneChartScore(sc) !== null ? getHumanScoreColor(getSceneChartScore(sc)) : '#94a3b8'"
+                    ></div>
+                  </div>
+                  <div class="v15-act-chart-scene-label">
+                    Scene {{ sc.scene_number || sc.scene_id }}
+                  </div>
+                  <div class="v15-act-chart-tooltip">
+                    <strong>Act {{ selectedAnalysisAct }}, Scene {{ sc.scene_number || sc.scene_id }}</strong>
+                    <div class="v15-chart-tt-sub">{{ sc.title || sc.shortTitle }}</div>
+                    <div class="v15-chart-tt-row">
+                      <span>Score:</span>
+                      <strong>{{ getSceneChartScore(sc) !== null ? getSceneChartScore(sc) + '/100' : 'N/A' }}</strong>
+                    </div>
+                    <div class="v15-chart-tt-row">
+                      <span>Applicable Dialogues:</span>
+                      <span>{{ getSceneChartApplicableCount(sc) }}</span>
+                    </div>
+                    <div class="v15-chart-tt-row">
+                      <span>Provenance:</span>
+                      <span>{{ getSceneChartProvenance(sc) }}</span>
+                    </div>
+                    <div class="v15-chart-tt-hint">Click bar to open scene reader</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <!-- Human-Only 8-Dimension Table (Act Level) -->
             <section class="v15-human-matrix-section" aria-label="Human German 8-Dimension Literary Analysis">
               <div class="v15-section-title-row">
@@ -754,23 +1061,28 @@
                 </table>
               </div>
 
-              <!-- Score Heatmap Legend -->
-              <div class="v15-heatmap-legend-bar">
-                <div class="v15-legend-title">Human DE Score Scale:</div>
-                <div class="v15-legend-scale">
-                  <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
-                    <span class="v15-legend-color-dot" [style.background-color]="th.color"></span>
-                    <span class="v15-legend-step-lbl">{{ th.label }} ({{ th.level }})</span>
+              <!-- Score Heatmap Legend (Compact & Expandable Help) -->
+              <details class="v15-expandable-legend">
+                <summary class="v15-legend-summary">
+                  <span>Scoring Legend & Color Scale</span>
+                  <span class="v15-summary-arrow">▾</span>
+                </summary>
+                <div class="v15-heatmap-legend-bar">
+                  <div class="v15-legend-scale">
+                    <div *ngFor="let th of heatmapThresholds" class="v15-legend-step">
+                      <span class="v15-legend-color-dot" [style.background-color]="th.color"></span>
+                      <span class="v15-legend-step-lbl">{{ th.label }} ({{ th.level }})</span>
+                    </div>
+                    <div class="v15-legend-step">
+                      <span class="v15-legend-color-dot" style="background-color:#94a3b8"></span>
+                      <span class="v15-legend-step-lbl">N/A (Not applicable)</span>
+                    </div>
                   </div>
-                  <div class="v15-legend-step">
-                    <span class="v15-legend-color-dot" style="background-color:#94a3b8"></span>
-                    <span class="v15-legend-step-lbl">N/A (Not applicable)</span>
+                  <div class="v15-legend-note">
+                    Green intensity communicates preservation level. Missing scores are never converted to zero.
                   </div>
                 </div>
-                <div class="v15-legend-note">
-                  Single-shade green intensity communicating preservation. Missing scores are never converted to zero.
-                </div>
-              </div>
+              </details>
             </section>
 
             <!-- Compact Eight-Dimension Overview Matrix -->

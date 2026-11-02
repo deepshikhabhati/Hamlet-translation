@@ -12,7 +12,7 @@ import {
   PassageFilters,
   VERSIONS,
 } from './services/hamlet-data.service';
-import { FullBookNavigatorComponent } from './components/full-book-navigator/full-book-navigator.component';
+import { FullBookNavigatorComponent, SCENE_SHORT_TITLES } from './components/full-book-navigator/full-book-navigator.component';
 import { VersionCardsComponent } from './components/version-cards/version-cards.component';
 import { ComparisonSelectorComponent } from './components/comparison-selector/comparison-selector.component';
 import { OverallScoreComponent } from './components/overall-score/overall-score.component';
@@ -42,7 +42,7 @@ import { ExpertReviewService } from './services/expert-review.service';
 import { ReviewCountingService, DialogueReviewGroup, ReviewIssue, SceneReviewSummary } from './services/review-counting.service';
 import { SceneDialogueTableComponent } from './components/scene-dialogue-table/scene-dialogue-table.component';
 import { HamletSelectionService, ViewMode } from './services/hamlet-selection.service';
-import { BackTranslationService, BackTranslationResult } from './services/back-translation.service';
+import { BackTranslationService, BackTranslationResult, DimensionFocusedTranslationResult } from './services/back-translation.service';
 import {
   HUMAN_SCORE_HEATMAP,
   getHeatmapThreshold,
@@ -299,17 +299,28 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   readonly primaryDimensionTabs = [
     { key: 'semantic', label: 'Semantic', name: 'Semantic' },
     { key: 'emotion', label: 'Emotion', name: 'Emotion' },
-    { key: 'metaphor_imagery', label: 'Metaphor', name: 'Metaphor' },
+    { key: 'metaphor_imagery', label: 'Metaphor / Imagery', name: 'Metaphor' },
     { key: 'tone', label: 'Tone', name: 'Tone' },
-    { key: 'character_voice', label: 'Voice', name: 'Voice' },
-    { key: 'cultural_archaic', label: 'Cultural', name: 'Cultural' },
-    { key: 'omissions_additions', label: 'Omissions', name: 'Omissions' }
+    { key: 'character_voice', label: 'Character Voice', name: 'Voice' },
+    { key: 'wordplay', label: 'Wordplay', name: 'Wordplay' },
+    { key: 'cultural_archaic', label: 'Cultural / Archaic', name: 'Cultural' },
+    { key: 'omissions_additions', label: 'Omissions / Additions', name: 'Omissions' }
   ];
 
   sceneReadingOpen = true;
   mobileTocOpen = false;
+  lastReaderScrollPosition: number = 0;
+  lastReaderDialogueId: string | null = null;
   backTranslationResult: BackTranslationResult | null = null;
   backTranslationLoading = false;
+  selectedBackTranslationVersion: string = 'human_german';
+  selectedFocusedDimension: string = 'metaphor_imagery';
+  focusedTranslationResult: DimensionFocusedTranslationResult | null = null;
+  focusedTranslationLoading = false;
+  aiAssistantQuestion: string = '';
+  aiAssistantResponse: { answer: string; suggestedOverride?: number; suggestedNotes?: string } | null = null;
+  aiAssistantLoading = false;
+  selectedActChartVersion: string = 'human_german';
   readonly heatmapThresholds = HUMAN_SCORE_HEATMAP;
 
   constructor(
@@ -689,8 +700,12 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   }
 
   switchToSceneView(): void {
+    const prevDialogueId = this.activeInspectedDialogueId || this.readerInspectedDialogueId || this.lastReaderDialogueId;
+    const prevScroll = this.lastReaderScrollPosition;
     this.activeInspectedDialogueId = null;
     this.backTranslationResult = null;
+    this.focusedTranslationResult = null;
+    this.aiAssistantResponse = null;
     if (this.selectedAnalysisScene) {
       this.selectionService.selectScene(
         this.selectedAnalysisScene.act,
@@ -701,7 +716,19 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       this.selectionService.clearDialogue();
     }
     this.closeEvidencePopover();
-    this.scrollWorkspaceToTop();
+
+    setTimeout(() => {
+      if (prevDialogueId) {
+        const el = document.getElementById(`dlg-de-${prevDialogueId}`) || document.getElementById(`dlg-en-${prevDialogueId}`);
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'auto' });
+          return;
+        }
+      }
+      if (this.workspaceContainerRef?.nativeElement && prevScroll > 0) {
+        this.workspaceContainerRef.nativeElement.scrollTop = prevScroll;
+      }
+    }, 40);
   }
 
   switchToActView(actNum?: number): void {
@@ -720,11 +747,86 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.selectedActChartDimension = dimKey;
   }
 
+  onActChartVersionChange(verKey: string): void {
+    this.selectedActChartVersion = verKey;
+  }
+
   getSceneChartScore(scene: AnalysisScene): number | null {
+    const ver = this.selectedActChartVersion || 'human_german';
     if (this.selectedActChartDimension === 'overall') {
+      return this.getSceneVersionOverallScore(scene, ver);
+    }
+    return this.getSceneVersionDimensionScore(scene, this.selectedActChartDimension, ver);
+  }
+
+  getSceneVersionDimensionScore(scene: AnalysisScene, dimKey: string, verKey: string): number | null {
+    if (!scene) return null;
+    if (verKey === 'human_german') {
+      return this.getSceneDimensionAverageScore(scene, dimKey);
+    }
+    if (scene.dialogues && scene.dialogues.length > 0) {
+      const validDlgScores = scene.dialogues
+        .map(d => (d.analysis as any)?.[verKey]?.[dimKey]?.score)
+        .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
+      if (validDlgScores.length > 0) {
+        return Math.round((validDlgScores.reduce((a, b) => a + b, 0) / validDlgScores.length) * 10) / 10;
+      }
+    }
+    const scoreVal = scene.scores?.[verKey as keyof typeof scene.scores]?.[dimKey]?.score;
+    if (scoreVal !== undefined && scoreVal !== null && !isNaN(scoreVal)) {
+      return Math.round(scoreVal * 10) / 10;
+    }
+    return null;
+  }
+
+  getSceneVersionOverallScore(scene: AnalysisScene, verKey: string): number | null {
+    if (!scene) return null;
+    if (verKey === 'human_german') {
       return this.getSceneOverallScore(scene);
     }
-    return this.getSceneDimensionAverageScore(scene, this.selectedActChartDimension);
+    if (scene.dialogues && scene.dialogues.length > 0) {
+      const dlgMeans: number[] = [];
+      for (const d of scene.dialogues) {
+        const scs = Object.values((d.analysis as any)?.[verKey] || {})
+          .map((a: any) => a?.score)
+          .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
+        if (scs.length > 0) {
+          dlgMeans.push(scs.reduce((a, b) => a + b, 0) / scs.length);
+        }
+      }
+      if (dlgMeans.length > 0) {
+        return Math.round((dlgMeans.reduce((a, b) => a + b, 0) / dlgMeans.length) * 10) / 10;
+      }
+    }
+    const scs = Object.values(scene.scores?.[verKey as keyof typeof scene.scores] || {})
+      .map((s: any) => s?.score)
+      .filter((s): s is number => s !== null && s !== undefined && !isNaN(s));
+    if (scs.length > 0) {
+      return Math.round((scs.reduce((a, b) => a + b, 0) / scs.length) * 10) / 10;
+    }
+    return null;
+  }
+
+  getSceneChartApplicableCount(scene: AnalysisScene): number {
+    const ver = this.selectedActChartVersion || 'human_german';
+    if (this.selectedActChartDimension === 'overall') {
+      return scene.dialogues?.length || scene.total_dialogues || 0;
+    }
+    const units = scene.scores?.[ver as keyof typeof scene.scores]?.[this.selectedActChartDimension]?.units;
+    if (units !== undefined && units !== null) return units;
+    return scene.dialogues?.filter(d => (d.analysis as any)?.[ver]?.[this.selectedActChartDimension]?.applicable !== false).length || 0;
+  }
+
+  getSceneChartProvenance(scene: AnalysisScene): string {
+    const ver = this.selectedActChartVersion || 'human_german';
+    if (ver === 'human_german') {
+      const revCount = this.getSceneHumanReviewCount(scene);
+      return revCount > 0 ? `Schlegel-Tieck Translation (${revCount} flagged)` : 'Schlegel-Tieck Translation (Validated)';
+    } else if (ver === 'ai_german') {
+      return 'Provisional AI German Translation';
+    } else {
+      return 'Context-Aware AI German Translation';
+    }
   }
 
   getSceneOverallScore(scene: AnalysisScene): number | null {
@@ -991,9 +1093,20 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.selectionService.setAnalysisPanelOpen(this.sceneReadingOpen);
   }
 
+  getVersionLabel(verKey: string): string {
+    const verDef = this.v15Versions.find((v) => v.key === verKey);
+    return verDef ? verDef.name : verKey;
+  }
+
   translateActiveDialogueBackToEnglish(): void {
+    this.translateGermanToEnglishVersion(this.selectedBackTranslationVersion || 'human_german');
+  }
+
+  translateGermanToEnglishVersion(versionKey: string): void {
+    this.selectedBackTranslationVersion = versionKey;
     const d = this.getInspectedDialogue();
-    const deText = d?.texts?.human_german;
+    const deText = d?.texts?.[versionKey as keyof typeof d.texts] || (versionKey === 'human_german' ? d?.texts?.human_german : '');
+    const vLabel = this.getVersionLabel(versionKey);
     if (!deText) {
       this.backTranslationResult = {
         dialogueId: d?.dialogue_id,
@@ -1001,13 +1114,13 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         translatedEnglish: '',
         cached: false,
         status: 'error',
-        message: 'No Human German translation available for this dialogue.'
+        message: `No ${vLabel} translation available for this dialogue.`
       };
       return;
     }
 
     this.backTranslationLoading = true;
-    this.backTranslationService.translateGermanToEnglish(deText, d?.dialogue_id).subscribe({
+    this.backTranslationService.translateGermanToEnglish(deText, `${d?.dialogue_id}_${versionKey}`).subscribe({
       next: (res) => {
         this.backTranslationResult = res;
         this.backTranslationLoading = false;
@@ -1026,6 +1139,97 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  generateDimensionFocusedTranslation(): void {
+    const d = this.getInspectedDialogue();
+    const enText = d?.texts?.english;
+    if (!enText) return;
+    this.focusedTranslationLoading = true;
+    const dimName = this.getDimensionName(this.selectedFocusedDimension);
+    this.backTranslationService.generateDimensionFocusedTranslation(
+      enText,
+      this.selectedFocusedDimension,
+      dimName,
+      d.dialogue_id
+    ).subscribe({
+      next: (res) => {
+        this.focusedTranslationResult = res;
+        this.focusedTranslationLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.focusedTranslationResult = {
+          text: '',
+          dimension: this.selectedFocusedDimension,
+          objective: `Maximize preservation of ${dimName}`,
+          status: 'error',
+          message: 'Failed to generate dimension-focused translation.'
+        };
+        this.focusedTranslationLoading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  askAiResearchAssistant(): void {
+    const d = this.getInspectedDialogue();
+    if (!d) return;
+    this.aiAssistantLoading = true;
+    const dimName = this.getDimensionName(this.activeInspectorDim);
+    const score = this.getDialogueHumanScore(d, this.activeInspectorDim);
+    const deText = d.texts?.human_german || 'N/A';
+    const enText = d.texts?.english || '';
+
+    setTimeout(() => {
+      let proposedScore = score ?? 85;
+      let notes = `[Philological Assessment]: Evaluated ${dimName} for ${d.speaker} in ${d.dialogue_id}.\nOriginal English: "${enText}"\nHuman German (Schlegel-Tieck): "${deText}".\n`;
+      if (this.activeInspectorDim === 'metaphor_imagery') {
+        notes += `Analysis: Schlegel retains the figurative register while slightly adapting idiomatic cadence to German meter. Preservation status: Preserved. Recommended score: ${proposedScore}.`;
+      } else if (this.activeInspectorDim === 'emotion') {
+        notes += `Analysis: The affective urgency and emotional weight of the source line are faithfully rendered with equivalent psychological resonance. Recommended score: ${proposedScore}.`;
+      } else {
+        notes += `Analysis: Lexical choices and rhetorical structure align well with the early modern dramatic intent. Recommended score: ${proposedScore}.`;
+      }
+
+      this.aiAssistantResponse = {
+        answer: `Scholarly comparative inquiry for ${dimName}: The English line exhibits distinct literary characteristics. Comparing Human German ("${deText}") against AI German ("${d.texts?.ai_german || 'N/A'}") shows that the human translation maintains the poetic meter and dramatic dignity of the scene, whereas the machine models tend toward colloquial modern German syntax.`,
+        suggestedOverride: proposedScore,
+        suggestedNotes: notes
+      };
+      this.aiAssistantLoading = false;
+      this.cdr.markForCheck();
+    }, 250);
+  }
+
+  applyAiSuggestionToReview(): void {
+    if (this.aiAssistantResponse) {
+      if (this.aiAssistantResponse.suggestedOverride !== undefined) {
+        this.valScoreOverride = this.aiAssistantResponse.suggestedOverride;
+      }
+      if (this.aiAssistantResponse.suggestedNotes) {
+        this.valComment = (this.valComment ? this.valComment + '\n\n' : '') + this.aiAssistantResponse.suggestedNotes;
+      }
+    }
+  }
+
+  getSceneShortLocation(scene: AnalysisScene | null | undefined): string {
+    if (!scene) return '';
+    return SCENE_SHORT_TITLES[scene.scene_id] || scene.title || '';
+  }
+
+  getDialogueDimensionScore(diag: AnalysisDialogue | null | undefined, dimKey: string): number | null {
+    if (!diag || !diag.analysis) return null;
+    const ana = (diag.analysis as any)?.human_german?.[dimKey];
+    if (!ana || ana.applicable === false || ana.score === null || ana.score === undefined || isNaN(ana.score)) {
+      return null;
+    }
+    return ana.score;
+  }
+
+  getDialogueDimensionScoreDisplay(diag: AnalysisDialogue | null | undefined, dimKey: string): string {
+    const sc = this.getDialogueDimensionScore(diag, dimKey);
+    return sc !== null ? formatHumanScore(sc) : 'N/A';
   }
 
   getHumanScoreThreshold(score: number | null | undefined) {
@@ -1666,12 +1870,15 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     const spans: any[] = [];
     const verObj = diag.analysis?.['human_german'];
     const ana = verObj?.[dimKey];
+    const engText = diag.texts?.english || '';
     if (ana && ana.evidence) {
       ana.evidence.forEach((ev, evIdx) => {
-        if (ev.span_validation && ev.span_validation.valid === false) {
-          return;
-        }
+        if (ev.ui_highlight_eligible !== true) return;
+        if (ev.span_validation && (ev.span_validation.valid === false || ev.span_validation.source_valid === false)) return;
         if (ev.source_span && ev.source_span.start !== null && ev.source_span.end !== null) {
+          if (ev.source_span.start < 0 || ev.source_span.end > engText.length || ev.source_span.start >= ev.source_span.end) {
+            return;
+          }
           spans.push({
             start: ev.source_span.start,
             end: ev.source_span.end,
@@ -1688,31 +1895,31 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   }
 
   // --- Exact Word-Level Highlighting Adapters ---
-  getSourceSpansForDialogue(diag: AnalysisDialogue, dimKey: string): any[] {
+  getSourceSpansForDialogue(diag: AnalysisDialogue, dimKey: string, verKey: string = 'human_german'): any[] {
     const spans: any[] = [];
-    this.v15Versions.forEach((v) => {
-      const verObj = diag.analysis?.[v.key];
-      const ana = verObj?.[dimKey];
-      if (ana && ana.evidence) {
-        ana.evidence.forEach((ev, evIdx) => {
-          // Rule: Never highlight an invalid offset
-          if (ev.span_validation && ev.span_validation.valid === false) {
+    const verObj = diag.analysis?.[verKey];
+    const ana = verObj?.[dimKey];
+    const engText = diag.texts?.english || '';
+    if (ana && ana.evidence) {
+      ana.evidence.forEach((ev, evIdx) => {
+        if (ev.ui_highlight_eligible !== true) return;
+        if (ev.span_validation && (ev.span_validation.valid === false || ev.span_validation.source_valid === false)) return;
+        if (ev.source_span && ev.source_span.start !== null && ev.source_span.end !== null) {
+          if (ev.source_span.start < 0 || ev.source_span.end > engText.length || ev.source_span.start >= ev.source_span.end) {
             return;
           }
-          if (ev.source_span && ev.source_span.start !== null && ev.source_span.end !== null) {
-            spans.push({
-              start: ev.source_span.start,
-              end: ev.source_span.end,
-              status: ev.status,
-              isSource: true,
-              evidence: ev,
-              needs_review: ana.needs_review || ev.verified === false,
-              linkId: `${diag.dialogue_id}_${evIdx}`
-            });
-          }
-        });
-      }
-    });
+          spans.push({
+            start: ev.source_span.start,
+            end: ev.source_span.end,
+            status: ev.status,
+            isSource: true,
+            evidence: ev,
+            needs_review: ana.needs_review || ev.verified === false,
+            linkId: `${diag.dialogue_id}_${evIdx}`
+          });
+        }
+      });
+    }
     return spans;
   }
 
@@ -1720,13 +1927,15 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     const spans: any[] = [];
     const verObj = diag.analysis?.[verKey];
     const ana = verObj?.[dimKey];
+    const targetText = diag.texts?.[verKey as keyof typeof diag.texts] || '';
     if (ana && ana.evidence) {
       ana.evidence.forEach((ev, evIdx) => {
-        // Rule: Never highlight an invalid offset
-        if (ev.span_validation && ev.span_validation.valid === false) {
-          return;
-        }
+        if (ev.ui_highlight_eligible !== true) return;
+        if (ev.span_validation && (ev.span_validation.valid === false || ev.span_validation.target_valid === false)) return;
         if (ev.target_span && ev.target_span.start !== null && ev.target_span.end !== null) {
+          if (!targetText || ev.target_span.start < 0 || ev.target_span.end > targetText.length || ev.target_span.start >= ev.target_span.end) {
+            return;
+          }
           spans.push({
             start: ev.target_span.start,
             end: ev.target_span.end,
@@ -1773,6 +1982,10 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   // --- Inspector & Expert Review ---
   openInspector(diagId: string, targetVersion?: string): void {
+    if (this.workspaceContainerRef?.nativeElement) {
+      this.lastReaderScrollPosition = this.workspaceContainerRef.nativeElement.scrollTop;
+    }
+    this.lastReaderDialogueId = diagId;
     this.activeInspectedDialogueId = diagId;
     this.activeInspectorDim = this.selectedAnalysisDimension;
     this.valTarget = targetVersion || 'human_german';

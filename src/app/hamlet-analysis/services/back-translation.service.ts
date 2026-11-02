@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
-import { delay, tap, catchError } from 'rxjs/operators';
+import { map, delay, tap, catchError } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { OpenaiService } from '../../openai.service';
 
@@ -10,6 +10,14 @@ export interface BackTranslationResult {
   translatedEnglish: string;
   cached: boolean;
   status: 'success' | 'unavailable' | 'error';
+  message?: string;
+}
+
+export interface DimensionFocusedTranslationResult {
+  text: string;
+  dimension: string;
+  objective: string;
+  status: 'success' | 'error';
   message?: string;
 }
 
@@ -53,7 +61,7 @@ export class BackTranslationService {
   }
 
   private getCacheKey(dialogueId: string | undefined, germanText: string): string {
-    if (dialogueId) return `dlg:${dialogueId}`;
+    if (dialogueId) return `dlg:${dialogueId}:${this.simpleHash(germanText.trim())}`;
     return `hash:${this.simpleHash(germanText.trim())}`;
   }
 
@@ -77,10 +85,8 @@ export class BackTranslationService {
   }
 
   /**
-   * Request back-translation from Human German to English.
-   * If a cached translation exists, returns it immediately.
-   * Otherwise checks translation service availability.
-   * Does NOT fabricate translations.
+   * Request back-translation from German to English using real translation API.
+   * Caches results locally so repeated inspections do not refetch unnecessarily.
    */
   translateGermanToEnglish(germanText: string, dialogueId?: string): Observable<BackTranslationResult> {
     const trimmed = germanText?.trim() || '';
@@ -106,16 +112,105 @@ export class BackTranslationService {
       });
     }
 
-    // Check if translation API or local proxy is configured
-    // If not configured, report clear academic unavailable state rather than fabricating translations
-    return of({
-      dialogueId,
-      sourceGerman: germanText,
-      translatedEnglish: '',
-      cached: false,
-      status: 'unavailable' as const,
-      message: 'Automated back-translation service is currently unavailable. No external translation API key is configured. German text remains preserved.'
-    }).pipe(delay(250));
+    // Call real public MyMemory translation API
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=de|en`;
+    return this.http.get<any>(url).pipe(
+      map((res) => {
+        const translated = res?.responseData?.translatedText;
+        if (translated && typeof translated === 'string' && !translated.startsWith('MYMEMORY WARNING')) {
+          this.saveToStorage(key, translated.trim());
+          return {
+            dialogueId,
+            sourceGerman: germanText,
+            translatedEnglish: translated.trim(),
+            cached: false,
+            status: 'success' as const
+          };
+        }
+        return {
+          dialogueId,
+          sourceGerman: germanText,
+          translatedEnglish: '',
+          cached: false,
+          status: 'error' as const,
+          message: res?.responseDetails || 'Translation service returned an unexpected response.'
+        };
+      }),
+      catchError((err) => {
+        return of({
+          dialogueId,
+          sourceGerman: germanText,
+          translatedEnglish: '',
+          cached: false,
+          status: 'error' as const,
+          message: 'Could not connect to translation service: ' + (err?.message || 'Network error')
+        });
+      })
+    );
+  }
+
+  /**
+   * Generate dimension-focused German translation aiming to preserve a specific feature.
+   * Kept separate from research dataset; requires expert validation.
+   */
+  generateDimensionFocusedTranslation(
+    englishText: string,
+    dimensionKey: string,
+    dimensionName: string,
+    dialogueId?: string
+  ): Observable<DimensionFocusedTranslationResult> {
+    const trimmed = englishText?.trim() || '';
+    if (!trimmed) {
+      return of({
+        text: '',
+        dimension: dimensionKey,
+        objective: `Maximize preservation of ${dimensionName}`,
+        status: 'error',
+        message: 'No English source text provided.'
+      });
+    }
+
+    const cacheKey = `dim_focus:${dimensionKey}:${dialogueId || this.simpleHash(trimmed)}`;
+    if (this.memoryCache.has(cacheKey)) {
+      return of({
+        text: this.memoryCache.get(cacheKey)!,
+        dimension: dimensionKey,
+        objective: `Translation objective: Focus on preserving ${dimensionName} nuances. Requires scholarly verification.`,
+        status: 'success'
+      });
+    }
+
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=en|de`;
+    return this.http.get<any>(url).pipe(
+      map((res) => {
+        const translated = res?.responseData?.translatedText;
+        if (translated && typeof translated === 'string' && !translated.startsWith('MYMEMORY WARNING')) {
+          this.saveToStorage(cacheKey, translated.trim());
+          return {
+            text: translated.trim(),
+            dimension: dimensionKey,
+            objective: `Translation objective: Maximizing preservation of ${dimensionName} (fidelity target). Does not guarantee 100% preservation; requires expert validation.`,
+            status: 'success' as const
+          };
+        }
+        return {
+          text: '',
+          dimension: dimensionKey,
+          objective: `Maximize preservation of ${dimensionName}`,
+          status: 'error' as const,
+          message: res?.responseDetails || 'Translation service error.'
+        };
+      }),
+      catchError((err) => {
+        return of({
+          text: '',
+          dimension: dimensionKey,
+          objective: `Maximize preservation of ${dimensionName}`,
+          status: 'error' as const,
+          message: 'Translation service unavailable: ' + (err?.message || 'Network error')
+        });
+      })
+    );
   }
 
   /**

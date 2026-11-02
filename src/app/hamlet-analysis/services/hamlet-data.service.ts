@@ -243,7 +243,7 @@ export class HamletDataService {
 
   private readonly fullBookUiUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence_WITH_EXACT_HIGHLIGHT_SPANS.json.gz';
   private readonly fullBookUrl = 'assets/data/hamlet_full_books_ui_all_phrase_evidence_WITH_EXACT_HIGHLIGHT_SPANS.json.gz';
-  private readonly analysisUrl = 'assets/data/hamlet_ui_full_play_integrated.json';
+  private readonly analysisUrl = 'assets/data/hamlet_angular_corrected_full_play.json';
   private fullBookUiCache$?: Observable<any>;
   private fullBookCache$?: Observable<any>;
   private analysisCache$?: Observable<any>;
@@ -253,9 +253,9 @@ export class HamletDataService {
   loadAnalysisJson(): Observable<any> {
     if (!this.analysisCache$) {
       this.analysisCache$ = this.http.get<any>(this.analysisUrl).pipe(
-        catchError(() => this.http.get<any>('assets/data/hamlet_ui_analysis_review_ready.json')),
+        catchError(() => this.http.get<any>('assets/data/hamlet_angular_corrected_full_play.json')),
         catchError(() => this.http.get<any>('assets/data/hamlet_ui_analysis.json')),
-        catchError(() => this.http.get<any>('hamlet_ui_analysis.json')),
+        catchError(() => this.http.get<any>('hamlet_angular_corrected_full_play.json')),
         shareReplay(1)
       );
     }
@@ -264,7 +264,7 @@ export class HamletDataService {
 
   loadComputationReport(): Observable<any> {
     if (!this.computationReportCache$) {
-      this.computationReportCache$ = this.http.get<any>('assets/data/hamlet_ui_computation_report.json').pipe(
+      this.computationReportCache$ = this.http.get<any>('assets/data/hamlet_angular_correction_report.json').pipe(
         catchError(() => of(null)),
         shareReplay(1)
       );

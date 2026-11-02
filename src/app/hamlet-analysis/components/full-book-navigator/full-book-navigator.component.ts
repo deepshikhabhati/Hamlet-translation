@@ -502,11 +502,31 @@ export class FullBookNavigatorComponent implements OnChanges {
     }
   }
 
+  getDimBarHeight(score: number | null): number {
+    if (score === null || isNaN(score)) return 3;
+    return Math.max(3, Math.min(14, Math.round(((score - 40) / 60) * 14)));
+  }
+
   buildSceneDonuts(scene: AnalysisScene): SceneDonutDimension[] {
     const totalDialogues = scene.dialogues?.length || scene.total_dialogues || 0;
     const circumference = 69.12;
 
-    return SCENE_DONUT_DIMENSIONS.map(dimDef => {
+    const wpScore = scene.scores?.human_german?.['wordplay'];
+    const isWordplayApplicable = (
+      (wpScore as any)?.applicable !== false &&
+      wpScore?.score !== null &&
+      wpScore?.score !== undefined
+    ) || (
+      scene.dialogues && scene.dialogues.some(d => (d.analysis as any)?.human_german?.['wordplay']?.applicable === true)
+    );
+
+    const dimsToUse = [
+      ...SCENE_DONUT_DIMENSIONS.slice(0, 5),
+      ...(isWordplayApplicable ? [{ key: 'wordplay', name: 'Wordplay', label: 'WOR' }] : []),
+      ...SCENE_DONUT_DIMENSIONS.slice(5)
+    ];
+
+    return dimsToUse.map(dimDef => {
       let score: number | null = null;
       let units = 0;
 

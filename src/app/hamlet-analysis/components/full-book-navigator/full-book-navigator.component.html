@@ -165,22 +165,21 @@
             tabindex="0"
             [attr.aria-label]="'Scene ' + scene.sceneNumber + ': ' + scene.shortTitle"
           >
-            <!-- Scene Main Row: Circle Number + Title/Subtext + Status Icon & Score -->
+            <!-- Scene Main Row: Canonical Literary Numbering + Location Subtitle + Status Icon & Score -->
             <div class="toc-scene-main-row">
-              <div class="toc-scene-num-circle">{{ scene.sceneNumber }}</div>
-              
               <div class="toc-scene-text-col">
                 <div class="toc-scene-title-line">
-                  <span class="toc-scene-short-title">{{ scene.shortTitle }}</span>
+                  <span class="toc-scene-canonical-label">Scene {{ scene.sceneNumber }}</span>
                   <span *ngIf="scene.isLowestInAct" class="toc-lowest-pill">lowest in Act {{ act.actNumber }}</span>
                 </div>
-                <div class="toc-scene-counts-sub">
-                  {{ scene.scoredCount }} scored · {{ scene.flaggedCount }} flagged
+                <div class="toc-scene-short-title toc-scene-location-sub">{{ scene.shortTitle }}</div>
+                <div class="toc-scene-counts-sub toc-scene-stats-sub">
+                  {{ getScoreDisplay(scene.humanScore) }} · {{ scene.flaggedCount }} flagged
                 </div>
               </div>
 
               <!-- Score and Status Icon -->
-              <div class="toc-scene-score-box" [title]="scene.shortTitle + ' ' + getDimensionLabel(selectedDimension) + ' score: ' + getScoreDisplay(scene.humanScore)">
+              <div class="toc-scene-score-box" [title]="'Scene ' + scene.sceneNumber + ' (' + scene.shortTitle + ') ' + getDimensionLabel(selectedDimension) + ' score: ' + getScoreDisplay(scene.humanScore)">
                 <div class="toc-scene-score-top">
                   <span *ngIf="scene.statusIcon === 'flag'" class="toc-status-icon toc-status-icon--flag" title="Review needed">⚑</span>
                   <span *ngIf="scene.statusIcon === 'warn'" class="toc-status-icon toc-status-icon--warn" title="Noticeable differences">⚠</span>
@@ -196,7 +195,7 @@
                 </div>
               </div>
 
-              <!-- Optional Chevron to toggle dialogue sub-list if user desires -->
+              <!-- Chevron to toggle dialogue sub-list if user desires -->
               <button
                 type="button"
                 class="toc-chevron-btn toc-chevron-btn--scene"
@@ -218,6 +217,23 @@
                   <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
               </button>
+            </div>
+
+            <!-- Compact 7-Dimension (or 8 when applicable) Mini Visualization for each scene -->
+            <div class="toc-scene-dim-chart" [title]="'Scene ' + scene.sceneNumber + ' dimension profiles (' + scene.donuts.length + ' dimensions)'">
+              <div
+                *ngFor="let dim of scene.donuts"
+                class="toc-scene-dim-bar-wrap"
+                (click)="onSceneDonutClick(scene, dim.key, $event)"
+                [title]="dim.tooltip"
+              >
+                <div
+                  class="toc-scene-dim-bar"
+                  [style.height.px]="getDimBarHeight(dim.score)"
+                  [style.background-color]="dim.color"
+                ></div>
+                <span class="toc-scene-dim-bar-lbl">{{ dim.label }}</span>
+              </div>
             </div>
 
           </div>

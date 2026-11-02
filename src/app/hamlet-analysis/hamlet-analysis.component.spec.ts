@@ -619,7 +619,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
   });
 
   describe('Navigation Levels & Scene vs Dialogue Selection (v1.5 Distinct Modes)', () => {
-    it('13. defaults to "act" viewMode and renders the Act 8-dim matrix table and scene matrix without bar chart', () => {
+    it('13. defaults to "act" viewMode and renders the Act 8-dim matrix table, scene matrix, and compact scene averages bar chart', () => {
       component.selectedAnalysisAct = 1;
       component.selectedAnalysisScene = null;
       component.activeInspectedDialogueId = null;
@@ -631,7 +631,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       expect(compiled.querySelector('.v15-act-header-card')).toBeTruthy();
       expect(compiled.querySelector('.v15-human-matrix-section')).toBeTruthy();
       expect(compiled.querySelector('.v15-act-matrix-card')).toBeTruthy();
-      expect(compiled.querySelector('.v15-act-chart-card')).toBeNull();
+      expect(compiled.querySelector('.v15-act-chart-card')).toBeTruthy();
       expect(compiled.querySelector('.v15-scene-header-card')).toBeNull();
       expect(compiled.querySelector('.v15-dialogue-detail-panel')).toBeNull();
     });
@@ -854,6 +854,172 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
 
       fixture.detectChanges();
       expect(compiled.querySelector('.inspector-empty-state')).toBeTruthy();
+    });
+  });
+
+  describe('Hamlet Translation Analysis v1.5 Requirements Test Suite', () => {
+    it('v1.5 Req 5 & 6: supports switching across all 8 dimensions and strictly filters highlight eligibility', () => {
+      const dimensions = ['semantic', 'emotion', 'metaphor_imagery', 'tone', 'character_voice', 'wordplay', 'cultural_archaic', 'omissions_additions'];
+      dimensions.forEach(dim => {
+        component.selectDimensionTab(dim);
+        expect(component.selectedAnalysisDimension).toBe(dim);
+      });
+
+      const mockDiag: any = {
+        dialogue_id: 'TEST-D1',
+        texts: { english: 'To be, or not to be.', human_german: 'Sein oder Nichtsein.' },
+        analysis: {
+          human_german: {
+            semantic: {
+              applicable: true,
+              score: 95,
+              status: 'Preserved',
+              evidence: [
+                {
+                  source_quote: 'To be',
+                  target_quote: 'Sein',
+                  source_span: { start: 0, end: 5 },
+                  target_span: { start: 0, end: 4 },
+                  status: 'Preserved',
+                  explanation: 'Preserved',
+                  ui_highlight_eligible: true,
+                  span_validation: { valid: true, source_valid: true, target_valid: true }
+                },
+                {
+                  source_quote: 'invalid phrase',
+                  target_quote: 'invalid phrase',
+                  source_span: { start: 0, end: 500 },
+                  target_span: { start: 0, end: 500 },
+                  status: 'Changed',
+                  explanation: 'Invalid',
+                  ui_highlight_eligible: false,
+                  span_validation: { valid: false, source_valid: false, target_valid: false }
+                }
+              ]
+            }
+          }
+        }
+      };
+
+      const sourceSpans = component.getSourceSpansForDialogue(mockDiag, 'semantic', 'human_german');
+      expect(sourceSpans.length).toBe(1);
+      expect(sourceSpans[0].start).toBe(0);
+      expect(sourceSpans[0].end).toBe(5);
+
+      const targetSpans = component.getTargetSpansForDialogue(mockDiag, 'human_german', 'semantic');
+      expect(targetSpans.length).toBe(1);
+      expect(targetSpans[0].start).toBe(0);
+      expect(targetSpans[0].end).toBe(4);
+    });
+
+    it('v1.5 Req 7: popover handles pinning, mouseleave dismiss, and manual close', (done) => {
+      component.activePopover = {
+        dialogueId: 'TEST-D1',
+        dimensionKey: 'semantic',
+        dimensionName: 'Semantic',
+        translationKey: 'human_german',
+        translationName: 'Human German',
+        status: 'Preserved',
+        score: 95,
+        speaker: 'HAMLET',
+        sourceQuote: 'To be',
+        targetQuote: 'Sein',
+        explanation: 'Preserved meaning',
+        mode: 'hover',
+        left: 100,
+        top: 200,
+        arrowPos: 'top'
+      } as any;
+
+      expect(component.activePopover).toBeTruthy();
+
+      // On mouse leave in hover mode, popover closes after debounce
+      component.onPopoverMouseLeave();
+      setTimeout(() => {
+        expect(component.activePopover).toBeNull();
+
+        // In pinned mode, mouseleave does not close
+        component.activePopover = {
+          dialogueId: 'TEST-D1',
+          dimensionKey: 'semantic',
+          dimensionName: 'Semantic',
+          translationKey: 'human_german',
+          translationName: 'Human German',
+          status: 'Preserved',
+          score: 95,
+          speaker: 'HAMLET',
+          sourceQuote: 'To be',
+          targetQuote: 'Sein',
+          explanation: 'Preserved meaning',
+          mode: 'pinned',
+          left: 100,
+          top: 200,
+          arrowPos: 'top'
+        } as any;
+        component.onPopoverMouseLeave();
+        expect(component.activePopover).toBeTruthy();
+
+        // Manual close
+        component.closeEvidencePopover();
+        expect(component.activePopover).toBeNull();
+        done();
+      }, 200);
+    });
+
+    it('v1.5 Req 8 & 14: preserves reading position when navigating from scene reader to dialogue and back', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+
+      component.selectAnalysisScene(act1Scene1);
+      component.lastReaderDialogueId = diag1.dialogue_id;
+
+      component.openInspector(diag1.dialogue_id, 'human_german');
+      expect(component.viewMode).toBe('dialogue');
+      expect(component.lastReaderDialogueId).toBe(diag1.dialogue_id);
+
+      component.switchToSceneView();
+      expect(component.viewMode).toBe('scene');
+      expect(component.selectedAnalysisScene).toBe(act1Scene1);
+    });
+
+    it('v1.5 Req 11: expert review saving and decisions export', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+
+      component.openInspector(diag1.dialogue_id, 'human_german');
+      component.activeInspectorDim = 'semantic';
+      component.valDecision = 'Accept';
+      component.valScoreOverride = 98;
+      component.valReviewer = 'Dr. Horatio';
+      component.valComment = 'Accurate translation according to early modern German syntax.';
+
+      component.saveDraftReview();
+      expect(component.valSaveMessage).toContain('Saved review decision');
+
+      const isReviewed = component.isDialogueExpertReviewed(diag1, 'semantic');
+      expect(isReviewed).toBeTrue();
+    });
+
+    it('v1.5 Req 13: Act scene averages bar chart supports dimension switching and scene navigation', () => {
+      component.selectedAnalysisAct = 1;
+      const scenes = component.getActScenes(1);
+      expect(scenes.length).toBeGreaterThan(0);
+
+      component.onActChartDimensionChange('semantic');
+      expect(component.selectedActChartDimension).toBe('semantic');
+
+      component.onActChartVersionChange('human_german');
+      expect(component.selectedActChartVersion).toBe('human_german');
+
+      const score = component.getSceneChartScore(scenes[0]);
+      expect(score).not.toBeNull();
+      expect(score).toBeGreaterThan(0);
+
+      const count = component.getSceneChartApplicableCount(scenes[0]);
+      expect(count).toBeGreaterThan(0);
+
+      const provenance = component.getSceneChartProvenance(scenes[0]);
+      expect(provenance).toContain('Schlegel-Tieck');
     });
   });
 });

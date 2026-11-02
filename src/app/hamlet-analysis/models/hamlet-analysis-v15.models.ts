@@ -24,6 +24,7 @@ export interface PhraseEvidence {
   verified?: boolean;
   valid?: boolean;
   span_validation?: SpanValidation;
+  ui_highlight_eligible?: boolean;
 }
 
 export interface DimensionAnalysis {
@@ -80,6 +81,7 @@ export interface DimensionSummaryScore {
   units: number;
   total_units: number;
   method?: string;
+  applicable?: boolean;
 }
 
 export interface IntegratedReviewQueueItem {
@@ -104,6 +106,7 @@ export interface AnalysisScene {
   act: number;
   scene_number: number;
   title: string;
+  shortTitle?: string;
   analyzed_count?: number;
   total_dialogues?: number;
   review_dialogues_count?: number;
