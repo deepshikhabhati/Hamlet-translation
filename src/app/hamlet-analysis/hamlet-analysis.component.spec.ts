@@ -207,7 +207,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
     mockDataService.loadFullBookUiData.and.returnValue(of(null));
     mockDataService.loadFullBookHierarchy.and.returnValue(of(null));
     mockDataService.getPhraseEvidenceData.and.returnValue(of(null));
-    mockDataService.loadAnalysisJson.and.returnValue(of(mockIntegratedData));
+    mockDataService.loadAnalysisJson.and.callFake(() => of(JSON.parse(JSON.stringify(mockIntegratedData))));
     mockDataService.loadComputationReport.and.returnValue(of(null));
     mockDataService.loadSpanValidationReport.and.returnValue(of(null));
 
@@ -1020,6 +1020,204 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
 
       const provenance = component.getSceneChartProvenance(scenes[0]);
       expect(provenance).toContain('Schlegel-Tieck');
+    });
+
+    // --- November 5 Research Meeting Updates Test Suite ---
+
+    it('November 5 Req 1: simplifies primary comparison strictly to Original English and Human German', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const twoCol = el.querySelector('.v15-evidence-columns--two');
+      expect(twoCol).toBeTruthy();
+
+      const fourCol = el.querySelector('.v15-evidence-columns--four');
+      expect(fourCol).toBeNull();
+
+      // Original English and Human German present
+      expect(el.textContent).toContain('Original English');
+      expect(el.textContent).toContain('Human German');
+    });
+
+    it('November 5 Req 2: compact inline back-translation in Human German panel with caching', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+      fixture.detectChanges();
+
+      expect(component.isInlineBtOpen).toBeFalse();
+
+      spyOn(component.backTranslationService, 'translateGermanToEnglish').and.returnValue(of({
+        dialogueId: diag1.dialogue_id,
+        sourceGerman: diag1.texts?.human_german || 'Wer da?',
+        translatedEnglish: 'Who is there?',
+        cached: true,
+        status: 'success'
+      }));
+
+      component.toggleInlineBackTranslation();
+      expect(component.isInlineBtOpen).toBeTrue();
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.v15-inline-bt-panel')).toBeTruthy();
+      expect(el.textContent).toContain('AI Back-Translation (German → English)');
+      expect(el.textContent).toContain('Who is there?');
+
+      // Toggling again closes it
+      component.toggleInlineBackTranslation();
+      expect(component.isInlineBtOpen).toBeFalse();
+    });
+
+    it('November 5 Req 3: Round-Trip Translation (RTT) evaluation across 8 dimensions with score comparison and difference badges', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+
+      component.computeRttForCurrentDialogue('Who is there?');
+      expect(component.currentRttResult).toBeTruthy();
+
+      const semRtt = component.getRttDimScore('semantic');
+      expect(semRtt).toBeTruthy();
+      expect(semRtt?.originalScore).not.toBeNull();
+      expect(semRtt?.rttScore).not.toBeNull();
+      expect(semRtt?.diff).not.toBeNull();
+      expect(semRtt?.explanation).toContain('Semantic');
+
+      const emoRtt = component.getRttDimScore('emotion');
+      expect(emoRtt).toBeTruthy();
+      expect(emoRtt?.rttScore).not.toBeNull();
+
+      // View mode options
+      component.rttViewMode = 'original';
+      expect(component.rttViewMode).toBe('original');
+      component.rttViewMode = 'rtt';
+      expect(component.rttViewMode).toBe('rtt');
+      component.rttViewMode = 'compare';
+      expect(component.rttViewMode).toBe('compare');
+    });
+
+    it('November 5 Req 4: extends Evidence Heatmap with dual assessment toggle and difference calculation', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+
+      component.heatmapAssessmentSource = 'original';
+      const origScore = component.getSceneOriginalScore(act1Scene1, 'semantic');
+      expect(origScore).not.toBeNull();
+
+      component.heatmapAssessmentSource = 'rtt';
+      const rttScore = component.getSceneRttScore(act1Scene1, 'semantic');
+      expect(rttScore).not.toBeNull();
+
+      component.heatmapAssessmentSource = 'compare';
+      const diff = component.getSceneRttDiff(act1Scene1, 'semantic');
+      expect(diff).not.toBeNull();
+
+      const applicableCount = component.getSceneApplicableDialoguesCount(act1Scene1, 'semantic');
+      expect(applicableCount).toBeGreaterThan(0);
+
+      // Clicking cell navigates with selected dimension and assessment source
+      component.onHeatmapCellClick(1, act1Scene1, 'emotion', 'rtt');
+      expect(component.selectedAnalysisDimension).toBe('emotion');
+      expect(component.activeInspectorDim).toBe('emotion');
+      expect(component.rttViewMode).toBe('rtt');
+    });
+
+    it('November 5 Req 5: detects when dialogue has no verified phrase evidence for selected dimension', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+
+      const noEvidence = component.hasNoVerifiedEvidence(diag1, 'wordplay');
+      expect(typeof noEvidence).toBe('boolean');
+    });
+
+    it('November 5 Req 6: dimension-focused German generation produces distinct objectives and explanations', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+
+      // Semantic generation
+      component.selectedFocusedDimension = 'semantic';
+      component.generateDimensionFocusedTranslation();
+      expect(component.focusedTranslationResult).toBeTruthy();
+      expect(component.focusedTranslationResult?.objective).toContain('propositional');
+
+      // Emotion generation
+      component.selectedFocusedDimension = 'emotion';
+      component.generateDimensionFocusedTranslation();
+      expect(component.focusedTranslationResult?.objective).toContain('affective');
+
+      // Tone generation
+      component.selectedFocusedDimension = 'tone';
+      component.generateDimensionFocusedTranslation();
+      expect(component.focusedTranslationResult?.objective).toContain('dramatic register');
+    });
+
+    it('November 5 Req 7: AI Research Assistant provides suggestions and populates review form', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+
+      component.selectAiPresetQuestion('Which emotional expressions are preserved in this translation?');
+      expect(component.aiAssistantQuestion).toBe('Which emotional expressions are preserved in this translation?');
+
+      // Provide mock response
+      component.aiAssistantResponse = {
+        answer: 'Emotion cues preserved.',
+        suggestedOverride: 88,
+        suggestedNotes: 'Affective cues match early modern urgency.'
+      };
+
+      component.applyAiSuggestionToReview();
+      expect(component.valScoreOverride).toBe(88);
+      expect(component.valComment).toContain('early modern urgency');
+    });
+
+    it('November 5 Req 8: Expert validation handles blank override by keeping machine score and persists dimension-keyed decisions', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+      component.activeInspectorDim = 'tone';
+
+      component.valDecision = 'Accept';
+      component.valScoreOverride = null; // Blank means keep existing score
+      component.valReviewer = 'Prof. J. Schmidt (Shakespeare Philology)';
+      component.valComment = 'Retains martial watch tone.';
+
+      component.saveValidation();
+      expect(component.valSaveMessage).toContain('Saved review decision');
+
+      // Switch to another dimension and back
+      component.selectDimension('emotion');
+      component.loadCurrentReviewForInspector();
+
+      component.selectDimension('tone');
+      component.loadCurrentReviewForInspector();
+      expect(component.valComment).toContain('Retains martial watch tone');
+      expect(component.valDecision).toBe('Accept');
+    });
+
+    it('November 5 Req 9: expert-guided translation refinement workflow', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const diag1 = act1Scene1.dialogues[0];
+      component.openInspector(diag1.dialogue_id, 'human_german');
+      component.activeInspectorDim = 'emotion';
+
+      component.generateRefinedGermanTranslation();
+      expect(component.refinedTranslationResult).toBeTruthy();
+      expect(component.refinedTranslationResult?.refinedGerman).toBeTruthy();
+      expect(component.refinedTranslationResult?.rationale).toBeTruthy();
+
+      // Accept refinement
+      component.acceptRefinedTranslation();
+      expect(component.refinedTranslationResult?.accepted).toBeTrue();
+      expect(component.valComment).toContain('Accepted Scholar Refinement');
+
+      // Reject refinement
+      component.rejectRefinedTranslation();
+      expect(component.refinedTranslationResult?.accepted).toBeFalse();
     });
   });
 });

@@ -6377,5 +6377,586 @@ app-ha-phrase-evidence-workspace {
   }
 }
 
+/* Two-Column Simplified Translation Comparison (Requirement 1) */
+.v15-evidence-columns--two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  .v15-evidence-box--primary {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    .v15-evidence-box-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #f1f5f9;
+
+      .v15-box-title-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #0f172a;
+      }
+    }
+  }
+}
+
+/* Verified Evidence State Notice (Requirement 5) */
+.v15-no-phrase-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  font-size: 13px;
+  font-style: italic;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+
+  .v15-notice-icon {
+    font-style: normal;
+  }
+}
+
+/* Compact Inline Back-Translation in Human German Box (Requirement 2) */
+.v15-inline-bt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 140ms ease;
+
+  &:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .v15-bt-icon {
+    font-size: 13px;
+    color: #2563eb;
+  }
+}
+
+.v15-inline-bt-panel {
+  margin-top: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #2563eb;
+  border-radius: 6px;
+
+  .v15-inline-bt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+
+    .v15-inline-bt-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #2563eb;
+    }
+  }
+
+  .v15-inline-bt-loading {
+    font-size: 12.5px;
+    color: #64748b;
+    padding: 6px 0;
+  }
+
+  .v15-inline-bt-error {
+    font-size: 12px;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .v15-retry-btn {
+      background: none;
+      border: 1px solid #f87171;
+      color: #dc2626;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+  }
+
+  .v15-inline-bt-body {
+    .v15-inline-bt-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+
+    .v15-inline-bt-note {
+      font-size: 11.5px;
+      color: #64748b;
+      font-style: italic;
+    }
+  }
+}
+
+/* Round-Trip Translation (RTT) Analysis Card (Requirement 3) */
+.v15-rtt-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .v15-rtt-view-modes {
+    display: inline-flex;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f8fafc;
+
+    .v15-rtt-view-btn {
+      background: transparent;
+      border: none;
+      border-right: 1px solid #cbd5e1;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: all 120ms ease;
+
+      &:last-child {
+        border-right: none;
+      }
+
+      &:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      &--active {
+        background: #1e293b;
+        color: #ffffff;
+
+        &:hover {
+          background: #0f172a;
+          color: #ffffff;
+        }
+      }
+    }
+  }
+
+  .v15-rtt-table-wrap {
+    margin-top: 12px;
+    overflow-x: auto;
+  }
+
+  .v15-rtt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    th, td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    th {
+      font-weight: 700;
+      color: #475569;
+      background: #f8fafc;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    tr:hover {
+      background-color: #f8fafc;
+      cursor: pointer;
+    }
+
+    .v15-rtt-row--active {
+      background-color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    .v15-rtt-score-cell {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .v15-rtt-inspect-btn {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+
+      &:hover {
+        background: #e2e8f0;
+      }
+    }
+  }
+
+  .v15-rtt-detail-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border-left: 3px solid #0284c7;
+    border-radius: 4px;
+
+    .v15-rtt-detail-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #0369a1;
+      margin-bottom: 4px;
+
+      .v15-rtt-source-lbl {
+        font-size: 11px;
+        color: #64748b;
+        font-style: italic;
+      }
+    }
+
+    .v15-rtt-detail-explanation {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #334155;
+      margin: 0;
+    }
+  }
+}
+
+/* Difference Badges */
+.v15-diff-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  &--pos {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &--neg {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  &--sm {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+}
+
+/* Dimension-Focused Choices & Explanations (Requirement 6) */
+.v15-focused-choice-expl,
+.v15-focused-comparison-expl {
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #475569;
+
+  strong {
+    color: #1e293b;
+  }
+}
+
+/* Expert-Guided Translation Refinement Card (Requirement 9) */
+.v15-refinement-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .v15-refine-toggle-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+
+    &:hover {
+      background: #e2e8f0;
+    }
+  }
+
+  .v15-refinement-content {
+    margin-top: 12px;
+  }
+
+  .v15-refine-trigger-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+
+    .v15-refine-btn {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 140ms ease;
+
+      &:hover:not(:disabled) {
+        background: #0369a1;
+      }
+
+      &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+    }
+
+    .v15-refine-context-tag {
+      font-size: 12px;
+      color: #64748b;
+      font-style: italic;
+    }
+  }
+
+  .v15-refine-result-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 14px;
+
+    .v15-refine-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 12px;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+
+      .v15-refine-col {
+        .v15-refine-col-lbl {
+          display: block;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #64748b;
+          margin-bottom: 6px;
+        }
+
+        .v15-refine-text {
+          font-size: 14px;
+          line-height: 1.5;
+          color: #334155;
+
+          &--active {
+            color: #0f172a;
+            font-weight: 600;
+          }
+        }
+
+        &--refined {
+          border-left: 2px solid #0284c7;
+          padding-left: 12px;
+        }
+      }
+    }
+
+    .v15-refine-rationale-box {
+      font-size: 12.5px;
+      color: #475569;
+      margin-bottom: 12px;
+      line-height: 1.45;
+
+      strong {
+        color: #0f172a;
+      }
+
+      p {
+        margin: 4px 0 0 0;
+      }
+    }
+
+    .v15-refine-actions-row {
+      display: flex;
+      gap: 10px;
+
+      .v15-refine-act-btn {
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid transparent;
+
+        &--accept {
+          background: #dcfce7;
+          color: #15803d;
+          border-color: #86efac;
+
+          &:hover {
+            background: #bbf7d0;
+          }
+
+          &.v15-refine-act-btn--active {
+            background: #15803d;
+            color: #ffffff;
+          }
+        }
+
+        &--reject {
+          background: #fee2e2;
+          color: #b91c1c;
+          border-color: #fca5a5;
+
+          &:hover {
+            background: #fecaca;
+          }
+
+          &.v15-refine-act-btn--active {
+            background: #b91c1c;
+            color: #ffffff;
+          }
+        }
+      }
+    }
+
+    .v15-refine-notice {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #15803d;
+      font-weight: 500;
+    }
+  }
+}
+
+/* Validation textarea height and score hint (Requirement 8) */
+.v15-val-textarea {
+  min-height: 140px;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.v15-cur-score-hint {
+  font-size: 12px;
+  font-weight: normal;
+  color: #64748b;
+  margin-left: 8px;
+
+  strong {
+    color: #0f172a;
+  }
+}
+
+/* AI Assistant Preset Question Chips (Requirement 7) */
+.v15-ai-presets-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  .v15-presets-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #64748b;
+    margin-right: 2px;
+  }
+
+  .v15-ai-preset-chip {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    font-size: 11.5px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 120ms ease;
+
+    &:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+  }
+}
+
+/* Heatmap Dual Assessment Comparison Styles (Requirement 4) */
+.v15-hm-source-group {
+  margin-right: 12px;
+}
+
+.v15-hm-cmp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+
+  .v15-hm-cmp-scores {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+
+    .v15-hm-val-sep {
+      color: #94a3b8;
+      font-size: 9px;
+    }
+  }
+}
+
 
 

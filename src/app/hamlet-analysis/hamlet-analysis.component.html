@@ -163,24 +163,33 @@
                 </div>
               </div>
 
-              <!-- 2. Four Translation Sections & Phrase-Level Evidence (Requirement 10) -->
+              <!-- 2. Primary Translation Comparison: Original English | Human German (Requirement 1) -->
               <div class="v15-phrase-evidence-card">
                 <div class="v15-card-head-row">
-                  <h4 class="v15-card-h4">Four Translations & Dimension Evidence: {{ getDimensionName(activeInspectorDim) }}</h4>
+                  <h4 class="v15-card-h4">Primary Translation Comparison: {{ getDimensionName(activeInspectorDim) }}</h4>
                   <div class="v15-evidence-legend" role="region" aria-label="Phrase Highlight Legend">
-                    <span class="v15-chip v15-chip--preserved" title="Preserved meaning">Preserved</span>
-                    <span class="v15-chip v15-chip--changed" title="Changed meaning">Changed</span>
-                    <span class="v15-chip v15-chip--lost" title="Lost meaning">Lost</span>
-                    <span class="v15-chip v15-chip--added" title="Added meaning">Added</span>
+                    <span class="v15-chip v15-chip--preserved" title="Preserved literary feature">Preserved</span>
+                    <span class="v15-chip v15-chip--changed" title="Changed literary feature">Changed</span>
+                    <span class="v15-chip v15-chip--lost" title="Lost literary feature">Lost</span>
+                    <span class="v15-chip v15-chip--added" title="Added literary feature">Added</span>
                   </div>
                 </div>
 
-                <div class="v15-evidence-columns v15-evidence-columns--four">
-                  <!-- 1. English Source -->
-                  <div class="v15-evidence-box">
+                <!-- Verified evidence state notice (Requirement 5) -->
+                <div *ngIf="hasNoVerifiedEvidence(inspectedDialogue, activeInspectorDim)" class="v15-no-phrase-notice">
+                  <span class="v15-notice-icon">ℹ️</span>
+                  <span>No verified phrase evidence for this dimension.</span>
+                </div>
+
+                <!-- Simplified Two-Column Comparison (Requirement 1) -->
+                <div class="v15-evidence-columns v15-evidence-columns--two">
+                  <!-- 1. Original English Source -->
+                  <div class="v15-evidence-box v15-evidence-box--primary">
                     <div class="v15-evidence-box-title">
-                      <span>Original English</span>
-                      <span class="v15-box-ver-badge">Shakespeare (1603/23)</span>
+                      <div class="v15-box-title-left">
+                        <span>Original English</span>
+                        <span class="v15-box-ver-badge">Shakespeare (1603/23)</span>
+                      </div>
                     </div>
                     <app-ha-evidence-highlighted-text
                       [text]="inspectedDialogue.texts.english || ''"
@@ -191,11 +200,27 @@
                     ></app-ha-evidence-highlighted-text>
                   </div>
 
-                  <!-- 2. Human German -->
-                  <div class="v15-evidence-box">
+                  <!-- 2. Human German Target with Compact Inline Back-Translation (Requirement 2) -->
+                  <div class="v15-evidence-box v15-evidence-box--primary">
                     <div class="v15-evidence-box-title">
-                      <span>Human German</span>
-                      <span class="v15-box-ver-badge">Schlegel-Tieck</span>
+                      <div class="v15-box-title-left">
+                        <span>Human German</span>
+                        <span class="v15-box-ver-badge">Schlegel-Tieck</span>
+                      </div>
+                      <div class="v15-box-title-actions">
+                        <button
+                          type="button"
+                          class="v15-inline-bt-btn"
+                          (click)="toggleInlineBackTranslation()"
+                          [disabled]="inlineBtLoading"
+                          title="Translate selected Human German dialogue into English using AI translation"
+                          aria-label="Translate Human German into English"
+                        >
+                          <span *ngIf="!inlineBtLoading" class="v15-bt-icon">⇄</span>
+                          <span *ngIf="inlineBtLoading" class="v15-bt-spinner">⏳</span>
+                          <span class="v15-bt-label">{{ isInlineBtOpen ? 'Hide Back-Translation' : 'Translate to English' }}</span>
+                        </button>
+                      </div>
                     </div>
                     <app-ha-evidence-highlighted-text
                       [text]="inspectedDialogue.texts.human_german || ''"
@@ -205,38 +230,28 @@
                       (segmentLeave)="onSegmentLeave()"
                       (segmentClick)="onSegmentClick($event, 'human_german', inspectedDialogue)"
                     ></app-ha-evidence-highlighted-text>
-                  </div>
 
-                  <!-- 3. AI German -->
-                  <div class="v15-evidence-box">
-                    <div class="v15-evidence-box-title">
-                      <span>AI German</span>
-                      <span class="v15-box-ver-badge">Baseline Model</span>
-                    </div>
-                    <app-ha-evidence-highlighted-text
-                      [text]="inspectedDialogue.texts.ai_german || ''"
-                      [spans]="getTargetSpansForDialogue(inspectedDialogue, 'ai_german', activeInspectorDim)"
-                      fallbackText="[AI translation unavailable]"
-                      (segmentHover)="onSegmentHover($event, 'ai_german', inspectedDialogue)"
-                      (segmentLeave)="onSegmentLeave()"
-                      (segmentClick)="onSegmentClick($event, 'ai_german', inspectedDialogue)"
-                    ></app-ha-evidence-highlighted-text>
-                  </div>
+                    <!-- Compact Inline Back-Translation Panel (Requirement 2) -->
+                    <div *ngIf="isInlineBtOpen" class="v15-inline-bt-panel" role="region" aria-label="AI Back-Translation">
+                      <div class="v15-inline-bt-header">
+                        <span class="v15-inline-bt-tag">AI Back-Translation (German → English)</span>
+                        <span *ngIf="currentInlineBtResult?.cached" class="v15-bt-cached-pill">Cached</span>
+                      </div>
 
-                  <!-- 4. Context-Aware AI German -->
-                  <div class="v15-evidence-box">
-                    <div class="v15-evidence-box-title">
-                      <span>Context-Aware AI German</span>
-                      <span class="v15-box-ver-badge">Context Model</span>
+                      <div *ngIf="inlineBtLoading" class="v15-inline-bt-loading">
+                        <span class="v15-spinner"></span> Translating German line to English…
+                      </div>
+
+                      <div *ngIf="inlineBtError && !inlineBtLoading" class="v15-inline-bt-error">
+                        <span>{{ inlineBtError }}</span>
+                        <button type="button" class="v15-retry-btn" (click)="retryInlineBackTranslation()">Retry</button>
+                      </div>
+
+                      <div *ngIf="currentInlineBtResult && !inlineBtLoading && !inlineBtError" class="v15-inline-bt-body">
+                        <div class="v15-inline-bt-text literary-text">"{{ currentInlineBtResult.translatedEnglish }}"</div>
+                        <div class="v15-inline-bt-note">Original English: "{{ inspectedDialogue.texts.english }}"</div>
+                      </div>
                     </div>
-                    <app-ha-evidence-highlighted-text
-                      [text]="inspectedDialogue.texts.context_ai_german || ''"
-                      [spans]="getTargetSpansForDialogue(inspectedDialogue, 'context_ai_german', activeInspectorDim)"
-                      fallbackText="[Context AI translation unavailable]"
-                      (segmentHover)="onSegmentHover($event, 'context_ai_german', inspectedDialogue)"
-                      (segmentLeave)="onSegmentLeave()"
-                      (segmentClick)="onSegmentClick($event, 'context_ai_german', inspectedDialogue)"
-                    ></app-ha-evidence-highlighted-text>
                   </div>
                 </div>
 
@@ -252,75 +267,123 @@
                 </div>
               </div>
 
-              <!-- Back-translation: German → English (Requirement 10) -->
-              <div class="v15-back-translation-card">
+              <!-- 3. Round-Trip Translation (RTT) Analysis (Requirement 3) -->
+              <div class="v15-rtt-card" role="region" aria-label="Round-Trip Translation Analysis">
                 <div class="v15-card-head-row">
                   <div>
-                    <h4 class="v15-card-h4">Back-translation: German → English</h4>
-                    <p class="v15-card-sub">Select which German translation to back-translate into English using real translation to evaluate reverse fidelity.</p>
+                    <h4 class="v15-card-h4">Round-Trip Translation (RTT) Analysis</h4>
+                    <p class="v15-card-sub">
+                      RTT Process: Original English → Human German → AI Back-Translated English. Evaluates reverse literary preservation across all dimensions.
+                    </p>
                   </div>
-                  <div class="v15-bt-version-picker">
+                  <!-- Three view options -->
+                  <div class="v15-rtt-view-modes" role="group" aria-label="RTT View Option">
                     <button
                       type="button"
-                      class="v15-bt-ver-btn"
-                      [class.v15-bt-ver-btn--active]="selectedBackTranslationVersion === 'human_german'"
-                      (click)="translateGermanToEnglishVersion('human_german')"
-                    >Human DE</button>
+                      class="v15-rtt-view-btn"
+                      [class.v15-rtt-view-btn--active]="rttViewMode === 'original'"
+                      (click)="rttViewMode = 'original'"
+                    >
+                      Original Assessment
+                    </button>
                     <button
                       type="button"
-                      class="v15-bt-ver-btn"
-                      [class.v15-bt-ver-btn--active]="selectedBackTranslationVersion === 'ai_german'"
-                      (click)="translateGermanToEnglishVersion('ai_german')"
-                    >AI DE</button>
+                      class="v15-rtt-view-btn"
+                      [class.v15-rtt-view-btn--active]="rttViewMode === 'rtt'"
+                      (click)="rttViewMode = 'rtt'"
+                    >
+                      RTT Assessment
+                    </button>
                     <button
                       type="button"
-                      class="v15-bt-ver-btn"
-                      [class.v15-bt-ver-btn--active]="selectedBackTranslationVersion === 'context_ai_german'"
-                      (click)="translateGermanToEnglishVersion('context_ai_german')"
-                    >Context AI</button>
+                      class="v15-rtt-view-btn"
+                      [class.v15-rtt-view-btn--active]="rttViewMode === 'compare'"
+                      (click)="rttViewMode = 'compare'"
+                    >
+                      Compare Both
+                    </button>
                   </div>
                 </div>
 
-                <div class="v15-bt-actions-row">
-                  <button
-                    type="button"
-                    class="v15-bt-translate-btn"
-                    (click)="translateActiveDialogueBackToEnglish()"
-                    [disabled]="backTranslationLoading"
-                  >
-                    <span *ngIf="!backTranslationLoading">Translate German to English</span>
-                    <span *ngIf="backTranslationLoading">Translating…</span>
-                  </button>
-                  <span class="v15-bt-source-tag">Source: {{ getVersionLabel(selectedBackTranslationVersion) }}</span>
+                <!-- Comparative Dimensions Table -->
+                <div class="v15-rtt-table-wrap">
+                  <table class="v15-rtt-table">
+                    <thead>
+                      <tr>
+                        <th>Dimension</th>
+                        <th *ngIf="rttViewMode === 'original' || rttViewMode === 'compare'">English → German</th>
+                        <th *ngIf="rttViewMode === 'rtt' || rttViewMode === 'compare'">Round Trip</th>
+                        <th *ngIf="rttViewMode === 'compare'">Difference</th>
+                        <th>Status</th>
+                        <th>Evidence Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        *ngFor="let dim of v15Dimensions"
+                        [class.v15-rtt-row--active]="activeInspectorDim === dim.key"
+                        (click)="selectDimension(dim.key)"
+                      >
+                        <td class="v15-rtt-dim-cell">
+                          <strong>{{ dim.name }}</strong>
+                        </td>
+                        <td *ngIf="rttViewMode === 'original' || rttViewMode === 'compare'" class="v15-rtt-score-cell">
+                          <span *ngIf="getRttDimScore(dim.key)?.originalScore !== null" [style.color]="getHumanScoreColor(getRttDimScore(dim.key)?.originalScore)">
+                            {{ formatHumanScore(getRttDimScore(dim.key)?.originalScore) }}
+                          </span>
+                          <span *ngIf="getRttDimScore(dim.key)?.originalScore === null" class="v15-score-na">N/A</span>
+                        </td>
+                        <td *ngIf="rttViewMode === 'rtt' || rttViewMode === 'compare'" class="v15-rtt-score-cell">
+                          <span *ngIf="getRttDimScore(dim.key)?.rttScore !== null" [style.color]="getHumanScoreColor(getRttDimScore(dim.key)?.rttScore)">
+                            {{ formatHumanScore(getRttDimScore(dim.key)?.rttScore) }}
+                          </span>
+                          <span *ngIf="getRttDimScore(dim.key)?.rttScore === null" class="v15-score-na">N/A</span>
+                        </td>
+                        <td *ngIf="rttViewMode === 'compare'" class="v15-rtt-diff-cell">
+                          <ng-container *ngIf="getRttDimScore(dim.key)?.diff !== null">
+                            <span
+                              class="v15-diff-badge"
+                              [class.v15-diff-badge--pos]="(getRttDimScore(dim.key)?.diff || 0) >= 0"
+                              [class.v15-diff-badge--neg]="(getRttDimScore(dim.key)?.diff || 0) < 0"
+                            >
+                              {{ (getRttDimScore(dim.key)?.diff || 0) >= 0 ? '+' : '' }}{{ getRttDimScore(dim.key)?.diff }}
+                            </span>
+                          </ng-container>
+                          <span *ngIf="getRttDimScore(dim.key)?.diff === null" class="v15-score-na">—</span>
+                        </td>
+                        <td>
+                          <span class="v15-chip" [ngClass]="'v15-chip--' + (getRttDimScore(dim.key)?.status || 'preserved').toLowerCase()">
+                            {{ getRttDimScore(dim.key)?.status || 'Preserved' }}
+                          </span>
+                        </td>
+                        <td>
+                          <button type="button" class="v15-rtt-inspect-btn" (click)="$event.stopPropagation(); selectDimension(dim.key)">
+                            {{ activeInspectorDim === dim.key ? 'Active' : 'Select' }}
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
 
-                <!-- Parallel display: Original English vs Back-translated English -->
-                <div *ngIf="backTranslationResult" class="v15-bt-comparison-grid">
-                  <div class="v15-bt-col">
-                    <div class="v15-bt-col-header">Original English (Shakespeare)</div>
-                    <div class="v15-bt-text-body literary-text">{{ inspectedDialogue.texts.english }}</div>
+                <!-- Selected Dimension RTT Explanation & Comparative Evidence -->
+                <div class="v15-rtt-detail-box" *ngIf="getRttDimScore(activeInspectorDim)">
+                  <div class="v15-rtt-detail-head">
+                    <strong>{{ getDimensionName(activeInspectorDim) }} — Round-Trip Comparative Evidence:</strong>
+                    <span class="v15-rtt-source-lbl">English Original vs. AI Back-Translation</span>
                   </div>
-                  <div class="v15-bt-col">
-                    <div class="v15-bt-col-header">
-                      Back-translated English (from {{ getVersionLabel(selectedBackTranslationVersion) }})
-                      <span *ngIf="backTranslationResult.cached" class="v15-bt-cached-pill">Cached</span>
-                    </div>
-                    <div *ngIf="backTranslationResult.status === 'success'" class="v15-bt-text-body literary-text v15-bt-text-body--result">
-                      {{ backTranslationResult.translatedEnglish }}
-                    </div>
-                    <div *ngIf="backTranslationResult.status === 'error'" class="v15-bt-error-message">
-                      {{ backTranslationResult.message }}
-                    </div>
-                  </div>
+                  <p class="v15-rtt-detail-explanation">
+                    {{ getRttDimScore(activeInspectorDim)?.explanation }}
+                  </p>
                 </div>
               </div>
 
-              <!-- Dimension-Focused German Translation Generator (Requirement 10) -->
+              <!-- 4. Dimension-Focused German Translation Generator (Requirement 6) -->
               <div class="v15-focused-trans-card">
                 <div class="v15-card-head-row">
                   <div>
                     <h4 class="v15-card-h4">Generate Dimension-Focused German Translation</h4>
-                    <p class="v15-card-sub">Generate a candidate German rendering targeted at preserving a specific literary feature. Kept separate from research dataset.</p>
+                    <p class="v15-card-sub">Generate a candidate German rendering targeted at preserving a specific literary dimension with distinct objectives.</p>
                   </div>
                 </div>
 
@@ -341,18 +404,24 @@
                     (click)="generateDimensionFocusedTranslation()"
                     [disabled]="focusedTranslationLoading"
                   >
-                    <span *ngIf="!focusedTranslationLoading">Generate Dimension-Focused German Translation</span>
+                    <span *ngIf="!focusedTranslationLoading">Generate {{ getDimensionName(selectedFocusedDimension) }}-Focused Translation</span>
                     <span *ngIf="focusedTranslationLoading">Generating…</span>
                   </button>
                 </div>
 
                 <div *ngIf="focusedTranslationResult" class="v15-focused-result-box">
                   <div class="v15-focused-disclaimer">
-                    <span class="v15-disclaimer-icon">ℹ️</span>
+                    <span class="v15-disclaimer-icon">🎯</span>
                     <strong>Translation Objective:</strong> {{ focusedTranslationResult.objective }}
                   </div>
                   <div *ngIf="focusedTranslationResult.status === 'success'" class="v15-focused-text literary-text">
                     "{{ focusedTranslationResult.text }}"
+                  </div>
+                  <div *ngIf="focusedTranslationResult.explanation" class="v15-focused-choice-expl">
+                    <strong>Translation Choices:</strong> {{ focusedTranslationResult.explanation }}
+                  </div>
+                  <div *ngIf="focusedTranslationResult.comparison" class="v15-focused-comparison-expl">
+                    <strong>Comparison with Human German:</strong> {{ focusedTranslationResult.comparison }}
                   </div>
                   <div *ngIf="focusedTranslationResult.status === 'error'" class="v15-bt-error-message">
                     {{ focusedTranslationResult.message }}
@@ -360,7 +429,79 @@
                 </div>
               </div>
 
-              <!-- 3. Review Cards & Specific Literary Explanation (C) -->
+              <!-- 5. Expert-Guided German Translation Refinement Workflow (Requirement 9) -->
+              <div class="v15-refinement-card" role="region" aria-label="Expert-Guided German Translation Refinement">
+                <div class="v15-card-head-row">
+                  <div>
+                    <h4 class="v15-card-h4">Expert-Guided German Translation Refinement</h4>
+                    <p class="v15-card-sub">
+                      Workflow: Original English → Human German → AI Assessment → Expert Feedback → AI-Assisted Revision → Refined German Translation
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="v15-refine-toggle-btn"
+                    (click)="isRefinementExpanded = !isRefinementExpanded"
+                  >
+                    {{ isRefinementExpanded ? 'Collapse Workflow ▴' : 'Expand Refinement ▾' }}
+                  </button>
+                </div>
+
+                <div *ngIf="isRefinementExpanded" class="v15-refinement-content">
+                  <div class="v15-refine-trigger-row">
+                    <button
+                      type="button"
+                      class="v15-refine-btn"
+                      (click)="generateRefinedGermanTranslation()"
+                      [disabled]="refinedTranslationLoading"
+                    >
+                      <span *ngIf="!refinedTranslationLoading">⚡ Generate Refined German Translation</span>
+                      <span *ngIf="refinedTranslationLoading">Synthesizing Revision…</span>
+                    </button>
+                    <span class="v15-refine-context-tag">Target: {{ getDimensionName(activeInspectorDim) }} | Incorporates scholar commentary</span>
+                  </div>
+
+                  <div *ngIf="refinedTranslationResult" class="v15-refine-result-panel">
+                    <div class="v15-refine-grid">
+                      <div class="v15-refine-col">
+                        <span class="v15-refine-col-lbl">Original Human German (Schlegel-Tieck)</span>
+                        <div class="v15-refine-text literary-text">"{{ inspectedDialogue.texts.human_german }}"</div>
+                      </div>
+                      <div class="v15-refine-col v15-refine-col--refined">
+                        <span class="v15-refine-col-lbl">Refined German Translation (Expert-Guided)</span>
+                        <div class="v15-refine-text literary-text v15-refine-text--active">"{{ refinedTranslationResult.refinedGerman }}"</div>
+                      </div>
+                    </div>
+
+                    <div class="v15-refine-rationale-box">
+                      <strong>Philological Revision Rationale:</strong>
+                      <p>{{ refinedTranslationResult.rationale }}</p>
+                    </div>
+
+                    <div class="v15-refine-actions-row">
+                      <button
+                        type="button"
+                        class="v15-refine-act-btn v15-refine-act-btn--accept"
+                        [class.v15-refine-act-btn--active]="refinedTranslationResult.accepted === true"
+                        (click)="acceptRefinedTranslation()"
+                      >
+                        ✓ Accept Refined Translation
+                      </button>
+                      <button
+                        type="button"
+                        class="v15-refine-act-btn v15-refine-act-btn--reject"
+                        [class.v15-refine-act-btn--active]="refinedTranslationResult.accepted === false"
+                        (click)="rejectRefinedTranslation()"
+                      >
+                        ✕ Reject Refinement
+                      </button>
+                    </div>
+                    <div *ngIf="refinedSaveNotice" class="v15-refine-notice">{{ refinedSaveNotice }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. Review Cards & Specific Literary Explanation -->
               <div class="v15-explanation-card">
                 <div class="v15-card-head-row">
                   <h4 class="v15-card-h4">{{ getDimensionName(activeInspectorDim) }} — Literary Explanation</h4>
@@ -393,7 +534,7 @@
                   {{ getActiveInspectorExplanation() }}
                 </p>
 
-                <!-- Text Provenance & Phrasing Variation Notice (TASK 4) -->
+                <!-- Text Provenance & Phrasing Variation Notice -->
                 <div *ngIf="hasExplanationMismatch(inspectedDialogue, activeInspectorDim)" class="v15-mismatch-banner">
                   <div class="v15-mismatch-header">
                     <span class="v15-mismatch-icon">⚠️</span>
@@ -405,7 +546,7 @@
                 </div>
               </div>
 
-              <!-- 5. Expert Review & Annotation Controls -->
+              <!-- 7. Expert Review & Annotation Controls (Requirement 8) -->
               <div class="v15-insp-validation-card">
                 <div class="v15-card-head-row">
                   <h4 class="v15-card-h4">Expert Validation & Editorial Review</h4>
@@ -454,9 +595,12 @@
                     </button>
                   </div>
 
-                  <!-- Score Override Input -->
+                  <!-- Score Override Input with Current Score Nearby (Requirement 8) -->
                   <div class="v15-val-score-override-row">
-                    <label class="v15-val-field-label">Score Override (0–100):
+                    <label class="v15-val-field-label">Optional score override (0–100):
+                      <span class="v15-cur-score-hint">
+                        Current score: <strong>{{ formatHumanScore(getDialogueHumanScore(inspectedDialogue, activeInspectorDim)) }}</strong>
+                      </span>
                       <input
                         type="number"
                         min="0"
@@ -465,12 +609,12 @@
                         class="v15-val-score-input"
                         [(ngModel)]="valScoreOverride"
                         name="valScoreOverride"
-                        placeholder="Leave blank to accept machine score"
+                        placeholder="Optional score override (0–100)"
                       />
                     </label>
                   </div>
 
-                  <!-- Reviewer Name & Comment -->
+                  <!-- Reviewer Name with Example Placeholder (Requirement 8) -->
                   <div class="v15-val-meta-row">
                     <label class="v15-val-field-label">Reviewer Identity:
                       <input
@@ -478,19 +622,20 @@
                         class="v15-val-text-input"
                         [(ngModel)]="valReviewer"
                         name="valReviewer"
-                        placeholder="e.g. Shakespeare Scholar"
+                        placeholder="e.g. Prof. J. Schmidt (Shakespeare Philology)"
                       />
                     </label>
                   </div>
 
+                  <!-- Scholarly Justification Textarea 120-160px (Requirement 8) -->
                   <div class="v15-val-comment-row">
                     <label class="v15-val-field-label">Reviewer Notes & Scholarly Justification:
                       <textarea
                         class="v15-val-textarea"
                         [(ngModel)]="valComment"
                         name="valComment"
-                        rows="5"
-                        placeholder="Provide philological explanation or commentary..."
+                        rows="6"
+                        placeholder="Provide philological commentary, explanation of score adjustment, or translation choices..."
                       ></textarea>
                     </label>
                   </div>
@@ -514,24 +659,37 @@
                 </form>
               </div>
 
-              <!-- AI Research Assistant Area (Requirement 11) -->
+              <!-- 8. AI Research Assistant (Requirement 7) -->
               <div class="v15-ai-assistant-card">
                 <div class="v15-card-head-row">
                   <div>
                     <h4 class="v15-card-h4">AI Research Assistant (Comparative Philology)</h4>
-                    <span class="v15-ai-unverified-badge">⚠️ AI Suggestions Unverified until Accepted by Human Scholar</span>
+                    <span class="v15-ai-unverified-badge">⚠️ AI Suggestions — Not Expert Validated</span>
                   </div>
                 </div>
                 <p class="v15-ai-desc">
-                  Ask philological inquiries regarding <strong>{{ getDimensionName(activeInspectorDim) }}</strong>, compare translation nuances between Human and AI German, or request a proposed score revision.
+                  Ask philological questions regarding <strong>{{ getDimensionName(activeInspectorDim) }}</strong> in Act {{ selectedAnalysisAct }}, Scene {{ selectedAnalysisScene?.scene_number || 1 }} ({{ inspectedDialogue.speaker }}).
                 </p>
+
+                <!-- Pre-canned Academic Inquiries (Requirement 7) -->
+                <div class="v15-ai-presets-row" role="group" aria-label="Suggested Inquiries">
+                  <span class="v15-presets-label">Suggested:</span>
+                  <button
+                    *ngFor="let q of aiPresetQuestions"
+                    type="button"
+                    class="v15-ai-preset-chip"
+                    (click)="selectAiPresetQuestion(q)"
+                  >
+                    {{ q }}
+                  </button>
+                </div>
 
                 <div class="v15-ai-query-row">
                   <input
                     type="text"
                     class="v15-ai-input"
                     [(ngModel)]="aiAssistantQuestion"
-                    placeholder="e.g. Compare the metaphor preservation between Schlegel and AI German..."
+                    placeholder="e.g. Which emotional expressions are preserved in this translation?"
                     (keyup.enter)="askAiResearchAssistant()"
                   />
                   <button
@@ -548,7 +706,7 @@
                 <div *ngIf="aiAssistantResponse" class="v15-ai-response-box">
                   <div class="v15-ai-response-head">
                     <strong>Proposed Assessment & Comparative Rationale:</strong>
-                    <span class="v15-unverified-tag">Unverified Proposal</span>
+                    <span class="v15-unverified-tag">AI Suggestions — Not Expert Validated</span>
                   </div>
                   <p class="v15-ai-answer-text">{{ aiAssistantResponse.answer }}</p>
                   <div class="v15-ai-suggestion-meta" *ngIf="aiAssistantResponse.suggestedOverride !== undefined">
@@ -1451,12 +1609,32 @@
           <p class="v15-hm-desc">Every scene against every dimension. Find the weak spots here, then click a cell to open that scene with that dimension selected.</p>
 
           <div class="v15-hm-controls">
-            <div role="group" aria-label="Translation mode" class="v15-filter-btn-group">
-              <button type="button" class="v15-filter-btn" [class.v15-filter-btn--active]="v15HeatmapMode === 'cmp'" (click)="v15HeatmapMode = 'cmp'">Compare all three</button>
-              <button type="button" class="v15-filter-btn" [class.v15-filter-btn--active]="v15HeatmapMode === 'human_german'" (click)="v15HeatmapMode = 'human_german'">Human</button>
-              <button type="button" class="v15-filter-btn" [class.v15-filter-btn--active]="v15HeatmapMode === 'ai_german'" (click)="v15HeatmapMode = 'ai_german'">AI</button>
-              <button type="button" class="v15-filter-btn" [class.v15-filter-btn--active]="v15HeatmapMode === 'context_ai_german'" (click)="v15HeatmapMode = 'context_ai_german'">Context AI</button>
-              <button type="button" class="v15-filter-btn" [class.v15-filter-btn--active]="v15HeatmapMode === 'eff'" (click)="v15HeatmapMode = 'eff'">Context effect</button>
+            <!-- Assessment Source Switcher (Requirement 4) -->
+            <div role="group" aria-label="Assessment source" class="v15-filter-btn-group v15-hm-source-group">
+              <button
+                type="button"
+                class="v15-filter-btn"
+                [class.v15-filter-btn--active]="heatmapAssessmentSource === 'original'"
+                (click)="heatmapAssessmentSource = 'original'"
+              >
+                English → Human German (Original)
+              </button>
+              <button
+                type="button"
+                class="v15-filter-btn"
+                [class.v15-filter-btn--active]="heatmapAssessmentSource === 'rtt'"
+                (click)="heatmapAssessmentSource = 'rtt'"
+              >
+                Round-Trip Translation (RTT)
+              </button>
+              <button
+                type="button"
+                class="v15-filter-btn"
+                [class.v15-filter-btn--active]="heatmapAssessmentSource === 'compare'"
+                (click)="heatmapAssessmentSource = 'compare'"
+              >
+                Compare Both (Original vs. RTT)
+              </button>
             </div>
 
             <label class="v15-sort-label">Act
@@ -1481,6 +1659,7 @@
               <div class="v15-hm-thead">
                 <span>Scene</span>
                 <span *ngFor="let d of v15Dimensions" style="text-align:center">{{ d.short }}</span>
+                <span style="text-align:center">Dialogues</span>
                 <span style="text-align:right">To review</span>
               </div>
 
@@ -1493,33 +1672,54 @@
                       <span>Act {{ sc.act }}, Scene {{ sc.scene_number || sc.scene_id }}</span>
                     </button>
 
-                    <!-- Cells for each dimension -->
+                    <!-- Cells for each dimension with dual assessment (Requirement 4) -->
                     <ng-container *ngFor="let dim of v15Dimensions">
                       <button
                         type="button"
                         class="v15-hm-cell-btn"
                         [class.v15-hm-cell-btn--unassigned]="!isSceneAnalyzed(sc)"
-                        [ngClass]="isSceneAnalyzed(sc) && v15HeatmapMode !== 'cmp' && v15HeatmapMode !== 'eff' ? getScoreClass(getSceneDimensionScore(sc, dim.key, v15HeatmapMode)) : ''"
-                        (click)="selectAnalysisAct(sc.act); selectAnalysisScene(sc); selectedAnalysisDimension = dim.key; setTab('passage')"
-                        [title]="!isSceneAnalyzed(sc) ? 'Not analyzed — click to view scene speeches' : ('Score: ' + formatScore(getSceneDimensionScore(sc, dim.key, v15HeatmapMode)))"
+                        [ngClass]="isSceneAnalyzed(sc) && heatmapAssessmentSource !== 'compare' ? getScoreClass(heatmapAssessmentSource === 'rtt' ? getSceneRttScore(sc, dim.key) : getSceneOriginalScore(sc, dim.key)) : ''"
+                        (click)="onHeatmapCellClick(sc.act, sc, dim.key, heatmapAssessmentSource)"
+                        [title]="!isSceneAnalyzed(sc) ? 'Not analyzed — click to view scene speeches' : ('Original: ' + formatScore(getSceneOriginalScore(sc, dim.key)) + ' | RTT: ' + formatScore(getSceneRttScore(sc, dim.key)) + ' | Diff: ' + (getSceneRttDiff(sc, dim.key) ?? 0))"
                       >
                         <ng-container *ngIf="!isSceneAnalyzed(sc)">
                           <span style="color:var(--muted); font-size:11px; font-style:italic">Not analyzed</span>
                         </ng-container>
                         <ng-container *ngIf="isSceneAnalyzed(sc)">
-                          <ng-container *ngIf="v15HeatmapMode === 'cmp'">
-                            <div [innerHTML]="getComparisonSvg(getSceneDimensionScore(sc, dim.key, 'human_german'), getSceneDimensionScore(sc, dim.key, 'ai_german'), getSceneDimensionScore(sc, dim.key, 'context_ai_german'), 60, 100, 85)"></div>
+                          <!-- 1. Original English → Human German View -->
+                          <ng-container *ngIf="heatmapAssessmentSource === 'original'">
+                            <span>{{ formatScore(getSceneOriginalScore(sc, dim.key)) }}</span>
                           </ng-container>
-                          <ng-container *ngIf="v15HeatmapMode === 'eff'">
-                            <span [style.color]="getContextEffect(sc, dim.key).color" style="font-weight:600">{{ getContextEffect(sc, dim.key).text }}</span>
+
+                          <!-- 2. Round-Trip Translation (RTT) View -->
+                          <ng-container *ngIf="heatmapAssessmentSource === 'rtt'">
+                            <span>{{ formatScore(getSceneRttScore(sc, dim.key)) }}</span>
                           </ng-container>
-                          <ng-container *ngIf="v15HeatmapMode !== 'cmp' && v15HeatmapMode !== 'eff'">
-                            <span>{{ formatScore(getSceneDimensionScore(sc, dim.key, v15HeatmapMode)) }}</span>
+
+                          <!-- 3. Compare Both (Original vs RTT + Diff) -->
+                          <ng-container *ngIf="heatmapAssessmentSource === 'compare'">
+                            <div class="v15-hm-cmp-cell">
+                              <div class="v15-hm-cmp-scores">
+                                <span class="v15-hm-orig-val" title="English → Human German">{{ formatScore(getSceneOriginalScore(sc, dim.key)) }}</span>
+                                <span class="v15-hm-val-sep">⇄</span>
+                                <span class="v15-hm-rtt-val" title="Round-Trip (RTT)">{{ formatScore(getSceneRttScore(sc, dim.key)) }}</span>
+                              </div>
+                              <span
+                                class="v15-diff-badge v15-diff-badge--sm"
+                                [class.v15-diff-badge--pos]="(getSceneRttDiff(sc, dim.key) || 0) >= 0"
+                                [class.v15-diff-badge--neg]="(getSceneRttDiff(sc, dim.key) || 0) < 0"
+                              >
+                                {{ (getSceneRttDiff(sc, dim.key) || 0) >= 0 ? '+' : '' }}{{ getSceneRttDiff(sc, dim.key) }}
+                              </span>
+                            </div>
                           </ng-container>
                         </ng-container>
                       </button>
                     </ng-container>
 
+                    <span style="text-align:center; font-size:11px; color:var(--text-secondary); padding:0 4px">
+                      {{ isSceneAnalyzed(sc) ? (getSceneApplicableDialoguesCount(sc, 'semantic') + ' dlgs') : '—' }}
+                    </span>
                     <span style="text-align:right; font-variant-numeric:tabular-nums; padding-right:8px">{{ isSceneAnalyzed(sc) ? getSceneReviewCount(sc) : '—' }}</span>
                   </div>
                 </ng-container>

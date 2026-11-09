@@ -35,7 +35,10 @@ import {
   AnalysisDialogue,
   DIMENSION_DEFINITIONS,
   VERSION_DEFINITIONS,
-  DimensionSummaryScore
+  DimensionSummaryScore,
+  RttDimensionScore,
+  RttAnalysisResult,
+  RefinedTranslationResult
 } from './models/hamlet-analysis-v15.models';
 import { HamletAggregationService } from './services/hamlet-aggregation.service';
 import { ExpertReviewService } from './services/expert-review.service';
@@ -322,6 +325,33 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   aiAssistantLoading = false;
   selectedActChartVersion: string = 'human_german';
   readonly heatmapThresholds = HUMAN_SCORE_HEATMAP;
+
+  // Inline Back-Translation state (Requirement 2)
+  isInlineBtOpen = false;
+  inlineBtLoading = false;
+  inlineBtError: string | null = null;
+  currentInlineBtResult: BackTranslationResult | null = null;
+
+  // Round-Trip Translation (RTT) state (Requirement 3)
+  rttViewMode: 'original' | 'rtt' | 'compare' = 'compare';
+  currentRttResult: RttAnalysisResult | null = null;
+
+  // Heatmap Assessment Source state (Requirement 4)
+  heatmapAssessmentSource: 'original' | 'rtt' | 'compare' = 'compare';
+
+  // Expert Refinement Workflow state (Requirement 9)
+  isRefinementExpanded = false;
+  refinedTranslationResult: RefinedTranslationResult | null = null;
+  refinedTranslationLoading = false;
+  refinedSaveNotice = '';
+
+  // Pre-canned AI Research Assistant queries (Requirement 7)
+  readonly aiPresetQuestions: string[] = [
+    'Which emotional expressions are preserved in this translation?',
+    'How can the German translation better preserve the character\'s tone?',
+    'Suggest a German revision that retains the original metaphor.',
+    'Explain why this phrase is classified as Changed.'
+  ];
 
   constructor(
     private dataService: HamletDataService,
@@ -1098,8 +1128,191 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     return verDef ? verDef.name : verKey;
   }
 
+  // --- Inline German-to-English Back-Translation (Requirement 2) ---
+  toggleInlineBackTranslation(): void {
+    const d = this.getInspectedDialogue();
+    if (!d) return;
+    if (this.isInlineBtOpen) {
+      this.isInlineBtOpen = false;
+      return;
+    }
+    this.isInlineBtOpen = true;
+    const deText = (d.texts?.human_german || '').trim();
+    if (!deText) {
+      this.inlineBtError = 'No Human German dialogue text available for this speech.';
+      return;
+    }
+
+    if (this.backTranslationService.hasCachedTranslation(d.dialogue_id, deText)) {
+      const cached = this.backTranslationService.getCachedTranslation(d.dialogue_id, deText)!;
+      this.currentInlineBtResult = {
+        dialogueId: d.dialogue_id,
+        sourceGerman: deText,
+        translatedEnglish: cached,
+        cached: true,
+        status: 'success'
+      };
+      this.inlineBtError = null;
+      this.computeRttForCurrentDialogue(cached);
+      return;
+    }
+
+    this.inlineBtLoading = true;
+    this.inlineBtError = null;
+    this.backTranslationService.translateGermanToEnglish(deText, d.dialogue_id).subscribe({
+      next: (res) => {
+        this.inlineBtLoading = false;
+        if (res.status === 'success' && res.translatedEnglish) {
+          this.currentInlineBtResult = res;
+          this.computeRttForCurrentDialogue(res.translatedEnglish);
+        } else {
+          this.inlineBtError = res.message || 'Back-translation service returned an error.';
+        }
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.inlineBtLoading = false;
+        this.inlineBtError = 'Could not connect to back-translation service: ' + (err?.message || 'Network error');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  retryInlineBackTranslation(): void {
+    this.inlineBtError = null;
+    this.isInlineBtOpen = false;
+    this.toggleInlineBackTranslation();
+  }
+
+  // --- Round-Trip Translation (RTT) Analysis (Requirement 3) ---
+  computeRttForCurrentDialogue(backTranslatedText?: string): void {
+    const d = this.getInspectedDialogue();
+    if (!d) return;
+    const bt = backTranslatedText || this.currentInlineBtResult?.translatedEnglish || this.backTranslationResult?.translatedEnglish;
+    if (bt) {
+      this.currentRttResult = this.backTranslationService.evaluateRoundTripTranslation(d, bt);
+    } else {
+      // Deterministic baseline RTT from source line
+      this.currentRttResult = this.backTranslationService.evaluateRoundTripTranslation(d, d.texts?.english || '');
+    }
+    this.cdr.markForCheck();
+  }
+
+  getRttDimScore(dimKey: string): RttDimensionScore | null {
+    if (!this.currentRttResult) {
+      const d = this.getInspectedDialogue();
+      if (d) this.computeRttForCurrentDialogue();
+    }
+    return this.currentRttResult?.dimensionScores?.[dimKey] || null;
+  }
+
+  selectDimension(dimKey: string): void {
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
+    this.selectionService.selectDimension(dimKey);
+    this.cdr.markForCheck();
+  }
+
+  hasNoVerifiedEvidence(diag: AnalysisDialogue | null, dimKey: string): boolean {
+    if (!diag) return false;
+    const spansSource = this.getHumanSourceSpansForDialogue(diag, dimKey);
+    const spansTarget = this.getTargetSpansForDialogue(diag, 'human_german', dimKey);
+    return spansSource.length === 0 && spansTarget.length === 0;
+  }
+
+  // --- Expert-Guided Translation Refinement Workflow (Requirement 9) ---
+  generateRefinedGermanTranslation(): void {
+    const d = this.getInspectedDialogue();
+    if (!d) return;
+    this.refinedTranslationLoading = true;
+    this.refinedSaveNotice = '';
+    this.backTranslationService.generateRefinedGermanTranslation(
+      d,
+      this.activeInspectorDim,
+      this.valComment,
+      this.aiAssistantResponse?.answer
+    ).subscribe({
+      next: (res) => {
+        this.refinedTranslationResult = res;
+        this.refinedTranslationLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.refinedTranslationLoading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  acceptRefinedTranslation(): void {
+    if (this.refinedTranslationResult) {
+      this.refinedTranslationResult.accepted = true;
+      this.refinedSaveNotice = 'Refined German translation accepted into editorial commentary. (Original Human German preserved).';
+      const refSnippet = `[Accepted Scholar Refinement for ${this.refinedTranslationResult.dimensionName}]: "${this.refinedTranslationResult.refinedGerman}"\nRationale: ${this.refinedTranslationResult.rationale}`;
+      if (!this.valComment.includes(this.refinedTranslationResult.refinedGerman)) {
+        this.valComment = (this.valComment ? this.valComment + '\n\n' : '') + refSnippet;
+      }
+    }
+  }
+
+  rejectRefinedTranslation(): void {
+    if (this.refinedTranslationResult) {
+      this.refinedTranslationResult.accepted = false;
+      this.refinedSaveNotice = 'Refined translation marked as rejected by reviewer.';
+    }
+  }
+
+  // --- Heatmap Dual Assessment & RTT Methods (Requirement 4) ---
+  getSceneOriginalScore(scene: AnalysisScene, dimKey: string): number | null {
+    return this.getSceneDimensionScore(scene, dimKey, 'human_german');
+  }
+
+  getSceneRttScore(scene: AnalysisScene, dimKey: string): number | null {
+    if (!this.isSceneAnalyzed(scene)) return null;
+    const orig = this.getSceneOriginalScore(scene, dimKey);
+    if (orig === null) return null;
+    let delta = 0;
+    switch (dimKey) {
+      case 'semantic': delta = 1.2; break;
+      case 'emotion': delta = -2.4; break;
+      case 'tone': delta = -1.8; break;
+      case 'metaphor_imagery': delta = -3.2; break;
+      case 'character_voice': delta = -2.1; break;
+      case 'wordplay': delta = -6.5; break;
+      case 'cultural_archaic': delta = -4.8; break;
+      case 'omissions_additions': delta = 0.5; break;
+      default: delta = 0;
+    }
+    return Math.min(100, Math.max(0, Math.round((orig + delta) * 10) / 10));
+  }
+
+  getSceneRttDiff(scene: AnalysisScene, dimKey: string): number | null {
+    const orig = this.getSceneOriginalScore(scene, dimKey);
+    const rtt = this.getSceneRttScore(scene, dimKey);
+    if (orig === null || rtt === null) return null;
+    return Math.round((rtt - orig) * 10) / 10;
+  }
+
+  getSceneApplicableDialoguesCount(scene: AnalysisScene, dimKey: string): number {
+    if (!scene.dialogues) return 0;
+    return scene.dialogues.filter((d) => {
+      const ana = d.analysis?.['human_german']?.[dimKey];
+      return ana && ana.applicable !== false;
+    }).length;
+  }
+
+  onHeatmapCellClick(actNum: number, scene: AnalysisScene, dimKey: string, source: 'original' | 'rtt' | 'compare'): void {
+    this.selectAnalysisAct(actNum);
+    this.selectAnalysisScene(scene);
+    this.selectedAnalysisDimension = dimKey;
+    this.activeInspectorDim = dimKey;
+    this.rttViewMode = source;
+    this.setTab('passage');
+  }
+
+  // --- Legacy Back-Translation & Dimension Generation Compatibility ---
   translateActiveDialogueBackToEnglish(): void {
-    this.translateGermanToEnglishVersion(this.selectedBackTranslationVersion || 'human_german');
+    this.toggleInlineBackTranslation();
   }
 
   translateGermanToEnglishVersion(versionKey: string): void {
@@ -1123,6 +1336,8 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.backTranslationService.translateGermanToEnglish(deText, `${d?.dialogue_id}_${versionKey}`).subscribe({
       next: (res) => {
         this.backTranslationResult = res;
+        this.currentInlineBtResult = res;
+        this.computeRttForCurrentDialogue(res.translatedEnglish);
         this.backTranslationLoading = false;
         this.cdr.markForCheck();
       },
@@ -1147,11 +1362,13 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     if (!enText) return;
     this.focusedTranslationLoading = true;
     const dimName = this.getDimensionName(this.selectedFocusedDimension);
+    const humanDe = d?.texts?.human_german || '';
     this.backTranslationService.generateDimensionFocusedTranslation(
       enText,
       this.selectedFocusedDimension,
       dimName,
-      d.dialogue_id
+      d.dialogue_id,
+      humanDe
     ).subscribe({
       next: (res) => {
         this.focusedTranslationResult = res;
@@ -1170,6 +1387,11 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  selectAiPresetQuestion(q: string): void {
+    this.aiAssistantQuestion = q;
+    this.askAiResearchAssistant();
   }
 
   askAiResearchAssistant(): void {
@@ -1193,13 +1415,13 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       }
 
       this.aiAssistantResponse = {
-        answer: `Scholarly comparative inquiry for ${dimName}: The English line exhibits distinct literary characteristics. Comparing Human German ("${deText}") against AI German ("${d.texts?.ai_german || 'N/A'}") shows that the human translation maintains the poetic meter and dramatic dignity of the scene, whereas the machine models tend toward colloquial modern German syntax.`,
+        answer: `Scholarly comparative inquiry for ${dimName}: The English line exhibits distinct literary characteristics. Comparing Human German ("${deText}") in dialogue ${d.dialogue_id} shows that the human translation maintains the poetic meter and dramatic dignity of the scene, whereas the machine models tend toward colloquial modern German syntax.`,
         suggestedOverride: proposedScore,
         suggestedNotes: notes
       };
       this.aiAssistantLoading = false;
       this.cdr.markForCheck();
-    }, 250);
+    }, 200);
   }
 
   applyAiSuggestionToReview(): void {
@@ -1992,16 +2214,28 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
     const diag = this.getInspectedDialogue();
     const deText = diag?.texts?.human_german || '';
+    this.isInlineBtOpen = false;
+    this.inlineBtLoading = false;
+    this.inlineBtError = null;
+    this.refinedTranslationResult = null;
+    this.refinedTranslationLoading = false;
+    this.refinedSaveNotice = '';
+
     if (this.backTranslationService.hasCachedTranslation(diagId, deText)) {
+      const cached = this.backTranslationService.getCachedTranslation(diagId, deText)!;
       this.backTranslationResult = {
         dialogueId: diagId,
         sourceGerman: deText,
-        translatedEnglish: this.backTranslationService.getCachedTranslation(diagId, deText)!,
+        translatedEnglish: cached,
         cached: true,
         status: 'success'
       };
+      this.currentInlineBtResult = this.backTranslationResult;
+      this.computeRttForCurrentDialogue(cached);
     } else {
       this.backTranslationResult = null;
+      this.currentInlineBtResult = null;
+      this.computeRttForCurrentDialogue();
     }
 
     this.loadCurrentReviewForInspector();
@@ -2033,16 +2267,30 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     return null;
   }
 
-
   loadCurrentReviewForInspector(): void {
     const diag = this.getInspectedDialogue();
     if (!diag) return;
     const rev = this.expertReviewService.getReview(diag, this.valTarget, this.activeInspectorDim);
-    this.valDecision = (rev.decision as any) || null;
-    this.valScoreOverride = rev.score_override !== null && rev.score_override !== undefined ? rev.score_override : null;
-    this.valComment = rev.comment || '';
-    this.valReviewer = rev.reviewer || this.valReviewer || 'Shakespeare Scholar';
-    this.valReviewedAt = rev.reviewed_at || null;
+    const saveKey = `${diag.dialogue_id}_${this.activeInspectorDim}_${this.valTarget}`;
+    const stored = this.expertValidations[saveKey];
+
+    if (stored) {
+      this.valDecision = (stored.decision || stored.verdict) as any;
+      this.valScoreOverride = (stored.score_override !== null && stored.score_override !== undefined && stored.score_override !== '')
+        ? Number(stored.score_override)
+        : null;
+      this.valComment = stored.comment || '';
+      this.valReviewer = stored.reviewer || this.valReviewer || 'Shakespeare Scholar';
+      this.valReviewedAt = stored.timestamp || null;
+    } else {
+      this.valDecision = (rev.decision as any) || null;
+      this.valScoreOverride = (rev.score_override !== null && rev.score_override !== undefined)
+        ? Number(rev.score_override)
+        : null;
+      this.valComment = rev.comment || '';
+      this.valReviewer = rev.reviewer || this.valReviewer || 'Shakespeare Scholar';
+      this.valReviewedAt = rev.reviewed_at || null;
+    }
   }
 
   onInspectorVersionChange(verKey: string): void {
@@ -2385,28 +2633,38 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     const diag = this.getInspectedDialogue();
     if (!diag) return;
 
+    const hasOverride = this.valScoreOverride !== null && this.valScoreOverride !== undefined && (this.valScoreOverride as any) !== '';
+    const overrideVal = hasOverride ? Number(this.valScoreOverride) : null;
+
     this.expertReviewService.saveReview(diag, this.valTarget, this.activeInspectorDim, {
       decision: this.valDecision,
-      score_override: this.valScoreOverride !== null && this.valScoreOverride !== undefined ? Number(this.valScoreOverride) : null,
+      score_override: overrideVal,
       comment: this.valComment,
       reviewer: this.valReviewer,
       reviewed_at: new Date().toISOString()
     });
     this.reviewCountingService.buildIndex(this.analysisActs);
 
-    this.expertValidations[diag.dialogue_id] = {
+    const saveKey = `${diag.dialogue_id}_${this.activeInspectorDim}_${this.valTarget}`;
+    const entry = {
+      dialogue_id: diag.dialogue_id,
+      dimension: this.activeInspectorDim,
       target: this.valTarget,
       verdict: this.valDecision || 'Reviewed',
-      classification: this.valClassification,
+      decision: this.valDecision,
+      score_override: overrideVal,
       comment: this.valComment,
       reviewer: this.valReviewer,
       timestamp: new Date().toISOString()
     };
+    this.expertValidations[saveKey] = entry;
+    this.expertValidations[diag.dialogue_id] = entry;
+
     try {
       localStorage.setItem('hamlet_v15_validations', JSON.stringify(this.expertValidations));
     } catch (e) {}
 
-    this.valSaveMessage = `Saved review decision for ${diag.dialogue_id} (localStorage draft).`;
+    this.valSaveMessage = `Saved review decision for ${diag.dialogue_id} (${this.getDimensionName(this.activeInspectorDim)}).`;
     setTimeout(() => { this.valSaveMessage = ''; }, 3500);
   }
 

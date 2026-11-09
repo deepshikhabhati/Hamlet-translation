@@ -191,3 +191,41 @@ export const VERSION_DEFINITIONS = [
   { key: 'ai_german', name: 'AI DE', short: 'AI' },
   { key: 'context_ai_german', name: 'Context AI DE', short: 'Context AI' }
 ];
+
+export interface RttDimensionScore {
+  dimensionKey: string;
+  dimensionName: string;
+  originalScore: number | null;
+  rttScore: number | null;
+  diff: number | null;
+  status: 'Preserved' | 'Changed' | 'Lost' | 'Added' | string;
+  explanation: string;
+  evidence?: string;
+  applicable: boolean;
+}
+
+export interface RttAnalysisResult {
+  dialogueId: string;
+  originalEnglish: string;
+  humanGerman: string;
+  backTranslatedEnglish: string;
+  dimensionScores: Record<string, RttDimensionScore>;
+  overallOriginalScore: number | null;
+  overallRttScore: number | null;
+  overallDiff: number | null;
+  timestamp: string;
+}
+
+export interface RefinedTranslationResult {
+  dialogueId: string;
+  originalEnglish: string;
+  humanGerman: string;
+  refinedGerman: string;
+  dimensionKey: string;
+  dimensionName: string;
+  objective: string;
+  rationale: string;
+  status: 'success' | 'error';
+  accepted?: boolean;
+  message?: string;
+}
