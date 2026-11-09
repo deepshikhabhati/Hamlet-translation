@@ -37,12 +37,36 @@ export interface DimensionAnalysis {
   needs_review: boolean;
 }
 
+export interface RoundTripVerification {
+  status: 'not_run' | 'processing' | 'completed' | 'failed' | 'expert_reviewed';
+  source_translation?: string;
+  back_translated_english: string | null;
+  back_translation_model: string | null;
+  similarity_model: string | null;
+  direct_semantic_score: number | null;
+  rtt_semantic_score: number | null;
+  disagreement: number | null;
+  requires_expert_review: boolean;
+  review_reason: string | null;
+  generated_at: string | null;
+  // Expert validation & scholarly review extensions (Task 5)
+  inaccurate_back_translation?: boolean;
+  corrected_semantic_score?: number | null;
+  rtt_notes?: string | null;
+  reviewer?: string | null;
+  reviewed_at?: string | null;
+}
+
 export interface DimensionReview {
   decision: 'Accept' | 'Reject' | 'Needs Revision' | null;
   score_override: number | null;
   comment: string | null;
   reviewer?: string | null;
   reviewed_at?: string | null;
+  // RTT expert validation extensions (Task 5)
+  inaccurate_back_translation?: boolean;
+  corrected_semantic_score?: number | null;
+  rtt_notes?: string | null;
 }
 
 export interface ExpertReview {
@@ -73,6 +97,7 @@ export interface AnalysisDialogue {
     context_ai_german?: Record<string, DimensionAnalysis>;
     [key: string]: Record<string, DimensionAnalysis> | undefined;
   };
+  round_trip_verification?: RoundTripVerification;
   expert_review?: ExpertReview;
 }
 
@@ -99,6 +124,10 @@ export interface IntegratedReviewQueueItem {
   reasons: string[];
   invalid_evidence_ids: string[];
   expert_review_status: string;
+  rtt_semantic_score?: number | null;
+  disagreement?: number | null;
+  requires_expert_review?: boolean;
+  rtt_status?: string;
 }
 
 export interface AnalysisScene {

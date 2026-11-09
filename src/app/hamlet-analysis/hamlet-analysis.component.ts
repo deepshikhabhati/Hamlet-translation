@@ -38,7 +38,8 @@ import {
   DimensionSummaryScore,
   RttDimensionScore,
   RttAnalysisResult,
-  RefinedTranslationResult
+  RefinedTranslationResult,
+  RoundTripVerification
 } from './models/hamlet-analysis-v15.models';
 import { HamletAggregationService } from './services/hamlet-aggregation.service';
 import { ExpertReviewService } from './services/expert-review.service';
@@ -335,6 +336,14 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   // Round-Trip Translation (RTT) state (Requirement 3)
   rttViewMode: 'original' | 'rtt' | 'compare' = 'compare';
   currentRttResult: RttAnalysisResult | null = null;
+
+  // Evidence Inspector RTT Verification state (Tasks 3, 5, 7, 8)
+  isInspectorRttOpen = false; // Collapsed by default per Task 7
+  inspectorRttLoading = false;
+  inspectorRttError = '';
+  valInaccurateBt = false;
+  valCorrectedSemanticScore: number | null = null;
+  valRttNotes = '';
 
   // Heatmap Assessment Source state (Requirement 4)
   heatmapAssessmentSource: 'original' | 'rtt' | 'compare' = 'compare';
@@ -2020,14 +2029,52 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   saveInspectorReviewFromEvidence(): void {
     const diag = this.getReaderInspectedDialogue();
     if (!diag) return;
+    const hasOverride = this.valScoreOverride !== null && this.valScoreOverride !== undefined && (this.valScoreOverride as any) !== '';
+    const overrideVal = hasOverride ? Number(this.valScoreOverride) : null;
+
     this.expertReviewService.saveReview(diag, 'human_german', this.selectedAnalysisDimension, {
       decision: this.valDecision || 'Accept',
-      score_override: this.valScoreOverride !== null && this.valScoreOverride !== undefined ? Number(this.valScoreOverride) : null,
+      score_override: overrideVal,
       comment: this.valComment,
       reviewer: this.valReviewer,
-      reviewed_at: new Date().toISOString()
+      reviewed_at: new Date().toISOString(),
+      inaccurate_back_translation: this.valInaccurateBt,
+      corrected_semantic_score: this.valCorrectedSemanticScore !== null ? Number(this.valCorrectedSemanticScore) : null,
+      rtt_notes: this.valRttNotes
     });
     this.reviewCountingService.buildIndex(this.analysisActs);
+
+    if (diag.round_trip_verification) {
+      diag.round_trip_verification.status = 'expert_reviewed';
+      diag.round_trip_verification.inaccurate_back_translation = this.valInaccurateBt;
+      diag.round_trip_verification.corrected_semantic_score = this.valCorrectedSemanticScore !== null ? Number(this.valCorrectedSemanticScore) : null;
+      diag.round_trip_verification.rtt_notes = this.valRttNotes;
+      diag.round_trip_verification.reviewer = this.valReviewer;
+      diag.round_trip_verification.reviewed_at = new Date().toISOString();
+    }
+
+    const saveKey = `${diag.dialogue_id}_${this.selectedAnalysisDimension}_human_german`;
+    const entry = {
+      dialogue_id: diag.dialogue_id,
+      dimension: this.selectedAnalysisDimension,
+      target: 'human_german',
+      verdict: this.valDecision || 'Accept',
+      decision: this.valDecision || 'Accept',
+      score_override: overrideVal,
+      comment: this.valComment,
+      reviewer: this.valReviewer,
+      inaccurate_back_translation: this.valInaccurateBt,
+      corrected_semantic_score: this.valCorrectedSemanticScore,
+      rtt_notes: this.valRttNotes,
+      timestamp: new Date().toISOString()
+    };
+    this.expertValidations[saveKey] = entry;
+    this.expertValidations[diag.dialogue_id] = entry;
+
+    try {
+      localStorage.setItem('hamlet_v15_validations', JSON.stringify(this.expertValidations));
+    } catch (e) {}
+
     this.valSaveMessage = 'Review decision saved successfully.';
     setTimeout(() => {
       this.valSaveMessage = '';
@@ -2038,7 +2085,103 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.valDecision = null;
     this.valScoreOverride = null;
     this.valComment = '';
+    this.valInaccurateBt = false;
+    this.valCorrectedSemanticScore = null;
+    this.valRttNotes = '';
     this.valSaveMessage = '';
+  }
+
+  // --- Evidence Inspector RTT Verification (Task 3, 5, 7, 8) ---
+  toggleInspectorRtt(): void {
+    this.isInspectorRttOpen = !this.isInspectorRttOpen;
+  }
+
+  getDialogueRtt(diag: AnalysisDialogue | null): RoundTripVerification | null {
+    if (!diag) return null;
+    return diag.round_trip_verification || null;
+  }
+
+  getRttStatusLabel(diag: AnalysisDialogue | null): string {
+    const rtt = this.getDialogueRtt(diag);
+    if (!rtt || rtt.status === 'not_run') return 'Awaiting Analysis';
+    if (rtt.status === 'processing') return 'Processing';
+    if (rtt.status === 'failed') return 'Failed';
+    if (rtt.status === 'expert_reviewed') return 'Expert Reviewed';
+    if (rtt.requires_expert_review) return 'Disagreement';
+    return 'Agreement';
+  }
+
+  getRttStatusClass(diag: AnalysisDialogue | null): string {
+    const rtt = this.getDialogueRtt(diag);
+    if (!rtt || rtt.status === 'not_run') return 'status-awaiting';
+    if (rtt.status === 'processing') return 'status-processing';
+    if (rtt.status === 'failed') return 'status-failed';
+    if (rtt.status === 'expert_reviewed') return 'status-reviewed';
+    if (rtt.requires_expert_review) return 'status-disagreement';
+    return 'status-agreement';
+  }
+
+  generateInspectorRtt(diag?: AnalysisDialogue | null): void {
+    const targetDiag = diag || this.getReaderInspectedDialogue() || this.getInspectedDialogue();
+    if (!targetDiag) return;
+    const deText = (targetDiag.texts?.human_german || '').trim();
+    if (!deText) {
+      this.inspectorRttError = 'No Human German text available for back-translation.';
+      return;
+    }
+
+    this.inspectorRttLoading = true;
+    this.inspectorRttError = '';
+
+    this.backTranslationService.translateGermanToEnglish(deText, targetDiag.dialogue_id).subscribe({
+      next: (res) => {
+        this.inspectorRttLoading = false;
+        if (res.status === 'error' || !res.translatedEnglish) {
+          this.inspectorRttError = res.message || 'Back-translation service error.';
+          return;
+        }
+
+        const rttAnalysis = this.backTranslationService.evaluateRoundTripTranslation(targetDiag, res.translatedEnglish);
+        const semDimScore = rttAnalysis.dimensionScores['semantic']?.rttScore ?? null;
+        const directScore = this.getInspectedDialogueDimScore(targetDiag, 'semantic');
+        const diff = (semDimScore !== null && directScore !== null)
+          ? Math.round(Math.abs(directScore - semDimScore) * 10) / 10
+          : null;
+        const requiresReview = diff !== null && diff >= 15.0;
+
+        targetDiag.round_trip_verification = {
+          status: 'completed',
+          source_translation: 'human_german',
+          back_translated_english: res.translatedEnglish,
+          back_translation_model: 'MyMemory-NMT-DE-EN-v2.1',
+          similarity_model: 'Philological-Semantic-Sim-v1.5',
+          direct_semantic_score: directScore,
+          rtt_semantic_score: semDimScore,
+          disagreement: diff,
+          requires_expert_review: requiresReview,
+          review_reason: requiresReview
+            ? `Significant semantic disagreement (Δ ${diff} pts) between direct assessment and RTT`
+            : null,
+          generated_at: new Date().toISOString()
+        };
+
+        this.currentRttResult = rttAnalysis;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.inspectorRttLoading = false;
+        this.inspectorRttError = 'Translation service unreachable: ' + (err?.message || 'Network error');
+      }
+    });
+  }
+
+  getSceneRttCoverage(scene: AnalysisScene | null): { verified: number; total: number } | null {
+    if (!scene || !scene.dialogues || scene.dialogues.length === 0) return null;
+    const total = scene.dialogues.length;
+    const verified = scene.dialogues.filter(
+      (d) => d.round_trip_verification && (d.round_trip_verification.status === 'completed' || d.round_trip_verification.status === 'expert_reviewed')
+    ).length;
+    return { verified, total };
   }
 
   getInspectedDialogueEvidence(diag: AnalysisDialogue | null, dimKey: string): any | null {
@@ -2268,7 +2411,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   }
 
   loadCurrentReviewForInspector(): void {
-    const diag = this.getInspectedDialogue();
+    const diag = this.getInspectedDialogue() || this.getReaderInspectedDialogue();
     if (!diag) return;
     const rev = this.expertReviewService.getReview(diag, this.valTarget, this.activeInspectorDim);
     const saveKey = `${diag.dialogue_id}_${this.activeInspectorDim}_${this.valTarget}`;
@@ -2282,6 +2425,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       this.valComment = stored.comment || '';
       this.valReviewer = stored.reviewer || this.valReviewer || 'Shakespeare Scholar';
       this.valReviewedAt = stored.timestamp || null;
+      this.valInaccurateBt = !!stored.inaccurate_back_translation;
+      this.valCorrectedSemanticScore = stored.corrected_semantic_score !== undefined ? stored.corrected_semantic_score : null;
+      this.valRttNotes = stored.rtt_notes || '';
     } else {
       this.valDecision = (rev.decision as any) || null;
       this.valScoreOverride = (rev.score_override !== null && rev.score_override !== undefined)
@@ -2290,6 +2436,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       this.valComment = rev.comment || '';
       this.valReviewer = rev.reviewer || this.valReviewer || 'Shakespeare Scholar';
       this.valReviewedAt = rev.reviewed_at || null;
+      this.valInaccurateBt = !!rev.inaccurate_back_translation;
+      this.valCorrectedSemanticScore = rev.corrected_semantic_score !== undefined ? rev.corrected_semantic_score : null;
+      this.valRttNotes = rev.rtt_notes || '';
     }
   }
 
@@ -2641,9 +2790,21 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       score_override: overrideVal,
       comment: this.valComment,
       reviewer: this.valReviewer,
-      reviewed_at: new Date().toISOString()
+      reviewed_at: new Date().toISOString(),
+      inaccurate_back_translation: this.valInaccurateBt,
+      corrected_semantic_score: this.valCorrectedSemanticScore !== null ? Number(this.valCorrectedSemanticScore) : null,
+      rtt_notes: this.valRttNotes
     });
     this.reviewCountingService.buildIndex(this.analysisActs);
+
+    if (diag.round_trip_verification) {
+      diag.round_trip_verification.status = 'expert_reviewed';
+      diag.round_trip_verification.inaccurate_back_translation = this.valInaccurateBt;
+      diag.round_trip_verification.corrected_semantic_score = this.valCorrectedSemanticScore !== null ? Number(this.valCorrectedSemanticScore) : null;
+      diag.round_trip_verification.rtt_notes = this.valRttNotes;
+      diag.round_trip_verification.reviewer = this.valReviewer;
+      diag.round_trip_verification.reviewed_at = new Date().toISOString();
+    }
 
     const saveKey = `${diag.dialogue_id}_${this.activeInspectorDim}_${this.valTarget}`;
     const entry = {
@@ -2655,6 +2816,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       score_override: overrideVal,
       comment: this.valComment,
       reviewer: this.valReviewer,
+      inaccurate_back_translation: this.valInaccurateBt,
+      corrected_semantic_score: this.valCorrectedSemanticScore,
+      rtt_notes: this.valRttNotes,
       timestamp: new Date().toISOString()
     };
     this.expertValidations[saveKey] = entry;
@@ -2676,6 +2840,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.valScoreOverride = null;
     this.valComment = '';
     this.valReviewedAt = null;
+    this.valInaccurateBt = false;
+    this.valCorrectedSemanticScore = null;
+    this.valRttNotes = '';
     this.valSaveMessage = `Reset review draft for ${diag.dialogue_id}.`;
     setTimeout(() => { this.valSaveMessage = ''; }, 3500);
   }
@@ -2872,12 +3039,15 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   // --- Validation Queue ---
   getValidationQueueItems(): QueueItem[] {
+    const items: QueueItem[] = [];
+
     if (this.analysisData?.review_queue && this.analysisData.review_queue.length > 0) {
-      return this.analysisData.review_queue.map((rq) => {
+      this.analysisData.review_queue.forEach((rq) => {
         const dimDef = this.v15Dimensions.find((d) => d.key === rq.dimension);
         const verDef = this.v15Versions.find((v) => v.key === rq.translation_version);
         const actObj = this.analysisActs.find((a) => a.act === rq.act);
         const sceneObj = actObj?.scenes.find((s) => s.scene_id === rq.scene_id || s.scene_number === rq.scene_number);
+        const diagObj = sceneObj?.dialogues?.find((d) => d.dialogue_id === rq.dialogue_id);
 
         let issueType = 'Needs review flag';
         let priority = 2;
@@ -2895,7 +3065,10 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
           priority = rq.reasons.length > 1 ? 3 : 2;
         }
 
-        return {
+        const isSemanticHuman = rq.dimension === 'semantic' && rq.translation_version === 'human_german';
+        const rtt = diagObj?.round_trip_verification;
+
+        items.push({
           review_id: rq.review_id,
           dialogue_id: rq.dialogue_id,
           speaker: rq.speaker,
@@ -2913,71 +3086,62 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
           priority,
           explanation: '',
           reasons: rq.reasons,
-          evidenceValidity
-        };
+          evidenceValidity,
+          rttScore: isSemanticHuman && rtt ? rtt.rtt_semantic_score : null,
+          disagreement: isSemanticHuman && rtt ? rtt.disagreement : null,
+          rttStatus: rtt?.status,
+          provenance: rtt?.back_translation_model || (diagObj as any)?.analysis_provenance || 'Schlegel-Tieck (1839/40)',
+          requires_expert_review: rtt?.requires_expert_review,
+          review_reason: rtt?.review_reason
+        });
       });
     }
 
-    const items: QueueItem[] = [];
-    if (!this.analysisData?.acts) return items;
-
-    this.analysisData.acts.forEach((act) => {
-      act.scenes.forEach((scene) => {
-        scene.dialogues.forEach((diag) => {
-          this.v15Versions.forEach((v) => {
-            this.v15Dimensions.forEach((dim) => {
-              const verObj = diag.analysis?.[v.key];
-              const ana = verObj?.[dim.key];
-              if (!ana) return;
-
-              let isCandidate = false;
-              let issueType = 'Needs review flag';
-              let priority = 2;
-              let evidenceValidity: 'Valid' | 'Invalid offset' | 'No evidence' = 'Valid';
-
-              if (ana.needs_review) {
-                isCandidate = true;
-                issueType = 'Needs review flag';
-                priority = 2;
-              }
-              if (ana.evidence && ana.evidence.some((e) => (e.span_validation && !e.span_validation.valid) || e.valid === false)) {
-                isCandidate = true;
-                issueType = 'Invalid evidence span';
-                priority = 3;
-                evidenceValidity = 'Invalid offset';
-              }
-              if (ana.confidence !== undefined && ana.confidence !== null && ana.confidence < 0.70) {
-                isCandidate = true;
-                issueType = 'Low confidence (<0.70)';
-                priority = 1;
-              }
-
-              if (isCandidate) {
+    // Include any dialogues with RTT disagreements that require expert review
+    if (this.analysisActs) {
+      this.analysisActs.forEach((act) => {
+        act.scenes.forEach((scene) => {
+          scene.dialogues.forEach((diag) => {
+            const rtt = diag.round_trip_verification;
+            if (rtt && rtt.requires_expert_review) {
+              const alreadyInQueue = items.some(
+                (it) => it.dialogue_id === diag.dialogue_id && it.dimKey === 'semantic' && it.versionKey === 'human_german'
+              );
+              if (!alreadyInQueue) {
+                const anaSem = diag.analysis?.human_german?.['semantic'];
                 items.push({
-                  review_id: `${diag.dialogue_id}:${v.key}:${dim.key}`,
+                  review_id: `${diag.dialogue_id}:human_german:semantic:rtt`,
                   dialogue_id: diag.dialogue_id,
                   speaker: diag.speaker,
                   act: act.act,
                   scene_id: scene.scene_id,
                   scene_title: scene.title || `Act ${act.act}, Scene ${scene.scene_number}`,
                   english: diag.texts.english,
-                  versionKey: v.key,
-                  versionName: v.name,
-                  dimKey: dim.key,
-                  dimName: dim.name,
-                  score: ana.score,
-                  confidence: ana.confidence,
-                  issueType,
-                  priority,
-                  explanation: ana.explanation,
-                  evidenceValidity
+                  versionKey: 'human_german',
+                  versionName: 'Human German',
+                  dimKey: 'semantic',
+                  dimName: 'Semantic',
+                  score: anaSem?.score ?? null,
+                  confidence: anaSem?.confidence ?? 0.85,
+                  issueType: 'RTT semantic disagreement',
+                  priority: (rtt.disagreement || 0) >= 20 ? 3 : 2,
+                  explanation: rtt.review_reason || 'Disagreement between direct semantic score and RTT score.',
+                  reasons: ['rtt_disagreement'],
+                  evidenceValidity: 'Valid',
+                  rttScore: rtt.rtt_semantic_score,
+                  disagreement: rtt.disagreement,
+                  rttStatus: rtt.status,
+                  provenance: rtt.back_translation_model || 'MyMemory-NMT-DE-EN-v2.1',
+                  requires_expert_review: true,
+                  review_reason: rtt.review_reason
                 });
               }
-            });
+            }
           });
         });
       });
-    });
+    }
+
     return items;
   }
 
@@ -2998,7 +3162,11 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.activeInspectorDim = item.dimKey;
     this.valTarget = item.versionKey;
     this.activeTab = 'passage';
-    this.openInspector(item.dialogue_id, item.versionKey);
+    this.activeInspectedDialogueId = null;
+    this.readerInspectedDialogueId = item.dialogue_id;
+    this.updateSelectedEvidencePhrase(item.dialogue_id);
+    this.isInspectorRttOpen = true;
+    this.loadCurrentReviewForInspector();
   }
 
   // --- Exportable Research Data (Section 12) ---
@@ -3013,19 +3181,25 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
           scene: it.scene_title,
           speaker: it.speaker,
           english: (it.english || '').replace(/"/g, '""'),
-          issues: [it.issueType]
+          issues: [it.issueType],
+          rttScore: it.rttScore !== null && it.rttScore !== undefined ? it.rttScore : '',
+          disagreement: it.disagreement !== null && it.disagreement !== undefined ? it.disagreement : ''
         });
       } else {
         const existing = uniqueMap.get(it.dialogue_id);
         if (!existing.issues.includes(it.issueType)) {
           existing.issues.push(it.issueType);
         }
+        if (!existing.rttScore && it.rttScore) {
+          existing.rttScore = it.rttScore;
+          existing.disagreement = it.disagreement;
+        }
       }
     });
 
-    const rows = ['"Dialogue ID","Act","Scene","Speaker","English Text","Flagged Issues"'];
+    const rows = ['"Dialogue ID","Act","Scene","Speaker","English Text","Flagged Issues","RTT Semantic Score","RTT Disagreement"'];
     uniqueMap.forEach((val) => {
-      rows.push(`"${val.dialogue_id}","${val.act}","${val.scene}","${val.speaker}","${val.english}","${val.issues.join('; ')}"`);
+      rows.push(`"${val.dialogue_id}","${val.act}","${val.scene}","${val.speaker}","${val.english}","${val.issues.join('; ')}","${val.rttScore}","${val.disagreement}"`);
     });
 
     this.downloadFile(rows.join('\n'), 'hamlet_flagged_dialogues.csv', 'text/csv');
@@ -3033,9 +3207,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   exportFlaggedAssessmentsCsv(): void {
     const items = this.getValidationQueueItems();
-    const rows = ['"Review ID","Dialogue ID","Act","Scene","Speaker","Translation","Dimension","Score","Confidence","Issue Type","Evidence Validity"'];
+    const rows = ['"Review ID","Dialogue ID","Act","Scene","Speaker","Translation","Dimension","Direct Score","RTT Score","RTT Disagreement","Confidence","Issue Type","Evidence Validity","Provenance"'];
     items.forEach((it) => {
-      rows.push(`"${it.review_id || it.dialogue_id + ':' + it.versionKey + ':' + it.dimKey}","${it.dialogue_id}","${it.act}","${it.scene_title}","${it.speaker}","${it.versionName}","${it.dimName}","${it.score !== null ? it.score : ''}","${it.confidence !== null ? it.confidence : ''}","${it.issueType}","${it.evidenceValidity || ''}"`);
+      rows.push(`"${it.review_id || it.dialogue_id + ':' + it.versionKey + ':' + it.dimKey}","${it.dialogue_id}","${it.act}","${it.scene_title}","${it.speaker}","${it.versionName}","${it.dimName}","${it.score !== null ? it.score : ''}","${it.rttScore !== null && it.rttScore !== undefined ? it.rttScore : ''}","${it.disagreement !== null && it.disagreement !== undefined ? it.disagreement : ''}","${it.confidence !== null ? it.confidence : ''}","${it.issueType}","${it.evidenceValidity || ''}","${it.provenance || ''}"`);
     });
 
     this.downloadFile(rows.join('\n'), 'hamlet_flagged_assessments.csv', 'text/csv');

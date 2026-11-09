@@ -193,6 +193,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
   };
 
   beforeEach(async () => {
+    localStorage.clear();
     mockDataService = jasmine.createSpyObj('HamletDataService', [
       'getData',
       'loadFullBookUiData',
@@ -293,7 +294,7 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
     expect(component.getFilteredPhraseRows().length).toBe(1);
   });
 
-  it('should navigate from validation queue to exact dialogue, dimension, and translation', () => {
+  it('should navigate from validation queue to exact dialogue, dimension, and translation without leaving parallel reading', () => {
     const queueItems = component.getValidationQueueItems();
     const targetItem = queueItems[0];
 
@@ -303,7 +304,9 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
     expect(component.selectedAnalysisScene?.scene_id).toBe('A1-S1');
     expect(component.selectedAnalysisDimension).toBe('omissions_additions');
     expect(component.valTarget).toBe('ai_german');
-    expect(component.activeInspectedDialogueId).toBe('EN-A1-S1-D00008');
+    expect(component.readerInspectedDialogueId).toBe('EN-A1-S1-D00008');
+    expect(component.viewMode).toBe('scene');
+    expect(component.isInspectorRttOpen).toBeTrue();
   });
 
   it('should save expert review without mutating original model analysis', () => {
@@ -1218,6 +1221,175 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       // Reject refinement
       component.rejectRefinedTranslation();
       expect(component.refinedTranslationResult?.accepted).toBeFalse();
+    });
+  });
+
+  describe('Round-Trip Translation (RTT) Integration — Tasks 1 to 8', () => {
+    it('should initialize with Evidence Inspector RTT card collapsed by default and toggle correctly', () => {
+      expect(component.isInspectorRttOpen).toBeFalse();
+      component.toggleInspectorRtt();
+      expect(component.isInspectorRttOpen).toBeTrue();
+      component.toggleInspectorRtt();
+      expect(component.isInspectorRttOpen).toBeFalse();
+    });
+
+    it('should compute scene RTT coverage accurately without presenting partial coverage as full validation', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const covBefore = component.getSceneRttCoverage(act1Scene1);
+      expect(covBefore).toBeTruthy();
+      expect(covBefore?.total).toBe(1);
+      expect(covBefore?.verified).toBe(0);
+
+      // Attach real RTT verification record to dialogue
+      act1Scene1.dialogues[0].round_trip_verification = {
+        status: 'completed',
+        source_translation: 'human_german',
+        back_translated_english: 'For this relief much thanks: it is bitter cold, and I am sick at heart.',
+        back_translation_model: 'Helsinki-NLP/opus-mt-de-en (NMT)',
+        similarity_model: 'sentence-transformers/all-MiniLM-L6-v2',
+        direct_semantic_score: 90.0,
+        rtt_semantic_score: 93.5,
+        disagreement: 3.5,
+        requires_expert_review: false,
+        review_reason: null,
+        generated_at: '2026-11-09T00:00:00Z'
+      };
+
+      const covAfter = component.getSceneRttCoverage(act1Scene1);
+      expect(covAfter).toBeTruthy();
+      expect(covAfter?.total).toBe(1);
+      expect(covAfter?.verified).toBe(1);
+    });
+
+    it('should return correct RTT status label and CSS classes based on disagreement and review status', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const dlg = act1Scene1.dialogues[0];
+
+      // Awaiting analysis when round_trip_verification is undefined or not_run
+      delete dlg.round_trip_verification;
+      expect(component.getRttStatusLabel(dlg)).toBe('Awaiting Analysis');
+      expect(component.getRttStatusClass(dlg)).toBe('status-awaiting');
+
+      // Agreement (difference < 15)
+      dlg.round_trip_verification = {
+        status: 'completed',
+        source_translation: 'human_german',
+        back_translated_english: 'For this relief much thanks...',
+        back_translation_model: 'opus-mt-de-en',
+        similarity_model: 'all-MiniLM-L6-v2',
+        direct_semantic_score: 90.0,
+        rtt_semantic_score: 93.0,
+        disagreement: 3.0,
+        requires_expert_review: false,
+        review_reason: null,
+        generated_at: '2026-11-09T00:00:00Z'
+      };
+      expect(component.getRttStatusLabel(dlg)).toBe('Agreement');
+      expect(component.getRttStatusClass(dlg)).toBe('status-agreement');
+
+      // Disagreement (requires_expert_review = true or disagreement >= 15)
+      dlg.round_trip_verification.requires_expert_review = true;
+      dlg.round_trip_verification.disagreement = 25.0;
+      expect(component.getRttStatusLabel(dlg)).toBe('Disagreement');
+      expect(component.getRttStatusClass(dlg)).toBe('status-disagreement');
+
+      // Expert reviewed
+      dlg.round_trip_verification.status = 'expert_reviewed';
+      expect(component.getRttStatusLabel(dlg)).toBe('Expert Reviewed');
+      expect(component.getRttStatusClass(dlg)).toBe('status-reviewed');
+    });
+
+    it('should generate back-translation and calculate RTT score and disagreement on generateInspectorRtt', fakeAsync(() => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const dlg = act1Scene1.dialogues[0];
+      component.readerInspectedDialogueId = dlg.dialogue_id;
+
+      spyOn(component['backTranslationService'], 'translateGermanToEnglish').and.returnValue(of({
+        dialogueId: dlg.dialogue_id,
+        sourceGerman: dlg.texts.human_german || '',
+        translatedEnglish: 'For this relief much thanks: it is bitter cold, and I am sick at heart.',
+        cached: false,
+        status: 'success'
+      }));
+
+      component.generateInspectorRtt(dlg);
+
+      expect(component.inspectorRttLoading).toBeFalse();
+      expect(dlg.round_trip_verification).toBeTruthy();
+      expect(dlg.round_trip_verification?.status).toBe('completed');
+      expect(dlg.round_trip_verification?.back_translated_english).toContain('For this relief much thanks');
+      expect(dlg.round_trip_verification?.rtt_semantic_score).toBeGreaterThan(0);
+      expect(dlg.round_trip_verification?.disagreement).not.toBeNull();
+    }));
+
+    it('should save expert validation with RTT notes, inaccurate back-translation flag, and corrected semantic score', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const dlg = act1Scene1.dialogues[0];
+      component.selectAnalysisScene(act1Scene1);
+      component.readerInspectedDialogueId = dlg.dialogue_id;
+      component.selectedAnalysisDimension = 'semantic';
+      component.valTarget = 'human_german';
+
+      dlg.round_trip_verification = {
+        status: 'completed',
+        source_translation: 'human_german',
+        back_translated_english: 'For this relief much thanks...',
+        back_translation_model: 'opus-mt-de-en',
+        similarity_model: 'all-MiniLM-L6-v2',
+        direct_semantic_score: 90.0,
+        rtt_semantic_score: 65.0,
+        disagreement: 25.0,
+        requires_expert_review: true,
+        review_reason: 'Semantic score divergence between direct assessment and RTT',
+        generated_at: '2026-11-09T00:00:00Z'
+      };
+
+      component.valDecision = 'Needs Revision';
+      component.valScoreOverride = 88;
+      component.valInaccurateBt = true;
+      component.valCorrectedSemanticScore = 88;
+      component.valRttNotes = 'The German "bitterkalt" was rendered literally, suppressing Shakespearean cadence.';
+      component.valReviewer = 'Prof. Hamlet Scholar';
+
+      component.saveInspectorReviewFromEvidence();
+
+      expect(dlg.round_trip_verification.status).toBe('expert_reviewed');
+      expect(dlg.round_trip_verification.inaccurate_back_translation).toBeTrue();
+      expect(dlg.round_trip_verification.corrected_semantic_score).toBe(88);
+      expect(dlg.round_trip_verification.rtt_notes).toContain('German "bitterkalt" was rendered literally');
+
+      // Verify expert reviews service holds the review
+      const rev = component.expertReviewService.getReview(dlg, 'human_german', 'semantic');
+      expect(rev.inaccurate_back_translation).toBeTrue();
+      expect(rev.corrected_semantic_score).toBe(88);
+      expect(rev.rtt_notes).toContain('German "bitterkalt"');
+    });
+
+    it('should include RTT verification data in CSV exports', () => {
+      const act1Scene1 = component.analysisActs[0].scenes[0];
+      const dlg = act1Scene1.dialogues[0];
+      dlg.round_trip_verification = {
+        status: 'completed',
+        source_translation: 'human_german',
+        back_translated_english: 'For this relief much thanks...',
+        back_translation_model: 'opus-mt-de-en',
+        similarity_model: 'all-MiniLM-L6-v2',
+        direct_semantic_score: 90.0,
+        rtt_semantic_score: 65.0,
+        disagreement: 25.0,
+        requires_expert_review: true,
+        review_reason: 'Divergence',
+        generated_at: '2026-11-09T00:00:00Z'
+      };
+
+      spyOn<any>(component, 'downloadFile').and.callFake((content: string, filename: string) => {
+        expect(filename).toBeTruthy();
+        expect(content).toContain('RTT Score');
+        expect(content).toContain('RTT Disagreement');
+        expect(content).toContain('25');
+      });
+
+      component.exportFlaggedAssessmentsCsv();
     });
   });
 });

@@ -9,6 +9,7 @@ export interface QueueItem {
   act: number;
   scene_id: string;
   scene_title: string;
+  scene_number?: number;
   english: string;
   versionKey: string;
   versionName: string;
@@ -21,6 +22,13 @@ export interface QueueItem {
   explanation: string;
   reasons?: string[];
   evidenceValidity?: 'Valid' | 'Invalid offset' | 'No evidence';
+  // RTT verification extensions (Task 4)
+  rttScore?: number | null;
+  disagreement?: number | null;
+  rttStatus?: string;
+  provenance?: string;
+  requires_expert_review?: boolean;
+  review_reason?: string | null;
 }
 
 @Component({
@@ -32,14 +40,15 @@ export interface QueueItem {
       <div class="queue-card">
         <div class="queue-header-row">
           <div>
-            <h2 class="queue-title">Validation Queue</h2>
+            <h2 class="queue-title">Validation Queue &amp; Editorial Review</h2>
             <p class="queue-description">
-              Expert review queue covering <strong>{{ uniqueDialogueCount }} unique dialogues</strong> across <strong>{{ items.length }} flagged assessments</strong> (derived from model review flags, confidence &lt; 0.70, and invalid evidence offsets).
+              Expert review queue covering <strong>{{ uniqueDialogueCount }} unique dialogues</strong> across <strong>{{ items.length }} flagged assessments</strong>. Supports machine flags, confidence &lt; 0.70, span validation, and <strong>Round-Trip Translation (RTT) semantic disagreements</strong>.
             </p>
           </div>
           <div class="queue-summary-pills">
             <span class="queue-pill queue-pill--dlgs">{{ uniqueDialogueCount }} Unique Dialogues</span>
             <span class="queue-pill queue-pill--assessments">{{ items.length }} Assessments</span>
+            <span class="queue-pill queue-pill--rtt" *ngIf="rttDisagreementCount > 0">{{ rttDisagreementCount }} RTT Disagreements</span>
             <span class="queue-pill queue-pill--done">{{ reviewedCount }} Reviewed</span>
           </div>
         </div>
@@ -70,14 +79,42 @@ export interface QueueItem {
             >All ({{ items.length }})</button>
           </div>
 
-          <label class="issue-select-label">Filter issue
+          <label class="issue-select-label">Filter issue:
             <select class="issue-select" [(ngModel)]="issueFilter">
               <option value="all">All issues ({{ items.length }})</option>
+              <option value="rtt_disagreements">RTT Disagreements ({{ rttDisagreementCount }})</option>
               <option value="invalid_evidence">Invalid evidence spans</option>
               <option value="model_needs_review">Model needs review</option>
               <option value="low_confidence">Low confidence (&lt;0.70)</option>
               <option value="pending">Pending expert review</option>
               <option value="completed">Completed expert review</option>
+            </select>
+          </label>
+
+          <!-- Configurable Disagreement Threshold (Task 4) -->
+          <div class="rtt-thresh-wrapper" *ngIf="issueFilter === 'rtt_disagreements' || issueFilter === 'all'">
+            <label class="rtt-thresh-label" for="rtt-thresh-input" title="Configurable disagreement threshold; calibrated using expert reviews">
+              RTT Threshold:
+              <input
+                type="number"
+                id="rtt-thresh-input"
+                class="rtt-thresh-input"
+                min="1"
+                max="50"
+                step="1"
+                [(ngModel)]="rttThreshold"
+              />
+              <span class="rtt-thresh-unit">pts</span>
+            </label>
+          </div>
+
+          <!-- Sorting Options (Task 4) -->
+          <label class="sort-select-label">Sort by:
+            <select class="sort-select" [(ngModel)]="sortBy">
+              <option value="priority">Priority (High to Low)</option>
+              <option value="disagreement">Largest Disagreement (RTT Δ)</option>
+              <option value="score">Score (Ascending)</option>
+              <option value="dialogue_id">Dialogue ID</option>
             </select>
           </label>
         </div>
@@ -90,8 +127,8 @@ export interface QueueItem {
               <span>English excerpt</span>
               <span>Translation</span>
               <span>Dimension</span>
-              <span>Score &amp; Conf</span>
-              <span>Review Reason</span>
+              <span>Scores (Direct / RTT)</span>
+              <span>Review Reason &amp; Provenance</span>
               <span>Status</span>
               <span>Action</span>
             </div>
@@ -107,21 +144,42 @@ export interface QueueItem {
                 <span class="queue-badge-ver">{{ q.versionName }}</span>
               </span>
               <span class="queue-dim-name">{{ q.dimName }}</span>
-              <span class="queue-issue-col">
-                <strong>{{ q.score !== null ? q.score : 'N/A' }}</strong>
-                <span class="queue-ver-sub" *ngIf="q.confidence !== null">Conf: {{ (q.confidence * 100) | number:'1.0-0' }}%</span>
+
+              <!-- Direct & RTT Score Comparison (Task 4) -->
+              <span class="queue-issue-col queue-scores-col">
+                <div class="queue-score-item">
+                  <span class="queue-score-lbl">Direct:</span>
+                  <strong>{{ q.score !== null ? q.score : 'N/A' }}</strong>
+                  <span class="queue-ver-sub" *ngIf="q.confidence !== null">Conf: {{ (q.confidence * 100) | number:'1.0-0' }}%</span>
+                </div>
+                <div class="queue-score-item queue-rtt-score-item" *ngIf="q.rttScore !== null && q.rttScore !== undefined">
+                  <span class="queue-score-lbl">RTT:</span>
+                  <strong class="queue-rtt-num">{{ q.rttScore }}</strong>
+                  <span class="queue-diff-badge" [class.is-divergent]="(q.disagreement || 0) >= rttThreshold">
+                    Δ {{ q.disagreement }} pts
+                  </span>
+                </div>
               </span>
+
+              <!-- Review Reason & Provenance (Task 4) -->
               <span class="queue-issue-col">
                 <span class="queue-reason-tag" [ngClass]="getReasonClass(q)">{{ q.issueType }}</span>
+                <span *ngIf="q.disagreement !== null && q.disagreement !== undefined && q.disagreement >= rttThreshold" class="queue-rtt-disagree-badge">
+                  RTT Disagreement (Δ {{ q.disagreement }} pts)
+                </span>
                 <span *ngIf="q.evidenceValidity === 'Invalid offset'" class="queue-invalid-badge">Invalid span offset</span>
+                <span *ngIf="q.provenance" class="queue-prov-tag" [title]="q.provenance">{{ q.provenance }}</span>
               </span>
+
               <span class="queue-status-col" [class.is-done]="isReviewed(q.dialogue_id)">
                 {{ isReviewed(q.dialogue_id) ? 'Reviewed' : 'Pending' }}
               </span>
+
               <button
                 type="button"
                 class="queue-action-btn"
                 (click)="onReviewClick(q)"
+                title="Inspect in parallel reading and evidence inspector"
               >Inspect</button>
             </div>
 
@@ -164,11 +222,6 @@ export interface QueueItem {
       letter-spacing: -0.01em;
       color: var(--ink, #1A1F2B);
     }
-    .queue-progress-count {
-      font-size: 13px;
-      color: var(--ink-2, #384152);
-      font-variant-numeric: tabular-nums;
-    }
     .queue-progress-bar-bg {
       height: 6px;
       background: var(--surface-2, #ECEFF4);
@@ -184,13 +237,18 @@ export interface QueueItem {
       margin: 0;
       font-size: 14px;
       color: var(--ink-2, #384152);
-      max-width: 75ch;
+      max-width: 80ch;
+      line-height: 1.45;
     }
     .queue-controls-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 10px 24px;
+      gap: 12px 20px;
+      background: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--line, #D8DCE3);
     }
     .filter-btn-group {
       display: flex;
@@ -203,7 +261,7 @@ export interface QueueItem {
       font: inherit;
       font-size: 13px;
       padding: 0 12px;
-      min-height: 36px;
+      min-height: 34px;
       cursor: pointer;
       background: var(--surface, #FBFBFC);
       color: var(--ink-2, #384152);
@@ -216,28 +274,55 @@ export interface QueueItem {
       color: var(--on-dark, #F6F7FA);
       font-weight: 600;
     }
-    .issue-select-label {
+    .issue-select-label, .sort-select-label {
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 13px;
-      color: var(--muted, #566072);
+      font-weight: 500;
+      color: var(--ink-2, #384152);
     }
-    .issue-select {
+    .issue-select, .sort-select {
       font: inherit;
       font-size: 13px;
       color: var(--ink, #1A1F2B);
-      min-height: 36px;
+      min-height: 34px;
       padding: 0 8px;
       border: 1px solid var(--line, #D8DCE3);
       border-radius: 6px;
       background: var(--surface, #FBFBFC);
     }
+    .rtt-thresh-wrapper {
+      display: flex;
+      align-items: center;
+    }
+    .rtt-thresh-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-2, #384152);
+    }
+    .rtt-thresh-input {
+      width: 52px;
+      min-height: 32px;
+      padding: 2px 6px;
+      border: 1px solid var(--line, #D8DCE3);
+      border-radius: 4px;
+      font-size: 13px;
+      text-align: center;
+      background: #ffffff;
+    }
+    .rtt-thresh-unit {
+      font-size: 12px;
+      color: var(--muted, #566072);
+    }
     .queue-table-scroll {
       overflow-x: auto;
     }
     .queue-table-inner {
-      min-width: 900px;
+      min-width: 980px;
     }
     .queue-summary-pills {
       display: flex;
@@ -261,6 +346,11 @@ export interface QueueItem {
       background: #fdf4ff;
       color: #86198f;
       border-color: #f5d0fe;
+    }
+    .queue-pill--rtt {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fecaca;
     }
     .queue-pill--done {
       background: #ecfdf5;
@@ -290,6 +380,23 @@ export interface QueueItem {
       color: #991b1b;
       font-weight: 600;
     }
+    .queue-rtt-disagree-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #fee2e2;
+      color: #991b1b;
+      margin-top: 3px;
+    }
+    .queue-prov-tag {
+      display: block;
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+      font-style: italic;
+    }
     .queue-invalid-badge {
       display: block;
       font-size: 10px;
@@ -299,7 +406,7 @@ export interface QueueItem {
     }
     .queue-thead {
       display: grid;
-      grid-template-columns: 65px minmax(130px, 1.1fr) minmax(200px, 1.8fr) 100px 110px 85px 140px 80px 80px;
+      grid-template-columns: 65px minmax(130px, 1.1fr) minmax(200px, 1.8fr) 95px 105px 125px minmax(130px, 1.3fr) 80px 80px;
       gap: 8px;
       padding: 6px 4px;
       font-size: 11px;
@@ -311,7 +418,7 @@ export interface QueueItem {
     }
     .queue-row {
       display: grid;
-      grid-template-columns: 65px minmax(130px, 1.1fr) minmax(200px, 1.8fr) 100px 110px 85px 140px 80px 80px;
+      grid-template-columns: 65px minmax(130px, 1.1fr) minmax(200px, 1.8fr) 95px 105px 125px minmax(130px, 1.3fr) 80px 80px;
       gap: 8px;
       align-items: center;
       padding: 10px 4px;
@@ -357,14 +464,47 @@ export interface QueueItem {
       font-size: 13px;
       color: #334155;
     }
+    .queue-scores-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .queue-score-item {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      font-size: 12px;
+    }
+    .queue-score-lbl {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .queue-rtt-num {
+      color: #6b21a8;
+    }
+    .queue-diff-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .queue-diff-badge.is-divergent {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
     .queue-issue-col {
       font-size: 12px;
       color: var(--ink-2, #384152);
     }
     .queue-ver-sub {
-      display: block;
-      font-size: 11px;
+      display: inline-block;
+      font-size: 10px;
       color: var(--muted, #566072);
+      margin-left: 4px;
     }
     .queue-status-col {
       font-size: 12px;
@@ -408,6 +548,8 @@ export class ValidationQueueComponent {
 
   statusFilter: 'open' | 'done' | 'all' = 'open';
   issueFilter: string = 'all';
+  rttThreshold: number = 15;
+  sortBy: 'priority' | 'disagreement' | 'score' | 'dialogue_id' = 'priority';
 
   get uniqueDialogueCount(): number {
     return new Set(this.items.map((i) => i.dialogue_id)).size;
@@ -421,18 +563,27 @@ export class ValidationQueueComponent {
     return this.items.filter((item) => this.isReviewed(item.dialogue_id)).length;
   }
 
+  get rttDisagreementCount(): number {
+    return this.items.filter(
+      (item) => item.disagreement !== null && item.disagreement !== undefined && item.disagreement >= this.rttThreshold
+    ).length;
+  }
+
   get progressPercent(): number {
     if (this.items.length === 0) return 0;
     return Math.round((this.reviewedCount / this.items.length) * 100);
   }
 
   get filteredItems(): QueueItem[] {
-    return this.items.filter((item) => {
+    const list = this.items.filter((item) => {
       const done = this.isReviewed(item.dialogue_id);
       if (this.statusFilter === 'open' && done) return false;
       if (this.statusFilter === 'done' && !done) return false;
 
-      if (this.issueFilter === 'invalid_evidence') {
+      if (this.issueFilter === 'rtt_disagreements') {
+        const hasDisagree = item.disagreement !== null && item.disagreement !== undefined && item.disagreement >= this.rttThreshold;
+        if (!hasDisagree) return false;
+      } else if (this.issueFilter === 'invalid_evidence') {
         const isInv = item.issueType.includes('Invalid') || item.evidenceValidity === 'Invalid offset' || (item.reasons && item.reasons.includes('invalid_evidence_span'));
         if (!isInv) return false;
       } else if (this.issueFilter === 'model_needs_review') {
@@ -448,6 +599,23 @@ export class ValidationQueueComponent {
       }
 
       return true;
+    });
+
+    // Apply Sorting (Task 4)
+    return list.sort((a, b) => {
+      if (this.sortBy === 'disagreement') {
+        const dDiff = (b.disagreement ?? -1) - (a.disagreement ?? -1);
+        if (dDiff !== 0) return dDiff;
+        return (b.priority ?? 0) - (a.priority ?? 0);
+      }
+      if (this.sortBy === 'score') {
+        return (a.score ?? 999) - (b.score ?? 999);
+      }
+      if (this.sortBy === 'dialogue_id') {
+        return a.dialogue_id.localeCompare(b.dialogue_id);
+      }
+      // default: priority descending
+      return (b.priority ?? 0) - (a.priority ?? 0);
     });
   }
 

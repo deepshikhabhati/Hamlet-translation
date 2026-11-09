@@ -614,6 +614,19 @@
                     </label>
                   </div>
 
+                  <!-- Mark RTT Back-Translation Inaccurate (Task 5) -->
+                  <div class="v15-val-meta-row" *ngIf="activeInspectorDim === 'semantic'">
+                    <label class="inspector-checkbox-label" for="ded-inaccurate-bt">
+                      <input
+                        type="checkbox"
+                        id="ded-inaccurate-bt"
+                        [(ngModel)]="valInaccurateBt"
+                        name="valInaccurateBt"
+                      />
+                      <span>Mark RTT back-translation as inaccurate</span>
+                    </label>
+                  </div>
+
                   <!-- Reviewer Name with Example Placeholder (Requirement 8) -->
                   <div class="v15-val-meta-row">
                     <label class="v15-val-field-label">Reviewer Identity:
@@ -634,8 +647,21 @@
                         class="v15-val-textarea"
                         [(ngModel)]="valComment"
                         name="valComment"
-                        rows="6"
+                        rows="4"
                         placeholder="Provide philological commentary, explanation of score adjustment, or translation choices..."
+                      ></textarea>
+                    </label>
+                  </div>
+
+                  <!-- RTT Verification Notes (Task 5) -->
+                  <div class="v15-val-comment-row" *ngIf="activeInspectorDim === 'semantic'">
+                    <label class="v15-val-field-label">RTT Verification Notes:
+                      <textarea
+                        class="v15-val-textarea v15-val-textarea--rtt"
+                        [(ngModel)]="valRttNotes"
+                        name="valRttNotes"
+                        rows="3"
+                        placeholder="Does the disagreement indicate an actual translation change, or could it be caused by the back-translation model?"
                       ></textarea>
                     </label>
                   </div>
@@ -752,6 +778,14 @@
                     <h5 class="reader-main-title reader-title">Hamlet, side by side</h5>
                     <span class="reader-header-divider" aria-hidden="true">|</span>
                     <span class="reader-header-canonical-scene">Act {{ selectedAnalysisAct }} · Scene {{ selectedAnalysisScene?.scene_number || 1 }}</span>
+                    <span
+                      class="v15-scene-rtt-coverage-pill"
+                      *ngIf="getSceneRttCoverage(selectedAnalysisScene) as rttCov"
+                      [title]="'RTT verified: ' + rttCov.verified + ' of ' + rttCov.total + ' dialogues. Evaluates independent semantic back-translation. Note: Partial RTT coverage is not complete-scene validation.'"
+                    >
+                      <i class="fa fa-sync-alt" aria-hidden="true"></i>
+                      RTT verified: {{ rttCov.verified }} of {{ rttCov.total }} dialogues
+                    </span>
                     <span class="reader-sub-title reader-subtitle sr-only">Read the English original and the Human German translation together.</span>
                   </div>
                 </div>
@@ -1459,6 +1493,139 @@
                 </div>
               </div>
 
+              <!-- Round-Trip Translation Verification (Requirement 3, 7, 8) -->
+              <div class="inspector-rtt-card" [class.is-open]="isInspectorRttOpen">
+                <button
+                  type="button"
+                  class="inspector-rtt-toggle-btn"
+                  (click)="toggleInspectorRtt()"
+                  [attr.aria-expanded]="isInspectorRttOpen"
+                  aria-controls="inspector-rtt-details"
+                >
+                  <div class="rtt-toggle-left">
+                    <span class="rtt-toggle-title">Round-Trip Translation Verification</span>
+                  </div>
+                  <div class="rtt-toggle-right">
+                    <span
+                      class="v15-rtt-status-pill"
+                      [ngClass]="getRttStatusClass(inspectedDlg)"
+                    >
+                      {{ getRttStatusLabel(inspectedDlg) }}
+                    </span>
+                    <span class="rtt-chevron">{{ isInspectorRttOpen ? '▲' : '▼' }}</span>
+                  </div>
+                </button>
+
+                <div id="inspector-rtt-details" class="inspector-rtt-content" *ngIf="isInspectorRttOpen">
+                  <!-- Original English -->
+                  <div class="inspector-quote-block">
+                    <span class="quote-header-lbl">Original English:</span>
+                    <blockquote class="quote-text quote-text--en">
+                      “{{ selectedEvidencePhrase?.sourceText || inspectedDlg.texts.english }}”
+                    </blockquote>
+                  </div>
+
+                  <!-- Human German -->
+                  <div class="inspector-quote-block">
+                    <span class="quote-header-lbl">Human German:</span>
+                    <blockquote class="quote-text quote-text--de">
+                      “{{ selectedEvidencePhrase?.targetText || inspectedDlg.texts.human_german }}”
+                    </blockquote>
+                  </div>
+
+                  <!-- AI Back-Translated English -->
+                  <div class="inspector-quote-block">
+                    <div class="rtt-bt-header-line">
+                      <span class="quote-header-lbl">AI Back-Translated English:</span>
+                      <span class="rtt-model-badge" *ngIf="getDialogueRtt(inspectedDlg)?.back_translation_model">
+                        {{ getDialogueRtt(inspectedDlg)?.back_translation_model }}
+                      </span>
+                    </div>
+                    <blockquote class="quote-text quote-text--bt" *ngIf="getDialogueRtt(inspectedDlg)?.back_translated_english as btText">
+                      “{{ btText }}”
+                    </blockquote>
+                    <p class="rtt-empty-text" *ngIf="!getDialogueRtt(inspectedDlg)?.back_translated_english">
+                      <em>Awaiting back-translation analysis. Click below to generate.</em>
+                    </p>
+                  </div>
+
+                  <!-- Semantic Comparison Metrics -->
+                  <div class="rtt-comparison-summary">
+                    <div class="rtt-summary-row">
+                      <span class="rtt-metric-lbl">Existing Direct Semantic Score:</span>
+                      <strong class="rtt-metric-val">{{ formatScore(getInspectedDialogueDimScore(inspectedDlg, 'semantic')) }}/100</strong>
+                    </div>
+                    <div class="rtt-summary-row">
+                      <span class="rtt-metric-lbl">RTT Semantic Score:</span>
+                      <strong class="rtt-metric-val rtt-metric-val--rtt">
+                        {{ formatScore(getDialogueRtt(inspectedDlg)?.rtt_semantic_score) }}/100
+                      </strong>
+                    </div>
+                    <div class="rtt-summary-row">
+                      <span class="rtt-metric-lbl">Difference:</span>
+                      <strong
+                        class="rtt-metric-val"
+                        [class.text-danger]="(getDialogueRtt(inspectedDlg)?.disagreement || 0) >= 15"
+                      >
+                        {{ getDialogueRtt(inspectedDlg)?.disagreement !== null && getDialogueRtt(inspectedDlg)?.disagreement !== undefined ? (getDialogueRtt(inspectedDlg)?.disagreement + ' points') : '—' }}
+                      </strong>
+                    </div>
+                    <div class="rtt-summary-row">
+                      <span class="rtt-metric-lbl">Verification Status:</span>
+                      <span class="v15-rtt-status-badge" [ngClass]="getRttStatusClass(inspectedDlg)">
+                        {{ getRttStatusLabel(inspectedDlg) }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Task 8: Compact Comparison Dual Horizontal Bar Chart -->
+                  <div class="rtt-dual-bars" *ngIf="getDialogueRtt(inspectedDlg)?.rtt_semantic_score !== null && getDialogueRtt(inspectedDlg)?.rtt_semantic_score !== undefined">
+                    <div class="rtt-bar-item">
+                      <div class="rtt-bar-info">
+                        <span class="rtt-bar-title">Direct Score</span>
+                        <span class="rtt-bar-number">{{ formatScore(getInspectedDialogueDimScore(inspectedDlg, 'semantic')) }}</span>
+                      </div>
+                      <div class="rtt-bar-bg">
+                        <div class="rtt-bar-fill rtt-bar-fill--direct" [style.width.%]="getInspectedDialogueDimScore(inspectedDlg, 'semantic') || 0"></div>
+                      </div>
+                    </div>
+                    <div class="rtt-bar-item">
+                      <div class="rtt-bar-info">
+                        <span class="rtt-bar-title">RTT Score</span>
+                        <span class="rtt-bar-number">{{ formatScore(getDialogueRtt(inspectedDlg)?.rtt_semantic_score) }}</span>
+                      </div>
+                      <div class="rtt-bar-bg">
+                        <div class="rtt-bar-fill rtt-bar-fill--rtt" [style.width.%]="getDialogueRtt(inspectedDlg)?.rtt_semantic_score || 0"></div>
+                      </div>
+                    </div>
+                    <div class="rtt-diff-callout" [class.is-divergent]="(getDialogueRtt(inspectedDlg)?.disagreement || 0) >= 15">
+                      <span *ngIf="getDialogueRtt(inspectedDlg)?.requires_expert_review">
+                        ⚠️ Disagreement (Δ {{ getDialogueRtt(inspectedDlg)?.disagreement }} pts): requires expert validation
+                      </span>
+                      <span *ngIf="getDialogueRtt(inspectedDlg)?.status === 'completed' && !getDialogueRtt(inspectedDlg)?.requires_expert_review">
+                        ✓ In agreement (Δ {{ getDialogueRtt(inspectedDlg)?.disagreement }} pts): semantic preservation verified
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Action: Generate Back-Translation -->
+                  <div class="rtt-action-btn-row">
+                    <button
+                      type="button"
+                      class="rtt-generate-btn"
+                      (click)="generateInspectorRtt(inspectedDlg)"
+                      [disabled]="inspectorRttLoading"
+                    >
+                      <span *ngIf="!inspectorRttLoading">
+                        {{ getDialogueRtt(inspectedDlg)?.status === 'completed' ? 'Re-run Back-Translation' : 'Generate Back-Translation' }}
+                      </span>
+                      <span *ngIf="inspectorRttLoading">Generating Back-Translation...</span>
+                    </button>
+                    <span *ngIf="inspectorRttError" class="rtt-error-text">{{ inspectorRttError }}</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Original-Document Verification (Requirement 9 & 13) -->
               <div class="inspector-pdf-verification-block">
                 <span class="verification-title">Original Source Verification</span>
@@ -1520,8 +1687,20 @@
                   >Reject</button>
                 </div>
 
+                <!-- Mark RTT Back-Translation Inaccurate (Task 5) -->
+                <div class="inspector-val-row inspector-val-checkbox-row">
+                  <label class="inspector-checkbox-label" for="insp-inaccurate-bt">
+                    <input
+                      type="checkbox"
+                      id="insp-inaccurate-bt"
+                      [(ngModel)]="valInaccurateBt"
+                    />
+                    <span>Mark RTT back-translation as inaccurate</span>
+                  </label>
+                </div>
+
                 <div class="inspector-val-row">
-                  <label class="inspector-val-label" for="insp-score-input">Score Override:</label>
+                  <label class="inspector-val-label" for="insp-score-input">Corrected semantic score (0–100):</label>
                   <input
                     type="number"
                     id="insp-score-input"
@@ -1535,13 +1714,36 @@
                 </div>
 
                 <div class="inspector-val-row">
-                  <label class="inspector-val-label" for="insp-comment-input">Scholar Notes:</label>
+                  <label class="inspector-val-label" for="insp-reviewer-input">Reviewer Name / ID:</label>
+                  <input
+                    type="text"
+                    id="insp-reviewer-input"
+                    class="inspector-val-input"
+                    placeholder="e.g. Prof. J. Schmidt"
+                    [(ngModel)]="valReviewer"
+                  />
+                </div>
+
+                <div class="inspector-val-row">
+                  <label class="inspector-val-label" for="insp-comment-input">Scholarly Justification:</label>
                   <textarea
                     id="insp-comment-input"
                     class="inspector-val-textarea"
                     rows="2"
                     placeholder="Philological notes..."
                     [(ngModel)]="valComment"
+                  ></textarea>
+                </div>
+
+                <!-- RTT Verification Notes (Task 5) -->
+                <div class="inspector-val-row">
+                  <label class="inspector-val-label" for="insp-rtt-notes">RTT Verification Notes:</label>
+                  <textarea
+                    id="insp-rtt-notes"
+                    class="inspector-val-textarea inspector-val-textarea--rtt"
+                    rows="2"
+                    placeholder="Does the disagreement indicate an actual translation change, or could it be caused by the back-translation model?"
+                    [(ngModel)]="valRttNotes"
                   ></textarea>
                 </div>
 

@@ -76,7 +76,10 @@ export class ExpertReviewService {
       score_override: null,
       comment: null,
       reviewer: null,
-      reviewed_at: null
+      reviewed_at: null,
+      inaccurate_back_translation: false,
+      corrected_semantic_score: null,
+      rtt_notes: null
     };
   }
 
