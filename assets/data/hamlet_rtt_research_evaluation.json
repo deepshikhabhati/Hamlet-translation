@@ -1,0 +1,58 @@
+{
+  "title": "Hamlet Translation Analysis v1.5 \u2014 Experimental RTT Research Evaluation",
+  "sample_size": 99,
+  "evaluation_dataset": "Act 1 Scene 1 & Act 3 Scene 1 Representative Subset",
+  "evaluation_date": "2026-11-09",
+  "models": [
+    {
+      "name": "Baseline A (Existing AI Assessment)",
+      "key": "pred_A",
+      "pearson_r": 1.0,
+      "spearman_rho": 1.0,
+      "mae": 0.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "name": "Baseline B (Direct Cross-Lingual Sim)",
+      "key": "pred_B",
+      "pearson_r": 0.138,
+      "spearman_rho": 0.08,
+      "mae": 12.41,
+      "precision": 0.699,
+      "recall": 0.942,
+      "f1": 0.802
+    },
+    {
+      "name": "Model C (Direct Sim + RTT)",
+      "key": "pred_C",
+      "pearson_r": 0.323,
+      "spearman_rho": 0.368,
+      "mae": 9.92,
+      "precision": 0.875,
+      "recall": 0.101,
+      "f1": 0.182
+    },
+    {
+      "name": "Model D (AI Assessment + RTT)",
+      "key": "pred_D",
+      "pearson_r": 0.907,
+      "spearman_rho": 0.896,
+      "mae": 8.64,
+      "precision": 1.0,
+      "recall": 0.174,
+      "f1": 0.296
+    },
+    {
+      "name": "Model E (Hybrid AI + RTT + Phrase Alignment)",
+      "key": "pred_E",
+      "pearson_r": 0.887,
+      "spearman_rho": 0.874,
+      "mae": 6.22,
+      "precision": 1.0,
+      "recall": 0.232,
+      "f1": 0.376
+    }
+  ]
+}
