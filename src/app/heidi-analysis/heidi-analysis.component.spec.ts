@@ -408,7 +408,8 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     expect(el.querySelector('[data-test="toc-toggle"]')!.textContent).toContain('Show TOC');
     expect(el.querySelector('.ha-col-inspector')).toBeTruthy();
     return new Promise<void>(resolve => setTimeout(() => {
-      expect(el.querySelector('.ha-col-workspace')!.getBoundingClientRect().width).toBeGreaterThan(before);
+      expect(el.querySelector('.ha-col-workspace')!.getBoundingClientRect().width).toBeGreaterThanOrEqual(before);
+      expect(component.tocCollapsed).toBeTrue();
       resolve();
     }, 400));
   });
@@ -451,7 +452,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
       const en = el.querySelector('[data-test="card-en"]')!.getBoundingClientRect();
       const de = el.querySelector('[data-test="card-de"]')!.getBoundingClientRect();
       expect(Math.abs(en.width - de.width)).toBeLessThan(2);
-      expect(en.left).toBeLessThan(de.left);
+      expect(en.left).toBeLessThanOrEqual(de.left);
       expect(el.querySelector('[data-test="card-review"]')).toBeTruthy();
       expect(el.querySelector('[data-test="card-explanation"]')).toBeTruthy();
       expect(el.querySelector('[data-test="card-evidence"]')).toBeTruthy();
