@@ -1,0 +1,14 @@
+{
+ "project_id": "heidi",
+ "direction": "de_original -> en_human (Stork) -> de_ai (back-translation)",
+ "translation_model": "MyMemory-NMT en|de",
+ "similarity_model": "heidi-german-lexical-sim-v1",
+ "disagreement_threshold": 15.0,
+ "eligible_passages": 578,
+ "completed": 0,
+ "disagreements": 0,
+ "failures": [],
+ "results": [],
+ "calibration_note": "Similarity scale not calibrated against the direct semantic heuristic; treat disagreements as review triage only.",
+ "generated_at": "2026-11-16T04:44:59+00:00"
+}
