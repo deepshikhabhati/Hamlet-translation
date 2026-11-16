@@ -1,0 +1,89 @@
+// Heidi Translation Analysis v1.0 — page-specific additions only.
+// All shared visuals (header, three-column layout, TOC, reader cards, dimension tabs,
+// inspector, heatmap, queue) come from the Hamlet v1.5 stylesheets listed in styleUrls.
+
+.hd-root { position: relative; }
+
+/* ---- Export dropdown in the header nav ---- */
+.hd-export-wrap { position: relative; display: flex; align-items: stretch; }
+.hd-export-menu {
+  position: absolute; top: calc(100% - 4px); right: 0; z-index: 80; min-width: 180px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+  padding: 4px; display: flex; flex-direction: column;
+  button { border: 0; background: transparent; text-align: left; padding: 7px 10px; font-size: 13px; border-radius: 6px; cursor: pointer; color: #1e293b;
+    &:hover:not(:disabled) { background: #eff6ff; color: #1d4ed8; } &:disabled { opacity: .5; } }
+}
+
+/* ---- TOC: German chapter title as a small subtitle ---- */
+.hd-toc-de { font-size: 11px; font-style: italic; color: #94a3b8; line-height: 1.3; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* ---- Compact secondary filter strip (Hamlet shortcut-button styling) ---- */
+.hd-filter-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 2px; }
+.hd-mini-select { height: 28px; font-size: 12px; }
+.hd-strip-search { display: flex; align-items: center; gap: 6px; flex: 1 1 180px; min-width: 160px; height: 28px; padding: 0 8px;
+  border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #94a3b8;
+  input { border: 0; outline: none; flex: 1; font: inherit; font-size: 12px; color: #0f172a; background: transparent; min-width: 0; } }
+.hd-provisional-note { margin: 6px 0 0; font-size: 11px; color: #92400e; code { font-size: 10.5px; } }
+
+/* ---- Synchronised two-card reader: each passage is one grid row ---- */
+.hd-sync-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; row-gap: 0; width: 100%; align-items: stretch; }
+.hd-cell { background: #fff; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; min-width: 0; overflow-wrap: anywhere; }
+.hd-cell--head { border-top: 1px solid #e2e8f0; border-radius: 10px 10px 0 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .04); }
+.hd-cell.reader-speech-row:last-child, .hd-cell--last { border-bottom: 1px solid #e2e8f0 !important; border-radius: 0 0 10px 10px; }
+.hd-cell.reader-speech-row { cursor: pointer; outline: none; &:focus-visible { box-shadow: inset 0 0 0 2px #93c5fd; } }
+.hd-cell--flag { background: #fffdf5; }
+.hd-cell .reader-dialogue-body { white-space: normal; }
+.hd-missing { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12.5px; font-style: italic; color: #6d28d9; }
+.hd-align-badge { font-size: 10px; font-weight: 700; letter-spacing: .02em; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  &--ok { background: #dcfce7; color: #166534; } &--verified { background: #bbf7d0; color: #052e16; }
+  &--warn { background: #fef3c7; color: #92400e; } &--bad { background: #fee2e2; color: #991b1b; } &--unmatched { background: #ede9fe; color: #5b21b6; } }
+
+/* ---- Inspector additions ---- */
+.hd-prov-line { margin: -4px 0 8px; font-size: 10.5px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 3px 8px; }
+.hd-collapse { border: 0; background: none; padding: 0; cursor: pointer; text-align: left; width: 100%; }
+.hd-ev-list { list-style: none; margin: 6px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 6px;
+  li { border: 1px solid #f1f5f9; border-radius: 6px; padding: 6px 8px; font-size: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+    &.on { border-color: #93c5fd; background: #eff6ff; } &.hd-ev-plain { cursor: default; } } }
+.hd-ev-pair { font-family: Georgia, serif; font-size: 13px; color: #0f172a; }
+.hd-ev-meta { font-size: 11px; color: #64748b; margin: 2px 0; code { font-size: 10.5px; } }
+.hd-rtt-status { &.hd-rtt--agreement { background: #dcfce7; color: #166534; } &.hd-rtt--disagreement { background: #fee2e2; color: #991b1b; }
+  &.hd-rtt--failed { background: #fef3c7; color: #92400e; } &.hd-rtt--expert_reviewed { background: #e0e7ff; color: #3730a3; }
+  &.hd-rtt--running { background: #e0f2fe; color: #075985; } &.hd-rtt--not_run { background: #f1f5f9; color: #475569; } }
+a.verification-btn { text-decoration: none; }
+
+/* ---- Heatmap: Hamlet bands applied to cell buttons ---- */
+.v15-hm-cell-btn {
+  &.score-band-1 { background: #F2C4D3; color: #5C0F2B; } &.score-band-2 { background: #F9E1E9; color: #6E1A37; }
+  &.score-band-3 { background: #E9ECF1; color: #2A303C; } &.score-band-4 { background: #DCEFD9; color: #1E5631; }
+  &.score-band-5 { background: #BEE2B8; color: #15401F; }
+  &.score-cell-na { background: transparent; color: var(--muted, #566072); border: 1px dashed var(--line, #D8DCE3); font-weight: 400; }
+  &.hd-dim { opacity: .3; }
+}
+.hd-hm-val { display: flex; flex-direction: column; align-items: center; line-height: 1.1; small { font-size: 9.5px; font-weight: 400; opacity: .75; } }
+.hd-hm-row--on .v15-hm-scene-btn strong { color: #2563eb; }
+.hd-hm-passages-head { margin-top: 18px; flex-wrap: wrap; gap: 12px; align-items: center; }
+.hd-cells { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0 4px; }
+.hd-cell-btn { position: relative; width: 46px; height: 42px !important; flex-direction: column; padding: 2px !important;
+  &--flag { outline: 2px dashed #d97706; outline-offset: -2px; }
+  &--rtt::after { content: ''; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: #dc2626; } }
+.hd-cell-seq { font-size: 8.5px; opacity: .7; font-weight: 400; }
+.hd-cell-val { font-size: 12px; }
+.hd-cell-conf { position: absolute; left: 0; bottom: 0; height: 3px; background: #1e3a8a; opacity: .45; border-radius: 0 0 0 4px; }
+
+@media (max-width: 720px) {
+  .hd-sync-grid { grid-template-columns: minmax(0, 1fr); }
+  .hd-cell--de.hd-cell--head { border-radius: 0; }
+}
+
+/* ---- Selected-passage analysis card additions ---- */
+.hd-rtt-notrun { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 10px; padding: 8px 12px;
+  border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; font-size: 12.5px; color: #334155;
+  strong { color: #92400e; } }
+.hd-verify-tag { margin-left: 6px; font-size: 10px; font-weight: 700; color: #92400e; background: #fef3c7; border-radius: 999px; padding: 1px 7px; }
+.hd-diff-exceeds { outline: 2px solid #dc2626; outline-offset: 1px; }
+.v15-chip.hd-chip--not-applicable, .v15-chip.hd-chip--n\/a { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+.v15-chip.hd-chip--pending-review { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.v15-chip.hd-chip--disagreement { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.v15-evidence-box app-ha-evidence-highlighted-text { display: block; }
+.v15-rtt-table-wrap { overflow-x: auto; }

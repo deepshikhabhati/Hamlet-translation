@@ -16,3 +16,10 @@
 
 # Local static export (optional)
 hamlet-html
+
+# Heidi pipeline caches
+scripts/__pycache__/
+scripts/heidi_work/ding_stem_lexicon.json
+scripts/heidi_rtt_cache.json
+heidi_source_pdfs/
+Claude outputs/

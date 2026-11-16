@@ -30,10 +30,18 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('chatgpt-app');
   });
 
-  it('should render title', () => {
+  it('should render the project shell (Hamlet is now mounted through the router outlet)', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-hamlet-analysis')).toBeTruthy();
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
+  });
+
+  it('should render the project switcher with Hamlet and Heidi links', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[data-test="nav-hamlet"]')?.textContent).toContain('Hamlet Analysis');
+    expect(compiled.querySelector('[data-test="nav-heidi"]')?.textContent).toContain('Heidi Analysis');
   });
 });

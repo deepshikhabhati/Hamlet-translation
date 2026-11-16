@@ -2347,6 +2347,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
   // --- Inspector & Expert Review ---
   openInspector(diagId: string, targetVersion?: string): void {
+    if (diagId !== this.activeInspectedDialogueId && !this.confirmDiscardDraft()) {
+      return;
+    }
     if (this.workspaceContainerRef?.nativeElement) {
       this.lastReaderScrollPosition = this.workspaceContainerRef.nativeElement.scrollTop;
     }
@@ -2386,7 +2389,36 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   }
 
   closeInspector(): void {
+    if (!this.confirmDiscardDraft()) {
+      return;
+    }
     this.switchToSceneView();
+  }
+
+  /** Snapshot of the review form as loaded/saved, used to detect unsaved edits. */
+  private valDraftSnapshot: string | null = null;
+
+  private draftSignature(): string {
+    return JSON.stringify([this.valDecision, this.valScoreOverride, this.valComment, this.valInaccurateBt,
+      this.valCorrectedSemanticScore, this.valRttNotes]);
+  }
+
+  hasUnsavedDraft(): boolean {
+    return !!this.activeInspectedDialogueId && this.valDraftSnapshot !== null && this.draftSignature() !== this.valDraftSnapshot;
+  }
+
+  /** Ask before silently discarding unsaved expert-review edits. Returns true when it is safe to continue. */
+  confirmDiscardDraft(): boolean {
+    if (!this.hasUnsavedDraft()) {
+      return true;
+    }
+    const ok = typeof window !== 'undefined' && typeof window.confirm === 'function'
+      ? window.confirm(`You have unsaved expert-review changes for ${this.activeInspectedDialogueId}. Discard them?`)
+      : true;
+    if (ok) {
+      this.valDraftSnapshot = null;
+    }
+    return ok;
   }
 
   getInspectedDialogue(): AnalysisDialogue | null {
@@ -2440,6 +2472,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       this.valCorrectedSemanticScore = rev.corrected_semantic_score !== undefined ? rev.corrected_semantic_score : null;
       this.valRttNotes = rev.rtt_notes || '';
     }
+    this.valDraftSnapshot = this.draftSignature();
   }
 
   onInspectorVersionChange(verKey: string): void {
@@ -2828,6 +2861,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       localStorage.setItem('hamlet_v15_validations', JSON.stringify(this.expertValidations));
     } catch (e) {}
 
+    this.valDraftSnapshot = this.draftSignature();
     this.valSaveMessage = `Saved review decision for ${diag.dialogue_id} (${this.getDimensionName(this.activeInspectorDim)}).`;
     setTimeout(() => { this.valSaveMessage = ''; }, 3500);
   }
@@ -2843,6 +2877,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     this.valInaccurateBt = false;
     this.valCorrectedSemanticScore = null;
     this.valRttNotes = '';
+    this.valDraftSnapshot = this.draftSignature();
     this.valSaveMessage = `Reset review draft for ${diag.dialogue_id}.`;
     setTimeout(() => { this.valSaveMessage = ''; }, 3500);
   }

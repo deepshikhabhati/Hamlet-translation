@@ -1392,4 +1392,37 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       component.exportFlaggedAssessmentsCsv();
     });
   });
+
+  describe('Selected-dialogue card: unsaved expert-review protection', () => {
+    it('prompts before discarding unsaved edits and keeps the card open when cancelled', () => {
+      const dlg = component.analysisActs[0].scenes[0].dialogues[0];
+      component.selectedAnalysisAct = 1;
+      component.selectedAnalysisScene = component.analysisActs[0].scenes[0];
+      component.openInspector(dlg.dialogue_id);
+      expect(component.hasUnsavedDraft()).toBeFalse();
+      component.valComment = 'unsaved philological note';
+      expect(component.hasUnsavedDraft()).toBeTrue();
+      const confirmSpy = spyOn(window, 'confirm').and.returnValue(false);
+      const sceneSpy = spyOn(component, 'switchToSceneView').and.callThrough();
+      component.closeInspector();
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(sceneSpy).not.toHaveBeenCalled();
+      expect(component.activeInspectedDialogueId).toBe(dlg.dialogue_id);
+      confirmSpy.and.returnValue(true);
+      component.closeInspector();
+      expect(sceneSpy).toHaveBeenCalled();
+    });
+
+    it('does not prompt when the draft is unchanged or saved', () => {
+      const dlg = component.analysisActs[0].scenes[0].dialogues[0];
+      component.selectedAnalysisScene = component.analysisActs[0].scenes[0];
+      component.openInspector(dlg.dialogue_id);
+      const confirmSpy = spyOn(window, 'confirm').and.returnValue(false);
+      component.valComment = 'note';
+      component.saveDraftReview();
+      expect(component.hasUnsavedDraft()).toBeFalse();
+      component.closeInspector();
+      expect(confirmSpy).not.toHaveBeenCalled();
+    });
+  });
 });

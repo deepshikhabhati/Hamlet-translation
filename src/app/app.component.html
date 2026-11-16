@@ -1,3 +1,11 @@
 <div class="app-container ha-app-shell">
-  <app-hamlet-analysis></app-hamlet-analysis>
+  <nav class="project-switcher" aria-label="Research projects">
+    <span class="project-switcher__label">Project</span>
+    <a routerLink="/hamlet-analysis" routerLinkActive="project-switcher__link--active" class="project-switcher__link" data-test="nav-hamlet">Hamlet Analysis</a>
+    <span class="project-switcher__sep" aria-hidden="true">|</span>
+    <a routerLink="/heidi-analysis" routerLinkActive="project-switcher__link--active" class="project-switcher__link" data-test="nav-heidi">Heidi Analysis</a>
+  </nav>
+  <div class="project-outlet">
+    <router-outlet></router-outlet>
+  </div>
 </div>
