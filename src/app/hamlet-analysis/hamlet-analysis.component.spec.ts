@@ -857,6 +857,23 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
 
       fixture.detectChanges();
       expect(compiled.querySelector('.inspector-empty-state')).toBeTruthy();
+
+      // In-app PDF panel with inspected dialogue highlighting
+      component.onReaderInspectDialogue(diag1.dialogue_id);
+      component.openPdfBook('english');
+      expect(component.pdfPanelOpen).toBeTrue();
+      expect(component.activePdfBook).toBe('english');
+      expect(component.pdfSource).toBe(component.englishPdfPath);
+      expect(component.pdfHighlightText).toBe(diag1.texts.english.trim());
+
+      component.openPdfBook('german');
+      expect(component.pdfPanelOpen).toBeTrue();
+      expect(component.activePdfBook).toBe('german');
+      expect(component.pdfSource).toBe(component.germanPdfPath);
+      expect(component.pdfHighlightText).toBe((diag1.texts.human_german || '').trim());
+
+      component.closePdfPanel();
+      expect(component.pdfPanelOpen).toBeFalse();
     });
   });
 
@@ -1090,9 +1107,11 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       expect(semRtt?.diff).not.toBeNull();
       expect(semRtt?.explanation).toContain('Semantic');
 
+      // Only semantic RTT exists: other dimensions are "Not evaluated" and never reuse the semantic score
       const emoRtt = component.getRttDimScore('emotion');
       expect(emoRtt).toBeTruthy();
-      expect(emoRtt?.rttScore).not.toBeNull();
+      expect(emoRtt?.rttScore).toBeNull();
+      expect(emoRtt?.status).toBe('Not evaluated');
 
       // View mode options
       component.rttViewMode = 'original';
@@ -1110,13 +1129,24 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       const origScore = component.getSceneOriginalScore(act1Scene1, 'semantic');
       expect(origScore).not.toBeNull();
 
+      // No completed RTT in the scene → "Not evaluated" (null), never a fabricated delta
       component.heatmapAssessmentSource = 'rtt';
-      const rttScore = component.getSceneRttScore(act1Scene1, 'semantic');
-      expect(rttScore).not.toBeNull();
+      expect(component.getSceneRttScore(act1Scene1, 'semantic')).toBeNull();
+      expect(component.getSceneRttDiff(act1Scene1, 'semantic')).toBeNull();
 
+      act1Scene1.dialogues[0].round_trip_verification = {
+        status: 'completed', source_translation: 'human_german', back_translated_english: 'Who is there?',
+        back_translation_model: 'MyMemory-NMT-DE-EN-v2.1', similarity_model: 'Philological-Semantic-Sim-v1.5',
+        direct_semantic_score: 95, rtt_semantic_score: 88, disagreement: -7, requires_expert_review: false, review_reason: null,
+        generated_at: '2026-11-09T00:00:00Z'
+      };
+      const rttScore = component.getSceneRttScore(act1Scene1, 'semantic');
+      expect(rttScore).toBe(88);
       component.heatmapAssessmentSource = 'compare';
       const diff = component.getSceneRttDiff(act1Scene1, 'semantic');
-      expect(diff).not.toBeNull();
+      expect(diff).toBe(Math.round((88 - (component.getDialogueDimensionScore(act1Scene1.dialogues[0], 'semantic') as number)) * 10) / 10);
+      expect(component.getSceneRttScore(act1Scene1, 'emotion')).toBeNull();
+      expect(component.getSceneRttCoverageLabel(act1Scene1, 'semantic')).toBe('1/1');
 
       const applicableCount = component.getSceneApplicableDialoguesCount(act1Scene1, 'semantic');
       expect(applicableCount).toBeGreaterThan(0);
@@ -1423,6 +1453,131 @@ describe('HamletAnalysisComponent — v1.5 Integration Suite', () => {
       expect(component.hasUnsavedDraft()).toBeFalse();
       component.closeInspector();
       expect(confirmSpy).not.toHaveBeenCalled();
+    });
+  });
+  describe('Phase 6 — dimension evidence, honest RTT and evidence inspector (Hamlet)', () => {
+    const rttRecord = (rtt: number, direct: number) => ({
+      status: 'completed' as const, source_translation: 'human_german', back_translated_english: 'Who is there?',
+      back_translation_model: 'MyMemory-NMT-DE-EN-v2.1', similarity_model: 'Philological-Semantic-Sim-v1.5',
+      direct_semantic_score: direct, rtt_semantic_score: rtt, disagreement: rtt - direct, requires_expert_review: false,
+      review_reason: null, generated_at: '2026-11-09T00:00:00Z'
+    });
+
+    it('shows "Not evaluated" RTT for every dimension when no back-translation exists (no baseline from the source English)', () => {
+      const d = component.analysisActs[0].scenes[0].dialogues[0];
+      delete d.round_trip_verification;
+      component.openInspector(d.dialogue_id, 'human_german');
+      component.currentInlineBtResult = null;
+      component.backTranslationResult = null;
+      component.computeRttForCurrentDialogue();
+      expect(component.currentRttSource).toBe('none');
+      const rows = component.hamletRttRows(d);
+      expect(rows.length).toBe(8);
+      expect(rows.every(r => r.rtt === null)).toBeTrue();
+      expect(component.hamletDisagreement(d).status).toBe('not_evaluated');
+    });
+
+    it('uses the dataset semantic RTT only and never duplicates it across dimensions', () => {
+      const d = component.analysisActs[0].scenes[0].dialogues[0];
+      d.round_trip_verification = rttRecord(70, 95);
+      component.openInspector(d.dialogue_id, 'human_german');
+      component.currentInlineBtResult = null;
+      component.backTranslationResult = null;
+      component.computeRttForCurrentDialogue();
+      expect(component.currentRttSource).toBe('dataset');
+      const rows = component.hamletRttRows(d);
+      expect(rows.find(r => r.key === 'semantic')!.rtt).toBe(70);
+      expect(rows.filter(r => r.key !== 'semantic').every(r => r.rtt === null)).toBeTrue();
+      expect(component.getHamletBtEnglish(d)).toBe('Who is there?');
+      // the direct score is left untouched (no overwrite, no averaging)
+      expect(rows.find(r => r.key === 'semantic')!.direct).toBe(component.getDialogueDimensionScore(d, 'semantic'));
+    });
+
+    it('labels |direct − RTT| at or above the configurable threshold as a potential disagreement and queues it', () => {
+      const d = component.analysisActs[0].scenes[0].dialogues[0];
+      const direct = component.getDialogueDimensionScore(d, 'semantic') as number;
+      d.round_trip_verification = rttRecord(direct - 20, direct);
+      component.openInspector(d.dialogue_id, 'human_german');
+      component.currentInlineBtResult = null;
+      component.backTranslationResult = null;
+      component.computeRttForCurrentDialogue();
+      component.setRttThreshold(15);
+      expect(component.hamletDisagreement(d).status).toBe('potential_disagreement');
+      const q = component.getValidationQueueItems().filter(i => i.dialogue_id === d.dialogue_id && i.dimKey === 'semantic');
+      expect(q.length).toBeGreaterThan(0);
+      component.setRttThreshold(25);
+      expect(component.hamletDisagreement(d).status).toBe('agree');
+      expect(localStorage.getItem('hamlet_rtt_threshold_v1')).toBe('25');
+      component.setRttThreshold(15);
+    });
+
+    it('validates evidence offsets against the displayed text and routes mismatches to "Unlocated evidence"', () => {
+      const d = component.analysisActs[0].scenes[0].dialogues[0];
+      component.openInspector(d.dialogue_id, 'human_german');
+      const ana = d.analysis.human_german!['semantic'];
+      const good = ana.evidence.length;
+      ana.evidence.push({
+        evidence_id: 'BROKEN-1', source_quote: 'nonexistent', target_quote: 'gibt es nicht',
+        source_span: { start: 0, end: 5, text: 'xxxxx' }, target_span: { start: 0, end: 3, text: 'zzz' },
+        status: 'Lost', explanation: 'offset drift', ui_highlight_eligible: true
+      } as any);
+      component.activeInspectorDim = 'semantic';
+      const unlocated = component.hamletUnlocatedEvidence(d);
+      expect(unlocated.map(u => u.key)).toContain('BROKEN-1');
+      expect(component.getHumanSourceSpansForDialogue(d, 'semantic').length).toBeLessThanOrEqual(good);
+      expect(component.getHumanSourceSpansForDialogue(d, 'semantic').some(sp => sp.linkId === 'BROKEN-1')).toBeFalse();
+      ana.evidence.pop();
+    });
+
+    it('links English and German spans of the same evidence item by evidence ID and opens the Evidence Inspector', () => {
+      const d = component.analysisActs[0].scenes[0].dialogues[0];
+      component.openInspector(d.dialogue_id, 'human_german');
+      component.activeInspectorDim = 'semantic';
+      const en = Array.from(d.texts.english), de = Array.from(d.texts.human_german || '');
+      d.analysis.human_german!['semantic'].evidence = [{
+        evidence_id: `${d.dialogue_id}:human_german:semantic:001`, source_quote: en.slice(0, 3).join(''), target_quote: de.slice(0, 3).join(''),
+        source_span: { start: 0, end: 3, text: en.slice(0, 3).join('') }, target_span: { start: 0, end: 3, text: de.slice(0, 3).join('') },
+        status: 'Preserved', explanation: 'test pair', verified: true, ui_highlight_eligible: true,
+        span_validation: { valid: true, source_valid: true, target_valid: true, offset_unit: 'unicode_codepoint', end_exclusive: true } as any
+      }];
+      const src = component.getHumanSourceSpansForDialogue(d, 'semantic');
+      const tgt = component.getTargetSpansForDialogue(d, 'human_german', 'semantic');
+      expect(src.length).toBe(1);
+      expect(tgt.length).toBe(1);
+      expect(src[0].linkId).toBe(tgt[0].linkId);
+      component.onSegmentClick({ segment: { linkId: src[0].linkId, evidence: src[0].evidence, text: 'x', status: 'Preserved' }, event: new MouseEvent('click') }, 'english', d);
+      expect(component.selectedEvidenceKey).toBe(src[0].linkId);
+      const vm = component.hamletEvidenceVm(d)!;
+      expect(vm.project).toBe('hamlet');
+      expect(vm.dimensionKey).toBe('semantic');
+      expect(vm.sourcePhrase).toBeTruthy();
+      expect(component.activePopover).toBeNull();
+    });
+
+    it('keeps the selected dimension when moving to the previous / next dialogue', () => {
+      const scene = component.analysisActs[0].scenes[0];
+      component.selectAnalysisScene(scene);
+      component.openInspector(scene.dialogues[0].dialogue_id, 'human_german');
+      component.selectDimensionTab('tone');
+      expect(component.hasPrevDialogue()).toBeFalse();
+      if (component.hasNextDialogue()) {
+        component.goToDialogue(1);
+        expect(component.activeInspectorDim).toBe('tone');
+        component.goToDialogue(-1);
+        expect(component.activeInspectorDim).toBe('tone');
+      }
+      expect(component.activeInspectedDialogueId).toBe(scene.dialogues[0].dialogue_id);
+    });
+
+    it('reports provenance and shows N/A instead of 0 for non-applicable dimensions', () => {
+      const d = component.analysisActs[0].scenes[0].dialogues[0];
+      for (const k of ['semantic', 'emotion', 'metaphor_imagery', 'tone', 'character_voice', 'wordplay', 'cultural_archaic', 'omissions_additions']) {
+        const sc = component.getDialogueDimensionScore(d, k);
+        if (sc === null) { expect(component.getDialogueDimensionScoreDisplay(d, k)).toBe('N/A'); }
+        else { expect(component.getDialogueDimensionScoreDisplay(d, k)).not.toBe('N/A'); }
+      }
+      component.openInspector(d.dialogue_id, 'human_german');
+      expect(['provisional', 'model_assisted', 'expert_validated', 'none']).toContain(component.hamletDirectProvenance(d));
     });
   });
 });

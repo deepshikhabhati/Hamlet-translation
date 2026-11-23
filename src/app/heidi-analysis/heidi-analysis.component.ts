@@ -19,8 +19,10 @@ import {
 } from './models/heidi.models';
 import { HeidiDataService } from './services/heidi-data.service';
 import { EffectiveScore, HeidiReviewService } from './services/heidi-review.service';
-import { HEIDI_SIMILARITY_MODEL, HEIDI_TRANSLATION_MODEL, HeidiRttService, RttRecord } from './services/heidi-rtt.service';
+import { EnRoundTripRecord, HEIDI_SIMILARITY_MODEL, HEIDI_TRANSLATION_MODEL, HeidiRttService, RttRecord } from './services/heidi-rtt.service';
+import { categoryTotals } from './literary/heidi-literary';
 import {
+  isAlignmentUsable,
   HeidiAlignmentService,
   HeidiQueueFilter,
   HeidiQueueItem,
@@ -29,6 +31,12 @@ import {
 } from './services/heidi-alignment.service';
 import { getHeatmapThreshold, formatHumanScore } from '../hamlet-analysis/models/heatmap-config';
 import { EvidenceHighlightedTextComponent } from '../hamlet-analysis/components/evidence-highlighted-text/evidence-highlighted-text.component';
+import { DimensionSummaryComponent, ScoreProvenance } from '../shared/analysis/dimension-summary.component';
+import { RttComparePanelComponent, RttPanelRow, RttPanelText, RttProvenance } from '../shared/analysis/rtt-compare-panel.component';
+import { EvidenceDetailComponent, EvidenceVm } from '../shared/analysis/evidence-detail.component';
+import { EvidenceReviewService } from '../shared/analysis/evidence-review.service';
+import { PhraseCategory as SharedPhraseCategory, locateSpan } from '../shared/analysis/phrase-categories';
+import { PdfHighlighterComponent } from '../pdf-highlighter/pdf-highlighter.component';
 
 export type HeidiTab = 'read' | 'heatmap' | 'queue';
 export type HeidiViewMode = 'reader' | 'passage';
@@ -43,7 +51,23 @@ export interface RttTableRow {
   exceeds: boolean;
   status: string;
 }
-export type PhraseCategory = 'Preserved' | 'Changed' | 'Lost' | 'Added';
+export type PhraseCategory = SharedPhraseCategory;
+
+/** One inspectable evidence item of a passage for one dimension (paired phrase evidence or single-side term). */
+export interface HeidiEvidenceItem {
+  id: string;
+  category: PhraseCategory;
+  machineCategory: PhraseCategory;
+  de: HeidiSpan | null;
+  en: HeidiSpan | null;
+  explanation: string;
+  confidence: string | null;
+  located: boolean;
+  /** Literary evidence that concerns the passage as a whole (scored, not highlighted). */
+  passageLevel?: boolean;
+  needsReview?: boolean;
+  raw?: HeidiPhraseEvidence;
+}
 
 /** Span shape consumed by the shared Hamlet <app-ha-evidence-highlighted-text>. */
 export interface ReaderSpan {
@@ -92,6 +116,11 @@ export function hamletScoreClass(val: number | null | undefined): string {
  * Derived only from existing dataset fields (no data is changed or invented).
  */
 export function categorizeEvidence(dim: HeidiDimensionKey, ev: HeidiPhraseEvidence): PhraseCategory {
+  if (ev.kind.startsWith('lit:')) {
+    // Literary analysis: the assessor's category is used as-is (a low confidence flags review; it does not recategorise).
+    const c = ev.kind.slice(4);
+    return (c.charAt(0).toUpperCase() + c.slice(1)) as PhraseCategory;
+  }
   switch (ev.kind) {
     case 'lexical_correspondence':
     case 'imagery_preserved':
@@ -123,7 +152,7 @@ const TOC_DIMS: { key: HeidiDimensionKey; label: string; letter: string }[] = [
 @Component({
   selector: 'app-heidi-analysis',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, EvidenceHighlightedTextComponent],
+  imports: [CommonModule, FormsModule, RouterModule, EvidenceHighlightedTextComponent, DimensionSummaryComponent, RttComparePanelComponent, EvidenceDetailComponent, PdfHighlighterComponent],
   templateUrl: './heidi-analysis.component.html',
   // Hamlet v1.5 stylesheets are reused verbatim so both projects share one design system.
   styleUrls: [
@@ -150,6 +179,14 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   error: string | null = null;
   data: HeidiDataset | null = null;
   chapters: HeidiChapter[] = [];
+
+  // In-app PDF Book Viewer Panel state
+  pdfPanelOpen = false;
+  activePdfBook: 'english' | 'german' | null = null;
+  pdfSource = '';
+  pdfHighlightText = '';
+  readonly englishPdfPath = 'assets/heidi/heidi_en_pg20781.pdf';
+  readonly germanPdfPath = 'assets/heidi/heidi_de_pg7500.pdf';
 
   tab: HeidiTab = 'read';
   /** 'reader' = side-by-side chapter; 'passage' = full selected-passage analysis card in the centre panel. */
@@ -210,6 +247,10 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   rttError: string | null = null;
 
   private spanCache = new Map<string, ReaderSpan[]>();
+  private evidenceCache = new Map<string, HeidiEvidenceItem[]>();
+  private evidenceVmCache: { key: string; vm: EvidenceVm | null } | null = null;
+  private rttPanelCache: { key: string; rows: RttPanelRow[] } | null = null;
+  selectedEvidenceId: string | null = null;
   private sub?: Subscription;
 
   constructor(
@@ -221,6 +262,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private router: Router,
     private route: ActivatedRoute,
+    private evidenceReviews: EvidenceReviewService,
   ) {}
 
   ngOnInit(): void {
@@ -229,9 +271,12 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
       next: d => {
         this.data = d;
         this.chapters = this.dataService.chapters(d);
+        // Cached RTT records keep their AI text and similarity; only the difference is re-based on the literary score.
+        for (const p of this.dataService.allPassages(d)) {
+          if (this.rtt.get(p.passage_id)) { this.rtt.rebase(p.passage_id, p.analysis.dimensions.semantic?.score ?? null); }
+        }
         this.loading = false;
         this.rebuildQueue();
-        this.loadPipelineRtt();
         this.subscribeToRoute();
         this.cdr.markForCheck();
       },
@@ -279,16 +324,67 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEsc(): void {
+    if (this.pdfPanelOpen) {
+      this.closePdfPanel();
+      return;
+    }
     this.exportMenuOpen = false;
     if (this.viewMode === 'passage') { this.closePassageCard(); return; }
     if (this.inspectorOpen) { this.closeInspector(); }
   }
 
-  private loadPipelineRtt(): void {
-    this.http.get<any>('assets/data/heidi_rtt_research_evaluation.json').subscribe({
-      next: r => { this.rtt.mergePipelineResults(r?.results || []); this.rebuildQueue(); },
-      error: () => { /* optional file */ },
-    });
+  // ------------------------------------------------------------- PDF in-app viewer
+  openPdfBook(book: 'english' | 'german', customHighlight?: string | HeidiPassage | null): void {
+    this.activePdfBook = book;
+    this.pdfSource = book === 'english' ? this.englishPdfPath : this.germanPdfPath;
+    if (typeof customHighlight === 'string') {
+      this.pdfHighlightText = customHighlight.trim();
+    } else if (customHighlight && typeof customHighlight === 'object') {
+      this.pdfHighlightText = this.getHeidiPdfHighlightText(book, customHighlight);
+    } else {
+      this.pdfHighlightText = this.getHeidiPdfHighlightText(book, this.selectedPassage);
+    }
+    this.pdfPanelOpen = true;
+  }
+
+  closePdfPanel(): void {
+    this.pdfPanelOpen = false;
+    this.activePdfBook = null;
+    this.pdfHighlightText = '';
+  }
+
+  private refreshPdfHighlight(): void {
+    if (!this.activePdfBook) { return; }
+    this.pdfHighlightText = this.getHeidiPdfHighlightText(this.activePdfBook, this.selectedPassage);
+  }
+
+  getHeidiPdfHighlightText(book: 'english' | 'german', passage?: HeidiPassage | null): string {
+    if (this.selectedPhrase) {
+      if (book === 'english' && this.selectedPhrase.english) {
+        return this.selectedPhrase.english.trim();
+      }
+      if (book === 'german' && this.selectedPhrase.german) {
+        return this.selectedPhrase.german.trim();
+      }
+    }
+    const p = passage || this.selectedPassage;
+    if (p) {
+      if (book === 'english') {
+        return String(p.english_text || '').trim();
+      }
+      return String(p.german_text || '').trim();
+    }
+    return '';
+  }
+
+  getPdfPanelTitle(): string {
+    if (this.activePdfBook === 'english') {
+      return 'English Heidi (Gutenberg #20781)';
+    }
+    if (this.activePdfBook === 'german') {
+      return 'Original German Heidi (Gutenberg #7500)';
+    }
+    return 'PDF Reader';
   }
 
   // ------------------------------------------------------------- selection
@@ -331,6 +427,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     this.selectedDimension = k;
     this.selectedPhrase = null;
     this.activeLinkId = null;
+    this.selectedEvidenceId = null;
     if (k !== 'wordplay') { this.tocColorBy = k; }
     if (this.viewMode === 'passage') { this.syncUrl(); }
   }
@@ -338,7 +435,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   /** Select a passage and open the inspector WITHOUT moving the reading position or leaving the reader. */
   selectPassage(p: HeidiPassage, focus?: HeidiQueueItem['focus']): void {
     if (this.selectedPassageId !== p.passage_id && !this.confirmDiscardDraft()) { return; }
-    if (this.selectedPassageId !== p.passage_id) { this.selectedPhrase = null; this.activeLinkId = null; this.inlineBtOpen = false; }
+    if (this.selectedPassageId !== p.passage_id) { this.selectedPhrase = null; this.activeLinkId = null; this.inlineBtOpen = false; this.selectedEvidenceId = null; }
     this.selectedPassageId = p.passage_id;
     this.inspectorOpen = true;
     if (!this.reviewDraft || this.reviewDraft.passage_id !== p.passage_id) {
@@ -351,6 +448,9 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     if (focus === 'rtt') { this.rttExpanded = true; }
     else if (focus === 'alignment') { this.reviewExpanded = true; }
     else if (focus) { this.selectedDimension = focus; this.evidenceExpanded = true; }
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
   }
 
   /** Open the full selected-passage analysis card in the centre panel (TOC / heatmap / queue / Next Review). */
@@ -525,7 +625,14 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     if (this.reviews.isReviewed(p.passage_id)) { return false; }
     if (this.align.needsAlignmentReview(p)) { return true; }
     if (TOC_DIMS.some(d => { const s = this.eff(p, d.key).score; return s !== null && s < 60; })) { return true; }
+    if (this.hasUncertainEvidence(p)) { return true; }
     return this.rtt.get(p.passage_id)?.status === 'disagreement';
+  }
+
+  /** Any dimension whose only evidence is uncertain, or any Uncertain evidence item (literary analysis). */
+  hasUncertainEvidence(p: HeidiPassage, k?: HeidiDimensionKey): boolean {
+    const list = k ? [p.analysis.dimensions[k]] : Object.values(p.analysis.dimensions);
+    return list.some(a => !!a && (a.status === 'uncertain' || (a.category_counts?.['uncertain'] || 0) > 0));
   }
 
   isDifference(p: HeidiPassage): boolean {
@@ -553,7 +660,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   }
 
   partScoredCount(): number {
-    return this.chapters.reduce((n, c) => n + c.passages.filter(p => p.analysis.status === 'automated_provisional').length, 0);
+    return this.chapters.reduce((n, c) => n + c.passages.filter(p => p.analysis.status === 'literary_provisional').length, 0);
   }
 
   /** Chapters shown in the TOC after search / pills. */
@@ -630,7 +737,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   }
 
   shortId(p: HeidiPassage): string {
-    return p.passage_id.replace(/^HEIDI-P1-C\d\d-/, '');
+    return p.passage_id.replace(/^ch\d\d-/, '');
   }
 
   preview(p: HeidiPassage): string {
@@ -649,6 +756,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     if (this.reviews.alignmentRejected(p.passage_id)) { return 'hd-align-badge--bad'; }
     if (this.reviews.alignmentVerified(p.passage_id)) { return 'hd-align-badge--verified'; }
     switch (p.alignment.status) {
+      case 'verified': return 'hd-align-badge--verified';
       case 'aligned': return 'hd-align-badge--ok';
       case 'needs_review': return 'hd-align-badge--warn';
       case 'low_confidence': return 'hd-align-badge--bad';
@@ -683,8 +791,9 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     return this.chapters.some(c => c.passages.some(p => p.analysis.dimensions.wordplay?.score !== null && p.analysis.dimensions.wordplay?.score !== undefined));
   }
 
+  /** All eight dimensions are always selectable; unassessed ones (e.g. Wordplay) show N/A rather than being hidden. */
   get tabDims(): HeidiDimensionMeta[] {
-    return this.dims.filter(d => !d.optional || (d.key === 'wordplay' && this.wordplaySupported));
+    return this.dims;
   }
 
   provenanceLabel(e: EffectiveScore): string {
@@ -700,10 +809,12 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     const a = this.assessment(p, k);
     if (!a) {
       return p.analysis.status === 'blocked_alignment_review' ? 'Pending alignment review'
-        : p.analysis.status === 'not_applicable_unmatched' ? 'Unmatched' : 'Not run';
+        : p.analysis.status === 'alignment_disputed' ? 'Alignment disputed'
+          : p.analysis.status === 'not_applicable_unmatched' ? 'Unmatched' : 'Not evaluated';
     }
     if (a.status === 'not_applicable') { return 'N/A'; }
-    if (a.status === 'not_assessed') { return 'Not assessed'; }
+    if (a.status === 'not_assessed') { return 'Not evaluated'; }
+    if (a.status === 'uncertain') { return 'Uncertain'; }
     return '';
   }
 
@@ -713,12 +824,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
       return this.selectedPhrase.category;
     }
     const s = this.eff(p, k).score;
-    if (s === null) { return 'N/A'; }
-    if (k === 'omissions') {
-      const a = this.assessment(p, k);
-      if ((a?.possible_additions || 0) > 0 && !(a?.possible_omissions)) { return 'Added'; }
-      if ((a?.possible_omissions || 0) > 0) { return 'Lost'; }
-    }
+    if (s === null) { return this.assessment(p, k)?.status === 'uncertain' ? 'Uncertain' : 'N/A'; }
     if (s >= 85) { return 'Preserved'; }
     if (s >= 60) { return 'Changed'; }
     return 'Lost';
@@ -739,29 +845,12 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     const key = `${p.passage_id}|${this.selectedDimension}|${lang}`;
     const hit = this.spanCache.get(key);
     if (hit) { return hit; }
-    const a = this.assessment(p, this.selectedDimension);
-    const text = lang === 'en' ? p.english_text : p.german_text;
     const out: ReaderSpan[] = [];
-    if (a && text) {
-      const valid = (s: HeidiSpan | null | undefined): s is HeidiSpan => !!s && s.end > s.start && text.substring(s.start, s.end) === s.text;
-      if (a.phrase_evidence.length) {
-        for (const ev of a.phrase_evidence) {
-          const s = lang === 'en' ? ev.en : ev.de;
-          if (valid(s)) {
-            out.push({ start: s.start, end: s.end, status: categorizeEvidence(this.selectedDimension, ev), isSource: lang === 'de', linkId: `${p.passage_id}:${ev.id}` });
-          }
-        }
-      } else {
-        // dimensions without paired evidence (emotion, tone, voice): span lists per language
-        const list = lang === 'en' ? a.evidence_en : a.evidence_de;
-        const shifted = new Set(a.shift_categories || []);
-        const status: PhraseCategory = (a.score ?? 0) >= 85 ? 'Preserved' : 'Changed';
-        for (const s of list) {
-          if (valid(s)) {
-            out.push({ start: s.start, end: s.end, status: s.category && shifted.has(s.category) ? 'Changed' : status, isSource: lang === 'de' });
-          }
-        }
-      }
+    for (const it of this.evidenceItems(p, this.selectedDimension)) {
+      if (!it.located || this.evidenceReviews.isRejected('heidi', it.id)) { continue; }
+      const s = lang === 'en' ? it.en : it.de;
+      if (!s) { continue; } // omissions / additions are highlighted on one side only
+      out.push({ start: s.start, end: s.end, status: it.category, isSource: lang === 'de', linkId: it.id, needs_review: it.category === 'Uncertain' || !!it.needsReview });
     }
     out.sort((x, y) => x.start - y.start);
     const dedup = out.filter((s, i) => i === 0 || s.start >= out[i - 1].end);
@@ -769,24 +858,162 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     return dedup;
   }
 
+  /** Stable link/evidence ID (v2 evidence IDs are already group-qualified: chCC-aGGG:dim:id). */
+  evLink(p: HeidiPassage, ev: HeidiPhraseEvidence): string {
+    // Literary evidence IDs (HEIDI-CHnn-Annn-DIM-nnn) are already globally unique.
+    return ev.id.startsWith(p.passage_id + ':') || ev.id.startsWith('HEIDI-') ? ev.id : `${p.passage_id}:${ev.id}`;
+  }
+
+  /**
+   * Every evidence item for one passage & dimension, validated against the displayed text (code points).
+   * Paired phrase evidence links both languages; single-side terms (emotion/tone/voice lists) appear on one side only.
+   */
+  evidenceItems(p: HeidiPassage, k: HeidiDimensionKey): HeidiEvidenceItem[] {
+    const ck = `${p.passage_id}|${k}`;
+    const hit = this.evidenceCache.get(ck);
+    if (hit) { return hit; }
+    const a = this.assessment(p, k);
+    const out: HeidiEvidenceItem[] = [];
+    if (a && (a.status === 'scored' || a.phrase_evidence.length)) {
+      const ok = (s: HeidiSpan | null | undefined, text: string | null) => !s || !!locateSpan(text, s.start, s.end, s.text);
+      if (a.phrase_evidence.length) {
+        for (const ev of a.phrase_evidence) {
+          const id = this.evLink(p, ev);
+          const lit = ev.kind.startsWith('lit:');
+          const machine: PhraseCategory = !lit && ev.confidence === 'low' ? 'Uncertain' : categorizeEvidence(k, ev);
+          const located = lit
+            ? ev.span_status !== 'unlocated' && (ev.passage_level || ((!ev.source_phrase || !!ev.de) && (!ev.target_phrase || !!ev.en)))
+              && ok(ev.de, p.german_text) && ok(ev.en, p.english_text)
+            : ok(ev.de, p.german_text) && ok(ev.en, p.english_text) && !!(ev.de || ev.en);
+          out.push({ id, machineCategory: machine, category: this.evidenceReviews.effectiveCategory('heidi', id, machine),
+            de: ev.de, en: ev.en, explanation: ev.explanation, confidence: ev.confidence, located,
+            passageLevel: !!ev.passage_level, needsReview: !!ev.requires_expert_review, raw: ev });
+        }
+      } else {
+        const shifted = new Set(a.shift_categories || []);
+        const base: PhraseCategory = (a.score ?? 0) >= 85 ? 'Preserved' : 'Changed';
+        const add = (list: HeidiSpan[], side: 'en' | 'de') => list.forEach((sp, i) => {
+          const id = `${p.passage_id}:${k}:${side}-${i + 1}`;
+          const machine: PhraseCategory = a.confidence === 'low' ? 'Uncertain' : (sp.category && shifted.has(sp.category) ? 'Changed' : base);
+          out.push({ id, machineCategory: machine, category: this.evidenceReviews.effectiveCategory('heidi', id, machine),
+            de: side === 'de' ? sp : null, en: side === 'en' ? sp : null,
+            explanation: `${this.dimLabel(k)} cue “${sp.text}”${sp.category ? ` (${sp.category})` : ''} — single-side evidence; no paired counterpart recorded.`,
+            confidence: a.confidence, located: ok(sp, side === 'en' ? p.english_text : p.german_text) });
+        });
+        add(a.evidence_de, 'de');
+        add(a.evidence_en, 'en');
+      }
+    }
+    this.evidenceCache.set(ck, out);
+    return out;
+  }
+
   onSegmentClick(evt: { segment: any }, p: HeidiPassage): void {
     this.selectPassage(p);
     const linkId: string | undefined = evt?.segment?.linkId;
     const a = this.assessment(p, this.selectedDimension);
-    const evId = linkId ? linkId.split(':').pop() : null;
-    const ev = evId ? a?.phrase_evidence.find(e => e.id === evId) : undefined;
+    const item = linkId ? this.evidenceItems(p, this.selectedDimension).find(x => x.id === linkId) : undefined;
     this.activeLinkId = linkId || null;
+    this.selectedEvidenceId = item?.id ?? null;
     this.evidenceExpanded = true;
     this.selectedPhrase = {
       passageId: p.passage_id,
       dimension: this.selectedDimension,
-      category: (evt?.segment?.status as PhraseCategory) || 'Changed',
-      english: ev ? ev.en?.text ?? null : (evt.segment?.isSource ? null : evt.segment?.text),
-      german: ev ? ev.de?.text ?? null : (evt.segment?.isSource ? evt.segment?.text : null),
-      explanation: ev?.explanation || a?.explanation || '',
-      evidenceId: ev ? `${p.passage_id}:${ev.id}` : p.passage_id,
-      confidence: ev?.confidence ?? a?.confidence ?? null,
+      category: item?.category || (evt?.segment?.status as PhraseCategory) || 'Changed',
+      english: item ? item.en?.text ?? null : (evt.segment?.isSource ? null : evt.segment?.text),
+      german: item ? item.de?.text ?? null : (evt.segment?.isSource ? evt.segment?.text : null),
+      explanation: item?.explanation || a?.explanation || '',
+      evidenceId: item?.id || p.passage_id,
+      confidence: item?.confidence ?? a?.confidence ?? null,
     };
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
+  }
+
+  selectEvidence(p: HeidiPassage, ev: HeidiPhraseEvidence): void {
+    const id = this.evLink(p, ev);
+    this.activeLinkId = id;
+    this.selectedEvidenceId = id;
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
+  }
+
+  clearEvidence(): void {
+    this.selectedEvidenceId = null;
+    this.activeLinkId = null;
+  }
+
+  stepEvidence(p: HeidiPassage, delta: number): void {
+    const items = this.evidenceItems(p, this.selectedDimension);
+    if (!items.length) { return; }
+    const i = items.findIndex(x => x.id === this.selectedEvidenceId);
+    const next = items[i < 0 ? 0 : Math.max(0, Math.min(items.length - 1, i + delta))];
+    this.selectedEvidenceId = next.id;
+    this.activeLinkId = next.id;
+  }
+
+  heidiEvidenceIndex(p: HeidiPassage): { i: number; n: number } {
+    const items = this.evidenceItems(p, this.selectedDimension);
+    return { i: items.findIndex(x => x.id === this.selectedEvidenceId), n: items.length };
+  }
+
+  /** Expert decision saved: recompute effective categories / highlights (the machine assessment is preserved). */
+  onEvidenceDecided(): void {
+    this.spanCache.clear();
+    this.evidenceCache.clear();
+    this.evidenceVmCache = null;
+  }
+
+  heidiEvidenceVm(p: HeidiPassage): EvidenceVm | null {
+    if (!this.selectedEvidenceId) { return null; }
+    const rec = this.rttRecord(p);
+    const ck = `${p.passage_id}|${this.selectedDimension}|${this.selectedEvidenceId}|${rec?.generated_at}`;
+    if (this.evidenceVmCache?.key === ck) { return this.evidenceVmCache.vm; }
+    const it = this.evidenceItems(p, this.selectedDimension).find(x => x.id === this.selectedEvidenceId);
+    const a = this.assessment(p, this.selectedDimension);
+    const vm: EvidenceVm | null = it ? {
+      project: 'heidi',
+      evidenceId: it.id,
+      dimensionKey: this.selectedDimension,
+      dimensionLabel: this.dimLabel(this.selectedDimension),
+      location: `Part I, Chapter ${Number(p.chapter_id.slice(-2))} · ${p.passage_id} · EN ${(p.source.en_paragraph_ids || []).join(', ') || '—'} · DE ${(p.source.de_paragraph_ids || []).join(', ') || '—'}`,
+      sourceLabel: 'German Original (Spyri)',
+      sourcePhrase: it.de?.text ?? null,
+      translationLabel: 'Human English (Stork)',
+      translationPhrase: it.en?.text ?? null,
+      backTranslationPhrase: rec?.back_translated_english ?? null,
+      category: it.machineCategory,
+      directScore: this.eff(p, this.selectedDimension).score,
+      rttScore: this.selectedDimension === 'semantic' ? (rec?.rtt_semantic_score ?? null) : null,
+      explanation: it.explanation,
+      alignmentConfidence: `${p.alignment.confidence_label || '—'} (${this.align.statusLabel(p)})`,
+      method: a?.method || null,
+      provenance: it.raw?.provenance
+        ? `${it.raw.provenance} · evidence confidence ${it.confidence || '—'}`
+        : `Machine-generated initial assessment (provisional) · evidence confidence ${it.confidence || '—'}`,
+      unlocated: !it.located,
+      notice: it.passageLevel ? 'Passage-level evidence: applies to the whole passage, so no phrase is highlighted. It still counts in the rubric score.' : null,
+      details: it.raw ? [
+        { label: 'Evidence weight', value: String(it.raw.weight ?? '—') },
+        { label: 'Span status', value: (it.raw.span_status || '—').replace(/_/g, ' ') },
+        { label: 'Sentence alignment', value: it.raw.sentence_alignment_verified === null || it.raw.sentence_alignment_verified === undefined ? '—' : it.raw.sentence_alignment_verified ? 'verified' : 'unverified — check' },
+        { label: 'Expert review', value: it.raw.requires_expert_review ? 'Required' : 'Not required' },
+      ] : undefined,
+    } : null;
+    this.evidenceVmCache = { key: ck, vm };
+    return vm;
+  }
+
+  unlocatedFor(p: HeidiPassage): { dimension: string; side: string; text: string }[] {
+    const fromData = this.dataService.unlocatedEvidence(p.passage_id);
+    const fromUi = this.evidenceItems(p, this.selectedDimension).filter(x => !x.located)
+      .map(x => ({ dimension: this.selectedDimension as string,
+        side: x.raw ? (x.raw.source_phrase && !x.de ? 'de' : 'en') : (x.en ? 'en' : 'de'),
+        text: x.raw ? (x.raw.source_phrase && !x.de ? x.raw.source_phrase : x.raw.target_phrase || '') || x.id : (x.en || x.de)?.text || x.id }));
+    if (p.analysis.status === 'literary_provisional') { return fromUi; }
+    return [...fromData.filter(u => u.dimension === this.selectedDimension), ...fromUi];
   }
 
   /** Per-dimension direct vs round-trip comparison for the passage card. Only Semantic has an RTT score in Heidi. */
@@ -819,20 +1046,105 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   rttDimExplanation(p: HeidiPassage, k: HeidiDimensionKey): string {
     const rec = this.rtt.get(p.passage_id);
     if (k !== 'semantic') {
-      return 'No round-trip assessment exists for this dimension: Heidi RTT compares the AI back-translated German with the original German for semantic similarity only.';
+      return `${this.dimLabel(k)}: RTT not evaluated. Heidi's reverse-translation check yields a semantic similarity only; it is not reused for other dimensions and does not validate emotion, imagery, tone or voice.`;
     }
     if (!rec || rec.rtt_semantic_score === null) {
-      return 'RTT Not Run — no back-translation has been generated for this passage yet.';
+      return 'RTT Not Run — no AI back-translation of the German original exists for this passage yet.';
     }
-    return `Back-translated German compared with Spyri's original using ${rec.similarity_model}: ${rec.rtt_semantic_score}/100 vs direct ${rec.direct_semantic_score ?? '—'}/100 (|Δ| ${rec.disagreement ?? '—'}; threshold ${this.rtt.threshold}). The similarity scale is not calibrated against the direct heuristic.`;
+    return `AI back-translated English compared with Stork's English using ${rec.similarity_model}: ${rec.rtt_semantic_score}/100 vs direct ${rec.direct_semantic_score ?? '—'}/100 (|Δ| ${rec.disagreement ?? '—'}; threshold ${this.rtt.threshold}, not calibrated). This is a reverse-translation consistency check against the human English translation, not an evaluation of a translation of English.`;
   }
 
-  /** Reverse-translation action for the English card: runs the existing English → German RTT and shows it inline. */
+  /** Shows the BT English panel and generates the German original → AI English back-translation if needed. */
   toggleInlineBackTranslation(p: HeidiPassage): void {
     this.inlineBtOpen = !this.inlineBtOpen;
-    if (this.inlineBtOpen && !this.rtt.get(p.passage_id)?.back_translated_german && !this.rttDisabledReason(p)) {
+    if (this.inlineBtOpen && !this.rtt.get(p.passage_id)?.back_translated_english && !this.rttDisabledReason(p)) {
       this.generateRtt(p);
     }
+  }
+
+  // ---------- shared panel adapters ----------
+
+  dimLabel(k: HeidiDimensionKey): string {
+    return this.dims.find(d => d.key === k)?.label ?? k;
+  }
+
+  heidiRttTexts(p: HeidiPassage): RttPanelText[] {
+    return [
+      { label: 'Human English', sublabel: 'Stork — comparison reference', text: p.english_text, lang: 'en' },
+      { label: 'German Original', sublabel: 'Spyri — sent to the model', text: p.german_text, lang: 'de' },
+      { label: 'AI Back-Translated English', text: this.rttRecord(p)?.back_translated_english ?? null, lang: 'en', ai: true },
+    ];
+  }
+
+  heidiRttPanelRows(p: HeidiPassage): RttPanelRow[] {
+    const rec = this.rttRecord(p);
+    const key = `${p.passage_id}|${rec?.generated_at}|${rec?.rtt_semantic_score}|${this.reviews.get(p.passage_id)?.reviewed_at}`;
+    if (this.rttPanelCache?.key === key) { return this.rttPanelCache.rows; }
+    const rows = this.tabDims.map(d => ({
+      key: d.key,
+      name: d.label,
+      direct: this.eff(p, d.key).score,
+      rtt: d.key === 'semantic' ? (rec?.rtt_semantic_score ?? null) : null,
+      rttMethod: d.key === 'semantic' ? (rec?.similarity_model ?? null) : null,
+    }));
+    this.rttPanelCache = { key, rows };
+    return rows;
+  }
+
+  heidiRttProvenance(p: HeidiPassage): RttProvenance {
+    const r = this.rttRecord(p);
+    return {
+      translationModel: r?.translation_model || this.translationModel,
+      similarityModel: r?.similarity_model || this.similarityModel,
+      generatedAt: r?.generated_at || null,
+      source: r?.back_translated_english ? 'generated in this browser (cached)' : null,
+    };
+  }
+
+  setRttThreshold(v: number): void {
+    if (!(v > 0 && v <= 100)) { return; }
+    this.rtt.setThreshold(v);
+    this.rttPanelCache = null;
+    this.rebuildQueue();
+  }
+
+  summaryProvenance(p: HeidiPassage): ScoreProvenance {
+    const e = this.eff(p, this.selectedDimension);
+    if (e.provenance === 'expert_override') { return 'expert_override'; }
+    if (e.provenance === 'expert_accepted') { return 'expert_validated'; }
+    if (e.score === null) { return 'none'; }
+    return 'automated_heuristic';
+  }
+
+  summaryProvenanceLabel(p: HeidiPassage): string {
+    const e = this.eff(p, this.selectedDimension);
+    if (e.score === null) { return this.statusText(p, this.selectedDimension) || 'Not evaluated'; }
+    return this.provenanceLabel(e) || 'Machine-Generated Initial Assessment (Provisional)';
+  }
+
+  summaryNote(p: HeidiPassage): string | null {
+    if (this.align.needsAlignmentReview(p)) { return `${this.align.statusLabel(p)} — scores are withheld until the alignment is verified.`; }
+    const a = this.assessment(p, this.selectedDimension);
+    if (p.analysis.status !== 'literary_provisional') { return p.analysis.note || 'Not evaluated.'; }
+    if (a?.status === 'not_assessed') { return `${this.dimLabel(this.selectedDimension)}: not evaluated for this passage (no evidence recorded; shown as “Not evaluated”, never 0).`; }
+    if (a?.status === 'not_applicable') { return `${this.dimLabel(this.selectedDimension)}: N/A — ${a.explanation}`; }
+    if (a?.status === 'uncertain') { return `${this.dimLabel(this.selectedDimension)}: uncertain — only uncertain evidence; no score until an expert decides.`; }
+    return p.alignment.status === 'verified' ? 'Alignment verified (Chapter 1).' : 'Automatic high-confidence alignment — unreviewed.';
+  }
+
+  // ---------- Previous / next passage in the card ----------
+
+  hasAdjacent(p: HeidiPassage, delta: number): boolean {
+    const list = this.chapter?.passages || [];
+    const i = list.findIndex(x => x.passage_id === p.passage_id);
+    return i >= 0 && !!list[i + delta];
+  }
+
+  stepCard(delta: number): void {
+    const list = this.chapter?.passages || [];
+    const i = list.findIndex(x => x.passage_id === this.selectedPassageId);
+    const t = list[i + delta];
+    if (t) { this.openPassageCard(t); }
   }
 
   passageStatusLabel(p: HeidiPassage): string {
@@ -895,24 +1207,133 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     return v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`;
   }
 
+  // ------------------------------------------------------------- literary analysis summaries
+  /** Evidence category counts for one passage (selected dimension, or all dimensions). */
+  dimCounts(p: HeidiPassage, k?: HeidiDimensionKey): Record<PhraseCategory, number> {
+    return categoryTotals(p.analysis, k);
+  }
+
+  chapterDimCounts(ch: HeidiChapter | undefined, k: HeidiDimensionKey): Record<PhraseCategory, number> {
+    const out: Record<PhraseCategory, number> = { Preserved: 0, Changed: 0, Lost: 0, Added: 0, Uncertain: 0 };
+    for (const p of ch?.passages || []) {
+      const c = categoryTotals(p.analysis, k);
+      (Object.keys(out) as PhraseCategory[]).forEach(key => out[key] += c[key]);
+    }
+    return out;
+  }
+
+  /** Selector badge for one dimension: a passage (card) or a chapter mean (reader). Missing values are never 0. */
+  tabBadge(p: HeidiPassage | null, k: HeidiDimensionKey): { text: string; score: number | null; review: boolean; title: string } {
+    if (p) {
+      const score = this.eff(p, k).score;
+      const st = score === null ? (this.statusText(p, k) || 'Not evaluated') : String(score);
+      const review = this.hasUncertainEvidence(p, k) || (p.analysis.dimensions[k]?.phrase_evidence || []).some(e => e.requires_expert_review);
+      return { text: st, score, review, title: `${this.dimLabel(k)}: ${st}${review ? ' · evidence needs expert review' : ''}` };
+    }
+    const ch = this.chapter;
+    const score = ch ? this.chapterDimMean(ch, k) : null;
+    const n = ch ? ch.passages.filter(x => this.eff(x, k).score !== null).length : 0;
+    const review = !!ch && ch.passages.some(x => this.hasUncertainEvidence(x, k));
+    return { text: score === null ? 'N/A' : score.toFixed(1), score, review,
+      title: `${this.dimLabel(k)} — chapter mean of ${n} evaluated passage(s); N/A and not-evaluated passages are excluded, never counted as 0.` };
+  }
+
+  /** Coverage of the literary analysis for one chapter (sidebar). */
+  chapterCoverage(ch: HeidiChapter): { analysed: number; total: number; pending: number; disputed: number } {
+    const total = ch.passages.length;
+    const analysed = ch.passages.filter(p => p.analysis.status === 'literary_provisional').length;
+    const disputed = ch.passages.filter(p => p.analysis.status === 'alignment_disputed').length;
+    return { analysed, total, disputed, pending: total - analysed - disputed };
+  }
+
+  passageStatusShort(p: HeidiPassage): string {
+    if (this.reviews.isReviewed(p.passage_id)) { return 'Reviewed'; }
+    switch (p.analysis.status) {
+      case 'literary_provisional': return this.passageNeedsReview(p) ? 'Needs review' : 'Analysed';
+      case 'alignment_disputed': return 'Alignment disputed';
+      case 'blocked_alignment_review': return 'Awaiting alignment';
+      case 'not_applicable_unmatched': return 'Unmatched';
+      default: return 'Not evaluated';
+    }
+  }
+
+  readonly catKeys: PhraseCategory[] = ['Preserved', 'Changed', 'Lost', 'Added', 'Uncertain'];
+
+  // ------------------------------------------------------------- RTT workflow B (Human English → AI German → AI English)
+  enRttBusy = false;
+  enRtt(p: HeidiPassage): EnRoundTripRecord | null {
+    return this.rtt.getEnRoundTrip(p.passage_id);
+  }
+
+  runEnRtt(p: HeidiPassage): void {
+    if (!p.english_text || this.enRttBusy) { return; }
+    this.enRttBusy = true;
+    this.rtt.generateEnglishRoundTrip(p).subscribe({
+      next: () => { this.enRttBusy = false; this.cdr.markForCheck(); },
+      error: () => { this.enRttBusy = false; this.cdr.markForCheck(); },
+    });
+  }
+
   analysisCounts() {
     const ch = this.chapter;
     const base = ch ? ch.passages.filter(p => this.align.matchesFilters(p, this.filters)) : [];
     return { all: base.length, review: base.filter(p => this.passageNeedsReview(p)).length, diff: base.filter(p => this.isDifference(p)).length };
   }
 
+  // ------------------------------------------------------------- chapter RTT batch
+  chapterRttBusy = false;
+  chapterRttProgress: { done: number; total: number; failed: number; stopped: string | null } | null = null;
+  private chapterRttCancel = false;
+
+  /** Passages of a chapter that can be back-translated and have no completed RTT yet. */
+  chapterRttPending(ch: HeidiChapter | undefined): HeidiPassage[] {
+    return (ch?.passages || []).filter(p => !this.rttDisabledReason(p) && this.rttRecord(p)?.rtt_semantic_score == null);
+  }
+
+  /**
+   * Generate the German original → AI English back-translation for every eligible passage of the chapter,
+   * one request at a time (cached per passage). Stops at the first service error (e.g. the free daily quota).
+   */
+  async runChapterRtt(ch: HeidiChapter | undefined): Promise<void> {
+    const todo = this.chapterRttPending(ch);
+    if (!todo.length || this.chapterRttBusy) { return; }
+    this.chapterRttBusy = true;
+    this.chapterRttCancel = false;
+    this.chapterRttProgress = { done: 0, total: todo.length, failed: 0, stopped: null };
+    for (const p of todo) {
+      if (this.chapterRttCancel) { this.chapterRttProgress.stopped = 'Stopped by the reviewer.'; break; }
+      const rec = await new Promise<any>(resolve => this.rtt.generate(p, this.eff(p, 'semantic').score)
+        .subscribe({ next: resolve, error: e => resolve({ status: 'failed', error: String(e?.message || e) }) }));
+      if (rec.status === 'failed') {
+        this.chapterRttProgress.failed++;
+        this.chapterRttProgress.stopped = `Stopped: ${rec.error || 'back-translation failed'}`;
+        break;
+      }
+      this.chapterRttProgress.done++;
+      this.cdr.markForCheck();
+    }
+    this.chapterRttBusy = false;
+    this.rttPanelCache = null;
+    this.rebuildQueue();
+    this.cdr.markForCheck();
+  }
+
+  cancelChapterRtt(): void {
+    this.chapterRttCancel = true;
+  }
+
   // ------------------------------------------------------------- coverage
   chapterStats(ch: HeidiChapter | undefined) {
     if (!ch) { return { total: 0, aligned: 0, verified: 0, review: 0, unmatched: 0, scored: 0, rtt: 0, eligible: 0 }; }
     const ids = new Set(ch.passages.map(p => p.passage_id));
-    const aligned = ch.passages.filter(p => p.alignment.status === 'aligned').length;
+    const aligned = ch.passages.filter(p => isAlignmentUsable(p)).length;
     return {
       total: ch.passages.length,
       aligned,
       verified: ch.passages.filter(p => this.reviews.alignmentVerified(p.passage_id)).length,
       review: ch.passages.filter(p => p.alignment.status === 'needs_review' || p.alignment.status === 'low_confidence').length,
       unmatched: ch.passages.filter(p => this.align.isUnmatched(p)).length,
-      scored: ch.passages.filter(p => p.analysis.status === 'automated_provisional').length,
+      scored: ch.passages.filter(p => p.analysis.status === 'literary_provisional').length,
       rtt: this.rtt.completedCount(ids),
       eligible: aligned,
     };
@@ -1008,7 +1429,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
 
   rttEligible(p: HeidiPassage): boolean {
     return !!p.english_text && !!p.german_text &&
-      (p.alignment.status === 'aligned' || this.reviews.alignmentVerified(p.passage_id)) &&
+      (isAlignmentUsable(p) || this.reviews.alignmentVerified(p.passage_id)) &&
       !this.reviews.alignmentRejected(p.passage_id);
   }
 
@@ -1029,6 +1450,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     this.rtt.generate(p, direct).subscribe({
       next: rec => {
         this.rttBusy = false;
+        rec = this.rtt.rebase(p.passage_id, direct) ?? rec;
         if (rec.status === 'failed') { this.rttError = rec.error || 'Back-translation failed.'; }
         this.rebuildQueue();
         this.cdr.markForCheck();

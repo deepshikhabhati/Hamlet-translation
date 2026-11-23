@@ -1,4 +1,9 @@
 import { FullBookAdapterService } from './services/full-book-adapter.service';
+import { DimensionSummaryComponent, ScoreProvenance } from '../shared/analysis/dimension-summary.component';
+import { RttComparePanelComponent, RttPanelRow, RttPanelText, RttProvenance } from '../shared/analysis/rtt-compare-panel.component';
+import { EvidenceDetailComponent, EvidenceVm } from '../shared/analysis/evidence-detail.component';
+import { disagreementOf, locateSpan, normalizeCategory } from '../shared/analysis/phrase-categories';
+import { RTT_LIVE_SIMILARITY_MODEL } from './services/back-translation.service';
 import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -39,7 +44,8 @@ import {
   RttDimensionScore,
   RttAnalysisResult,
   RefinedTranslationResult,
-  RoundTripVerification
+  RoundTripVerification,
+  PhraseEvidence
 } from './models/hamlet-analysis-v15.models';
 import { HamletAggregationService } from './services/hamlet-aggregation.service';
 import { ExpertReviewService } from './services/expert-review.service';
@@ -109,6 +115,9 @@ export interface AnalysisNavigationTarget {
     EvidenceHighlightedTextComponent,
     ValidationQueueComponent,
     SceneDialogueTableComponent,
+    DimensionSummaryComponent,
+    RttComparePanelComponent,
+    EvidenceDetailComponent,
   ],
   templateUrl: './hamlet-analysis.component.html',
   styleUrls: ['./hamlet-analysis.component.scss'],
@@ -336,6 +345,16 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   // Round-Trip Translation (RTT) state (Requirement 3)
   rttViewMode: 'original' | 'rtt' | 'compare' = 'compare';
   currentRttResult: RttAnalysisResult | null = null;
+  currentRttSource: 'live' | 'dataset' | 'none' = 'none';
+  rttThreshold = HamletAnalysisComponent.loadRttThreshold();
+  static readonly RTT_THRESHOLD_KEY = 'hamlet_rtt_threshold_v1';
+  private rttRowsCache: { key: string; rows: RttPanelRow[] } | null = null;
+  selectedEvidenceKey: string | null = null;
+  private evidenceVmCache: { key: string; vm: EvidenceVm | null } | null = null;
+  readonly hamletVersionPanels = [
+    { key: 'ai_german', label: 'AI German', badge: 'Baseline AI translation' },
+    { key: 'context_ai_german', label: 'Context AI German', badge: 'Context-aware AI translation' },
+  ];
 
   // Evidence Inspector RTT Verification state (Tasks 3, 5, 7, 8)
   isInspectorRttOpen = false; // Collapsed by default per Task 7
@@ -474,7 +493,16 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   }
 
   private getPdfHighlightText(book: 'english' | 'german'): string {
-    const inspected = this.getInspectedDialogue();
+    if (this.selectedEvidencePhrase) {
+      if (book === 'english' && this.selectedEvidencePhrase.sourceText) {
+        return this.selectedEvidencePhrase.sourceText.trim();
+      }
+      if (book === 'german' && this.selectedEvidencePhrase.targetText) {
+        return this.selectedEvidencePhrase.targetText.trim();
+      }
+    }
+
+    const inspected = this.getInspectedDialogue() || this.getReaderInspectedDialogue();
     if (inspected && inspected.texts) {
       if (book === 'english') {
         return String(inspected.texts.english || '').trim();
@@ -1197,13 +1225,21 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   computeRttForCurrentDialogue(backTranslatedText?: string): void {
     const d = this.getInspectedDialogue();
     if (!d) return;
-    const bt = backTranslatedText || this.currentInlineBtResult?.translatedEnglish || this.backTranslationResult?.translatedEnglish;
+    const live = [this.currentInlineBtResult, this.backTranslationResult]
+      .find((r) => r && r.status === 'success' && r.translatedEnglish && (r.dialogueId || '').startsWith(d.dialogue_id));
+    const bt = backTranslatedText || live?.translatedEnglish;
     if (bt) {
       this.currentRttResult = this.backTranslationService.evaluateRoundTripTranslation(d, bt);
+      this.currentRttSource = 'live';
+    } else if (this.getStoredRtt(d)) {
+      this.currentRttResult = this.rttResultFromDataset(d);
+      this.currentRttSource = 'dataset';
     } else {
-      // Deterministic baseline RTT from source line
-      this.currentRttResult = this.backTranslationService.evaluateRoundTripTranslation(d, d.texts?.english || '');
+      // No back-translation exists: every RTT score is "Not evaluated" (never a baseline built from the source English).
+      this.currentRttResult = this.rttResultFromDataset(d);
+      this.currentRttSource = 'none';
     }
+    this.rttRowsCache = null;
     this.cdr.markForCheck();
   }
 
@@ -1276,30 +1312,38 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     return this.getSceneDimensionScore(scene, dimKey, 'human_german');
   }
 
+  /**
+   * Scene-level RTT = mean of the dataset's computed semantic RTT scores (round_trip_verification) for that scene.
+   * Only the semantic dimension has an RTT method; all other dimensions return null ("Not evaluated").
+   */
   getSceneRttScore(scene: AnalysisScene, dimKey: string): number | null {
-    if (!this.isSceneAnalyzed(scene)) return null;
-    const orig = this.getSceneOriginalScore(scene, dimKey);
-    if (orig === null) return null;
-    let delta = 0;
-    switch (dimKey) {
-      case 'semantic': delta = 1.2; break;
-      case 'emotion': delta = -2.4; break;
-      case 'tone': delta = -1.8; break;
-      case 'metaphor_imagery': delta = -3.2; break;
-      case 'character_voice': delta = -2.1; break;
-      case 'wordplay': delta = -6.5; break;
-      case 'cultural_archaic': delta = -4.8; break;
-      case 'omissions_additions': delta = 0.5; break;
-      default: delta = 0;
-    }
-    return Math.min(100, Math.max(0, Math.round((orig + delta) * 10) / 10));
+    const rows = this.sceneRttPairs(scene, dimKey);
+    if (!rows.length) return null;
+    return Math.round((rows.reduce((a, r) => a + r.rtt, 0) / rows.length) * 10) / 10;
   }
 
+  /** Difference uses the same denominator: direct semantic mean over the dialogues that have an RTT score. */
   getSceneRttDiff(scene: AnalysisScene, dimKey: string): number | null {
-    const orig = this.getSceneOriginalScore(scene, dimKey);
-    const rtt = this.getSceneRttScore(scene, dimKey);
-    if (orig === null || rtt === null) return null;
-    return Math.round((rtt - orig) * 10) / 10;
+    const rows = this.sceneRttPairs(scene, dimKey).filter((r) => r.direct !== null);
+    if (!rows.length) return null;
+    const rtt = rows.reduce((a, r) => a + r.rtt, 0) / rows.length;
+    const dir = rows.reduce((a, r) => a + (r.direct as number), 0) / rows.length;
+    return Math.round((rtt - dir) * 10) / 10;
+  }
+
+  getSceneRttCoverageLabel(scene: AnalysisScene, dimKey: string): string {
+    const total = (scene.dialogues || []).length;
+    return `${this.sceneRttPairs(scene, dimKey).length}/${total}`;
+  }
+
+  private sceneRttPairs(scene: AnalysisScene, dimKey: string): { rtt: number; direct: number | null }[] {
+    if (dimKey !== 'semantic' || !scene?.dialogues) return [];
+    const out: { rtt: number; direct: number | null }[] = [];
+    for (const d of scene.dialogues) {
+      const r = this.getStoredRtt(d);
+      if (r) out.push({ rtt: r.rtt_semantic_score as number, direct: this.getDialogueDimensionScore(d, 'semantic') });
+    }
+    return out;
   }
 
   getSceneApplicableDialoguesCount(scene: AnalysisScene, dimKey: string): number {
@@ -1873,6 +1917,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
   onReaderInspectDialogue(dialogueId: string): void {
     this.readerInspectedDialogueId = dialogueId;
     this.updateSelectedEvidencePhrase(dialogueId);
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
     if (typeof document !== 'undefined') {
       const el = document.getElementById('dlg-en-' + dialogueId);
       if (el && typeof el.scrollIntoView === 'function') {
@@ -1898,7 +1945,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     const ana = diag.analysis?.['human_german']?.[dim];
     const ev = ana?.evidence?.[0];
 
-    const linkId = ev?.evidence_id ? `${diag.dialogue_id}_${ev.evidence_id}` : `${diag.dialogue_id}_0`;
+    const linkId = ev?.evidence_id ? ev.evidence_id : `${diag.dialogue_id}_0`;
     this.activeLinkedSpanId = linkId;
 
     const curated = this.getCuratedDialogueExplanation(diag, dim, 'human_german');
@@ -2241,8 +2288,8 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         if (ev.ui_highlight_eligible !== true) return;
         if (ev.span_validation && (ev.span_validation.valid === false || ev.span_validation.source_valid === false)) return;
         if (ev.source_span && ev.source_span.start !== null && ev.source_span.end !== null) {
-          if (ev.source_span.start < 0 || ev.source_span.end > engText.length || ev.source_span.start >= ev.source_span.end) {
-            return;
+          if (!locateSpan(engText, ev.source_span.start, ev.source_span.end, ev.source_span.text)) {
+            return; // unlocated: listed under "Unlocated evidence" and routed to review
           }
           spans.push({
             start: ev.source_span.start,
@@ -2251,7 +2298,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
             isSource: true,
             evidence: ev,
             needs_review: ana.needs_review || ev.verified === false,
-            linkId: `${diag.dialogue_id}_${evIdx}`
+            linkId: ev.evidence_id || `${diag.dialogue_id}_${evIdx}`
           });
         }
       });
@@ -2270,8 +2317,8 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         if (ev.ui_highlight_eligible !== true) return;
         if (ev.span_validation && (ev.span_validation.valid === false || ev.span_validation.source_valid === false)) return;
         if (ev.source_span && ev.source_span.start !== null && ev.source_span.end !== null) {
-          if (ev.source_span.start < 0 || ev.source_span.end > engText.length || ev.source_span.start >= ev.source_span.end) {
-            return;
+          if (!locateSpan(engText, ev.source_span.start, ev.source_span.end, ev.source_span.text)) {
+            return; // unlocated: listed under "Unlocated evidence" and routed to review
           }
           spans.push({
             start: ev.source_span.start,
@@ -2280,7 +2327,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
             isSource: true,
             evidence: ev,
             needs_review: ana.needs_review || ev.verified === false,
-            linkId: `${diag.dialogue_id}_${evIdx}`
+            linkId: ev.evidence_id || `${diag.dialogue_id}_${evIdx}`
           });
         }
       });
@@ -2298,8 +2345,8 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         if (ev.ui_highlight_eligible !== true) return;
         if (ev.span_validation && (ev.span_validation.valid === false || ev.span_validation.target_valid === false)) return;
         if (ev.target_span && ev.target_span.start !== null && ev.target_span.end !== null) {
-          if (!targetText || ev.target_span.start < 0 || ev.target_span.end > targetText.length || ev.target_span.start >= ev.target_span.end) {
-            return;
+          if (!locateSpan(targetText, ev.target_span.start, ev.target_span.end, ev.target_span.text)) {
+            return; // unlocated: listed under "Unlocated evidence" and routed to review
           }
           spans.push({
             start: ev.target_span.start,
@@ -2308,7 +2355,7 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
             isSource: false,
             evidence: ev,
             needs_review: ana.needs_review || ev.verified === false,
-            linkId: `${diag.dialogue_id}_${evIdx}`
+            linkId: ev.evidence_id || `${diag.dialogue_id}_${evIdx}`
           });
         }
       });
@@ -2386,6 +2433,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
 
     this.loadCurrentReviewForInspector();
     this.scrollWorkspaceToTop();
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
   }
 
   closeInspector(): void {
@@ -2581,11 +2631,15 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
     const diag = this.getReaderInspectedDialogue();
     const ana = diag?.analysis?.['human_german']?.[this.selectedAnalysisDimension];
 
+    if (this.viewMode === 'dialogue' && (seg?.linkId || ev?.evidence_id)) {
+      this.selectHamletEvidence(ev?.evidence_id || seg.linkId);
+    }
+
     // Link matching English and German phrase spans across the parallel columns
     if (seg?.linkId) {
       this.activeLinkedSpanId = seg.linkId;
     } else if (ev?.evidence_id) {
-      this.activeLinkedSpanId = `${diagId}_${ev.evidence_id}`;
+      this.activeLinkedSpanId = ev.evidence_id;
     }
 
     const curated = this.getCuratedDialogueExplanation(diag, this.selectedAnalysisDimension, 'human_german');
@@ -2602,6 +2656,15 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       provenance: (ev as any)?.provenance || 'Schlegel-Tieck (1839/40)'
     };
 
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
+
+    if (this.viewMode === 'dialogue') {
+      // In the dialogue card the Evidence Inspector replaces the pinned popover.
+      this.closeEvidencePopover();
+      return;
+    }
     this.openEvidencePopover(data, verKey, dialogueContext, 'pinned');
   }
 
@@ -3138,7 +3201,8 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
         act.scenes.forEach((scene) => {
           scene.dialogues.forEach((diag) => {
             const rtt = diag.round_trip_verification;
-            if (rtt && rtt.requires_expert_review) {
+            const absDis = rtt && rtt.disagreement !== null && rtt.disagreement !== undefined ? Math.abs(rtt.disagreement) : null;
+            if (rtt && (rtt.status === 'completed' || rtt.status === 'expert_reviewed') && (rtt.requires_expert_review || (absDis !== null && absDis >= this.rttThreshold))) {
               const alreadyInQueue = items.some(
                 (it) => it.dialogue_id === diag.dialogue_id && it.dimKey === 'semantic' && it.versionKey === 'human_german'
               );
@@ -3158,9 +3222,9 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
                   dimName: 'Semantic',
                   score: anaSem?.score ?? null,
                   confidence: anaSem?.confidence ?? 0.85,
-                  issueType: 'RTT semantic disagreement',
+                  issueType: 'Potential RTT disagreement — review recommended',
                   priority: (rtt.disagreement || 0) >= 20 ? 3 : 2,
-                  explanation: rtt.review_reason || 'Disagreement between direct semantic score and RTT score.',
+                  explanation: rtt.review_reason || `|direct − RTT| = ${absDis} points ≥ threshold ${this.rttThreshold} (threshold not calibrated against expert judgements).`,
                   reasons: ['rtt_disagreement'],
                   evidenceValidity: 'Valid',
                   rttScore: rtt.rtt_semantic_score,
@@ -3415,5 +3479,252 @@ export class HamletAnalysisComponent implements OnInit, OnDestroy {
       color: diff > 0 ? '#1E6B3A' : diff < 0 ? 'var(--warn-ink)' : 'var(--ink-2)'
     };
   }
-}
+  // ==================================================================
+  // Phase 6 — Dimension evidence, honest RTT, evidence inspector
+  // ==================================================================
 
+  static loadRttThreshold(): number {
+    try {
+      const v = Number(localStorage.getItem(HamletAnalysisComponent.RTT_THRESHOLD_KEY));
+      return v > 0 && v <= 100 ? v : 15;
+    } catch { return 15; }
+  }
+
+  setRttThreshold(v: number): void {
+    if (!(v > 0 && v <= 100)) return;
+    this.rttThreshold = v;
+    try { localStorage.setItem(HamletAnalysisComponent.RTT_THRESHOLD_KEY, String(v)); } catch { /* ignore */ }
+    this.rttRowsCache = null;
+  }
+
+  /** A completed RTT record from the dataset (semantic only), or null. */
+  getStoredRtt(d: AnalysisDialogue | null | undefined): RoundTripVerification | null {
+    const r = d?.round_trip_verification;
+    if (!r || (r.status !== 'completed' && r.status !== 'expert_reviewed')) return null;
+    if (r.rtt_semantic_score === null || r.rtt_semantic_score === undefined || !r.back_translated_english) return null;
+    return r;
+  }
+
+  private rttResultFromDataset(d: AnalysisDialogue): RttAnalysisResult {
+    const stored = this.getStoredRtt(d);
+    const dimensionScores: Record<string, RttDimensionScore> = {};
+    for (const dim of this.v15Dimensions) {
+      const direct = this.getDialogueDimensionScore(d, dim.key);
+      const ana = (d.analysis as any)?.human_german?.[dim.key];
+      const applicable = !ana || ana.applicable !== false;
+      const rtt = dim.key === 'semantic' && stored ? (stored.rtt_semantic_score as number) : null;
+      dimensionScores[dim.key] = {
+        dimensionKey: dim.key,
+        dimensionName: dim.name,
+        originalScore: direct,
+        rttScore: rtt,
+        diff: rtt !== null && direct !== null ? Math.round((rtt - direct) * 10) / 10 : null,
+        status: !applicable ? 'Not Applicable' : rtt !== null ? 'RTT computed' : 'Not evaluated',
+        explanation: rtt !== null
+          ? `Semantic RTT from the dataset: Original English compared with AI back-translated English (${stored!.similarity_model || 'similarity model not recorded'}).`
+          : `No ${dim.name} RTT score has been computed for this dialogue.`,
+        applicable,
+      };
+    }
+    const sem = dimensionScores['semantic'];
+    return {
+      dialogueId: d.dialogue_id,
+      originalEnglish: d.texts?.english || '',
+      humanGerman: d.texts?.human_german || '',
+      backTranslatedEnglish: stored?.back_translated_english || '',
+      dimensionScores,
+      overallOriginalScore: sem.rttScore !== null ? sem.originalScore : null,
+      overallRttScore: sem.rttScore,
+      overallDiff: sem.diff,
+      timestamp: stored?.generated_at || '',
+    };
+  }
+
+  /** Back-translated English for the inspected dialogue: live result first, then the dataset. */
+  getHamletBtEnglish(d: AnalysisDialogue | null): string | null {
+    if (!d) return null;
+    if (this.currentRttResult?.dialogueId === d.dialogue_id && this.currentRttResult.backTranslatedEnglish) {
+      return this.currentRttResult.backTranslatedEnglish;
+    }
+    return this.getStoredRtt(d)?.back_translated_english || null;
+  }
+
+  hamletRttRows(d: AnalysisDialogue): RttPanelRow[] {
+    if (!this.currentRttResult || this.currentRttResult.dialogueId !== d.dialogue_id) {
+      this.computeRttForCurrentDialogue();
+    }
+    const key = `${d.dialogue_id}|${this.currentRttSource}|${this.currentRttResult?.timestamp}|${this.currentRttResult?.backTranslatedEnglish}`;
+    if (this.rttRowsCache?.key === key) return this.rttRowsCache.rows;
+    const rows = this.v15Dimensions.map((dim) => {
+      const r = this.currentRttResult?.dimensionScores?.[dim.key];
+      return {
+        key: dim.key,
+        name: dim.name,
+        direct: this.getDialogueDimensionScore(d, dim.key),
+        rtt: dim.key === 'semantic' ? (r?.rttScore ?? null) : null,
+        rttMethod: dim.key === 'semantic' ? (r?.explanation ?? null) : null,
+      };
+    });
+    this.rttRowsCache = { key, rows };
+    return rows;
+  }
+
+  hamletRttTexts(d: AnalysisDialogue): RttPanelText[] {
+    return [
+      { label: 'Original English', sublabel: 'Shakespeare', text: d.texts?.english || null, lang: 'en' },
+      { label: 'Human German', sublabel: 'Schlegel-Tieck', text: d.texts?.human_german || null, lang: 'de' },
+      { label: 'AI Back-Translated English', text: this.getHamletBtEnglish(d), lang: 'en', ai: true },
+    ];
+  }
+
+  hamletRttProvenance(d: AnalysisDialogue): RttProvenance {
+    if (this.currentRttSource === 'live') {
+      return { translationModel: 'MyMemory NMT (de→en, keyless)', similarityModel: RTT_LIVE_SIMILARITY_MODEL, generatedAt: this.currentRttResult?.timestamp || null, source: 'generated in this browser' };
+    }
+    const r = this.getStoredRtt(d);
+    return {
+      translationModel: r?.back_translation_model || null,
+      similarityModel: r?.similarity_model || null,
+      generatedAt: r?.generated_at || null,
+      source: r ? 'dataset round_trip_verification' : null,
+    };
+  }
+
+  hamletRttExplanation(d: AnalysisDialogue): string {
+    const r = this.currentRttResult?.dimensionScores?.[this.activeInspectorDim];
+    if (this.activeInspectorDim !== 'semantic') {
+      return `${this.getDimensionName(this.activeInspectorDim)}: RTT not evaluated. Only semantic RTT is computed; RTT alone does not validate emotion, imagery, tone or character voice, and the semantic RTT score is not reused for other dimensions.`;
+    }
+    return r?.explanation || 'Semantic RTT has not been run for this dialogue.';
+  }
+
+  hamletDirectProvenance(d: AnalysisDialogue): ScoreProvenance {
+    if (this.isDialogueExpertReviewed(d, this.activeInspectorDim)) return 'expert_validated';
+    if ((d as any).analysis_status === 'analyzed_model_assisted') return 'model_assisted';
+    if (this.getDialogueDimensionScore(d, this.activeInspectorDim) === null) return 'none';
+    return 'provisional';
+  }
+
+  hamletDirectProvenanceLabel(d: AnalysisDialogue): string {
+    const st = (d as any).analysis_status || 'analyzed';
+    const p = this.hamletDirectProvenance(d);
+    if (p === 'expert_validated') return 'Expert-validated';
+    if (p === 'none') return 'Not evaluated';
+    if (p === 'model_assisted') return 'Model-assisted assessment · provisional';
+    return st === 'analyzed_provisional' ? 'Machine-generated initial assessment · provisional' : 'Model assessment (dataset) · not expert-validated';
+  }
+
+  generateHamletRtt(): void {
+    if (!this.isInlineBtOpen) {
+      this.toggleInlineBackTranslation();
+    } else {
+      this.retryInlineBackTranslation();
+    }
+  }
+
+  /** Disagreement for the dialogue's semantic RTT, or not_evaluated. */
+  hamletDisagreement(d: AnalysisDialogue) {
+    const rows = this.hamletRttRows(d);
+    const sem = rows.find((r) => r.key === 'semantic');
+    return disagreementOf(sem?.direct ?? null, sem?.rtt ?? null, this.rttThreshold);
+  }
+
+  // ---------- Evidence list / inspector ----------
+
+  /** All evidence items for one dialogue & dimension across the three German versions, with exact-span validation. */
+  hamletEvidenceItems(d: AnalysisDialogue, dimKey: string): { key: string; verKey: string; idx: number; ev: PhraseEvidence; located: boolean }[] {
+    const out: { key: string; verKey: string; idx: number; ev: PhraseEvidence; located: boolean }[] = [];
+    for (const verKey of ['human_german', 'ai_german', 'context_ai_german']) {
+      const ana = (d.analysis as any)?.[verKey]?.[dimKey];
+      if (!ana || ana.applicable === false) continue;
+      const target = (d.texts as any)?.[verKey] || '';
+      (ana.evidence || []).forEach((ev: PhraseEvidence, idx: number) => {
+        const srcOk = !ev.source_span || ev.source_span.start === null || !!locateSpan(d.texts?.english, ev.source_span.start, ev.source_span.end, ev.source_span.text);
+        const tgtOk = !ev.target_span || ev.target_span.start === null || !!locateSpan(target, ev.target_span.start, ev.target_span.end, ev.target_span.text);
+        out.push({ key: ev.evidence_id || `${d.dialogue_id}:${verKey}:${dimKey}:${idx}`, verKey, idx, ev, located: srcOk && tgtOk && ev.ui_highlight_eligible !== false });
+      });
+    }
+    return out;
+  }
+
+  hamletUnlocatedEvidence(d: AnalysisDialogue): { key: string; verKey: string; ev: PhraseEvidence }[] {
+    return this.hamletEvidenceItems(d, this.activeInspectorDim).filter((x) => !x.located);
+  }
+
+  selectHamletEvidence(key: string | null): void {
+    this.selectedEvidenceKey = key;
+    this.evidenceVmCache = null;
+    if (this.pdfPanelOpen && this.activePdfBook) {
+      this.refreshPdfHighlight();
+    }
+  }
+
+  stepHamletEvidence(d: AnalysisDialogue, delta: number): void {
+    const items = this.hamletEvidenceItems(d, this.activeInspectorDim);
+    if (!items.length) return;
+    const i = items.findIndex((x) => x.key === this.selectedEvidenceKey);
+    const next = i < 0 ? 0 : Math.min(items.length - 1, Math.max(0, i + delta));
+    this.selectHamletEvidence(items[next].key);
+    this.activeLinkedSpanId = items[next].key;
+  }
+
+  hamletEvidenceIndex(d: AnalysisDialogue): { i: number; n: number } {
+    const items = this.hamletEvidenceItems(d, this.activeInspectorDim);
+    return { i: items.findIndex((x) => x.key === this.selectedEvidenceKey), n: items.length };
+  }
+
+  hamletEvidenceVm(d: AnalysisDialogue): EvidenceVm | null {
+    if (!this.selectedEvidenceKey) return null;
+    const ck = `${d.dialogue_id}|${this.activeInspectorDim}|${this.selectedEvidenceKey}|${this.currentRttResult?.timestamp}`;
+    if (this.evidenceVmCache?.key === ck) return this.evidenceVmCache.vm;
+    const item = this.hamletEvidenceItems(d, this.activeInspectorDim).find((x) => x.key === this.selectedEvidenceKey);
+    let vm: EvidenceVm | null = null;
+    if (item) {
+      const ana = (d.analysis as any)?.[item.verKey]?.[this.activeInspectorDim];
+      const ev = item.ev;
+      const rtt = item.verKey === 'human_german' && this.activeInspectorDim === 'semantic'
+        ? (this.currentRttResult?.dimensionScores?.['semantic']?.rttScore ?? null) : null;
+      vm = {
+        project: 'hamlet',
+        evidenceId: item.key,
+        dimensionKey: this.activeInspectorDim,
+        dimensionLabel: this.getDimensionName(this.activeInspectorDim),
+        location: `Act ${this.selectedAnalysisScene?.act || this.selectedAnalysisAct}, Scene ${this.selectedAnalysisScene?.scene_number || ''} · ${d.dialogue_id} · ${d.speaker}`,
+        sourceLabel: 'Original English',
+        sourcePhrase: ev.source_span?.text || ev.source_quote || null,
+        translationLabel: this.getVersionLabel(item.verKey),
+        translationPhrase: ev.target_span?.text || ev.target_quote || null,
+        backTranslationPhrase: item.verKey === 'human_german' ? this.getHamletBtEnglish(d) : null,
+        category: normalizeCategory(ev.status || ana?.status, ana?.needs_review === true || ev.verified === false),
+        directScore: ana?.applicable === false ? null : (ana?.score ?? null),
+        rttScore: rtt,
+        explanation: ev.explanation || ana?.explanation || null,
+        alignmentConfidence: ana?.confidence !== null && ana?.confidence !== undefined ? `${Math.round(ana.confidence * 100)}% (model confidence)` : null,
+        method: (d as any).analysis_provenance ? String(((d as any).analysis_provenance as any).method || ((d as any).analysis_provenance as any).model || 'dataset assessment') : 'dataset assessment',
+        provenance: `${(d as any).analysis_status || 'analyzed'} · span validation: ${ev.span_validation?.offset_unit || 'unicode_codepoint'}`,
+        unlocated: !item.located,
+      };
+    }
+    this.evidenceVmCache = { key: ck, vm };
+    return vm;
+  }
+
+  // ---------- Previous / next dialogue ----------
+
+  private sceneDialogueIndex(): { list: AnalysisDialogue[]; i: number } {
+    const list = this.selectedAnalysisScene?.dialogues || [];
+    return { list, i: list.findIndex((x) => x.dialogue_id === this.activeInspectedDialogueId) };
+  }
+
+  hasPrevDialogue(): boolean { return this.sceneDialogueIndex().i > 0; }
+  hasNextDialogue(): boolean { const { list, i } = this.sceneDialogueIndex(); return i >= 0 && i < list.length - 1; }
+
+  goToDialogue(delta: number): void {
+    const { list, i } = this.sceneDialogueIndex();
+    const t = list[i + delta];
+    if (!t) return;
+    this.openInspector(t.dialogue_id, 'human_german');
+    this.selectHamletEvidence(null);
+    this.rttRowsCache = null;
+  }
+}

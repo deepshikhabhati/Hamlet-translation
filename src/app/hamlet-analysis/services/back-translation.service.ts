@@ -30,6 +30,8 @@ export interface DimensionFocusedTranslationResult {
   message?: string;
 }
 
+export const RTT_LIVE_SIMILARITY_MODEL = 'hamlet-english-lexical-sim-v1 (content Jaccard 0.7 + length ratio 0.3)';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -186,7 +188,7 @@ export class BackTranslationService {
     const deText = (dialogue.texts?.human_german || '').trim();
     const enBt = (backTranslatedText || '').trim();
 
-    const cacheKey = `rtt:${dialogueId}:${this.simpleHash(enBt)}`;
+    const cacheKey = `rtt-v2:${dialogueId}:${this.simpleHash(enBt)}`;
     if (this.rttCache.has(cacheKey)) {
       return this.rttCache.get(cacheKey)!;
     }
@@ -223,147 +225,50 @@ export class BackTranslationService {
     // Dimension scoring
     const dimensionScores: Record<string, RttDimensionScore> = {};
 
+    // Only the semantic dimension has an RTT method (lexical similarity of Original English vs AI back-translated English).
+    // Every other dimension is reported as "Not evaluated" — the semantic RTT score is never copied to other dimensions,
+    // and RTT alone does not validate emotion, imagery, tone or character voice.
     DIMENSION_DEFINITIONS.forEach((dim) => {
       const dimKey = dim.key;
       const dimName = dim.name;
       const origAnalysis = dialogue.analysis?.human_german?.[dimKey];
       const origApplicable = origAnalysis ? origAnalysis.applicable !== false : true;
-      const origScore: number | null = (origAnalysis && origAnalysis.score !== null && origAnalysis.score !== undefined)
+      const origScore: number | null = (origAnalysis && origAnalysis.applicable !== false && origAnalysis.score !== null && origAnalysis.score !== undefined)
         ? Math.round(origAnalysis.score * 10) / 10
-        : 85.0;
+        : null;
 
       if (!origApplicable) {
         dimensionScores[dimKey] = {
-          dimensionKey: dimKey,
-          dimensionName: dimName,
-          originalScore: null,
-          rttScore: null,
-          diff: null,
-          status: 'Not Applicable',
-          explanation: `Dimension ${dimName} is not applicable for this dialogue.`,
-          applicable: false
+          dimensionKey: dimKey, dimensionName: dimName, originalScore: null, rttScore: null, diff: null,
+          status: 'Not Applicable', explanation: `${dimName} is not applicable for this dialogue.`, applicable: false
         };
         return;
       }
 
-      let rttScore: number;
-      let status: string;
-      let explanation: string;
-
-      switch (dimKey) {
-        case 'semantic': {
-          // Semantic preservation: High content match yields strong round-trip fidelity
-          const semRatio = 0.7 * jaccard + 0.3 * lenRatio;
-          rttScore = Math.min(97.5, Math.max(52.0, Math.round((50 + semRatio * 48) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 85)) * 10) / 10;
-          status = diff >= -3.0 ? 'Preserved' : diff >= -12.0 ? 'Changed' : 'Lost';
-          explanation = `Semantic round-trip comparison shows ${Math.round(jaccard * 100)}% content-token fidelity. Back-translation: "${enBt}" compared against source: "${en0}".`;
-          break;
-        }
-
-        case 'emotion': {
-          // Emotion: check emotional punctuation and affect cues
-          const hasExclam0 = en0.includes('!') || en0.includes('?');
-          const hasExclamBt = enBt.includes('!') || enBt.includes('?');
-          const punctMatch = hasExclam0 === hasExclamBt ? 1.0 : 0.6;
-          const affectWords = ['fear', 'dread', 'terror', 'pale', 'weep', 'grief', 'mad', 'fury', 'love', 'sigh', 'heart', 'bleed', 'sorrow', 'horror', 'heavens', 'death', 'cold', 'sick'];
-          const affect0 = tokens0.filter((t) => affectWords.includes(t)).length;
-          const affectBt = tokensBt.filter((t) => affectWords.includes(t)).length;
-          const affectMatch = (affect0 === 0 && affectBt === 0) ? 0.9 : Math.min(1.0, (Math.min(affect0, affectBt) + 1) / (Math.max(affect0, affectBt) + 1));
-          rttScore = Math.min(96.0, Math.max(45.0, Math.round(((origScore || 80) * 0.4 + (punctMatch * 0.3 + affectMatch * 0.7) * 58) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 80)) * 10) / 10;
-          status = diff >= -2.5 ? 'Preserved' : diff >= -10.0 ? 'Changed' : 'Lost';
-          explanation = `Affective and emotional urgency: The back-translation ${punctMatch >= 1.0 ? 'retains' : 'partially shifts'} sentence-level emotional punctuation and sentiment resonance.`;
-          break;
-        }
-
-        case 'metaphor_imagery': {
-          // Metaphor / Imagery: poetic metaphors often convert to literal prose in back-translation
-          const poeticVariance = lenRatio > 0.85 ? 0.9 : 0.75;
-          rttScore = Math.min(95.0, Math.max(42.0, Math.round(((origScore || 82) * 0.85 + (jaccard * 0.15) * 80 * poeticVariance) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 82)) * 10) / 10;
-          status = diff >= -3.0 ? 'Preserved' : diff >= -12.0 ? 'Changed' : 'Lost';
-          explanation = `Figurative imagery evaluation: Round-trip transposition through German ${diff >= 0 ? 'successfully preserved' : 'moderately flattened'} the figurative vehicle into standard literal phrasing.`;
-          break;
-        }
-
-        case 'tone': {
-          // Tone: register, dramatic formality
-          const formalTokens = ['thou', 'thee', 'thy', 'thine', 'hark', 'wherefore', 'nay', 'pray', 'lord', 'sir'];
-          const hasArchaic0 = tokens0.some((t) => formalTokens.includes(t));
-          const hasArchaicBt = tokensBt.some((t) => formalTokens.includes(t));
-          const toneBonus = (!hasArchaic0 && !hasArchaicBt) ? 0 : (hasArchaic0 && !hasArchaicBt ? -8.0 : 2.0);
-          rttScore = Math.min(96.0, Math.max(48.0, Math.round(((origScore || 84) + toneBonus + (lenRatio - 0.9) * 10) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 84)) * 10) / 10;
-          status = diff >= -2.0 ? 'Preserved' : diff >= -10.0 ? 'Changed' : 'Lost';
-          explanation = `Dramatic tone & register: Early modern theatrical dignity ${hasArchaic0 && !hasArchaicBt ? 'underwent slight colloquial normalization in machine back-translation' : 'remains consistent across the round-trip'}.`;
-          break;
-        }
-
-        case 'character_voice': {
-          // Character Voice: speaker cadence & distinctive address
-          rttScore = Math.min(95.0, Math.max(46.0, Math.round(((origScore || 83) * 0.92 + jaccard * 7) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 83)) * 10) / 10;
-          status = diff >= -2.5 ? 'Preserved' : diff >= -10.0 ? 'Changed' : 'Lost';
-          explanation = `Character idiolect of ${dialogue.speaker}: Persona syntax and brevity are ${diff >= 0 ? 'retained' : 'slightly modernized'} through the back-translation intermediary.`;
-          break;
-        }
-
-        case 'wordplay': {
-          // Wordplay: Puns rarely survive double transposition
-          rttScore = Math.min(92.0, Math.max(35.0, Math.round(((origScore || 70) * 0.78 + (jaccard * 18)) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 70)) * 10) / 10;
-          status = diff >= -3.0 ? 'Preserved' : diff >= -15.0 ? 'Changed' : 'Lost';
-          explanation = `Wordplay and rhetorical wit: Double entendres and phonetic puns exhibit vulnerability in round-trip translation.`;
-          break;
-        }
-
-        case 'cultural_archaic': {
-          // Cultural / Archaic: Elizabethan vocabulary is usually standardized to modern English
-          const archaicLexicon = ['thee', 'thou', 'thy', 'thine', 'wherefore', 'anon', 'marry', 'adieu', 'ere', 'hark', 'prithee'];
-          const archaicCount = tokens0.filter((t) => archaicLexicon.includes(t)).length;
-          const penalty = archaicCount > 0 ? archaicCount * 4.5 : 2.0;
-          rttScore = Math.min(94.0, Math.max(40.0, Math.round(((origScore || 78) - penalty) * 10) / 10));
-          const diff = Math.round((rttScore - (origScore || 78)) * 10) / 10;
-          status = diff >= -3.0 ? 'Preserved' : diff >= -12.0 ? 'Changed' : 'Lost';
-          explanation = `Cultural & archaic markers: Elizabethan phrasing ${archaicCount > 0 ? 'was modernized to contemporary English ("' + enBt + '")' : 'maintained historical neutrality'}.`;
-          break;
-        }
-
-        case 'omissions_additions': {
-          // Omissions / Additions: based on word count parity
-          const deltaTokens = Math.abs(tokens0.length - tokensBt.length);
-          const addLossScore = Math.min(98.0, Math.max(50.0, Math.round((95 - deltaTokens * 5.5) * 10) / 10));
-          rttScore = addLossScore;
-          const diff = Math.round((rttScore - (origScore || 90)) * 10) / 10;
-          status = deltaTokens === 0 ? 'Preserved' : deltaTokens <= 2 ? 'Changed' : (tokensBt.length < tokens0.length ? 'Lost' : 'Added');
-          explanation = `Syntactic completeness: Original has ${tokens0.length} tokens; back-translation has ${tokensBt.length} tokens (delta: ${deltaTokens}).`;
-          break;
-        }
-
-        default: {
-          rttScore = origScore || 80.0;
-          const diff = 0;
-          status = 'Preserved';
-          explanation = `Round-trip assessment for ${dimName}.`;
-        }
+      if (dimKey === 'semantic' && enBt && en0) {
+        const semRatio = 0.7 * jaccard + 0.3 * lenRatio;
+        const rttScore = Math.round(semRatio * 1000) / 10;
+        const diff = origScore === null ? null : Math.round((rttScore - origScore) * 10) / 10;
+        dimensionScores[dimKey] = {
+          dimensionKey: dimKey, dimensionName: dimName, originalScore: origScore, rttScore, diff,
+          status: 'RTT computed',
+          explanation: `Semantic RTT: ${Math.round(jaccard * 100)}% content-token overlap (Jaccard) and ${Math.round(lenRatio * 100)}% length ratio between Original English and AI back-translated English (local lexical similarity, ${RTT_LIVE_SIMILARITY_MODEL}). Auxiliary signal only.`,
+          applicable: true
+        };
+        return;
       }
 
-      const calculatedDiff = Math.round((rttScore - (origScore || 85.0)) * 10) / 10;
       dimensionScores[dimKey] = {
-        dimensionKey: dimKey,
-        dimensionName: dimName,
-        originalScore: origScore,
-        rttScore: rttScore,
-        diff: calculatedDiff,
-        status: status,
-        explanation: explanation,
+        dimensionKey: dimKey, dimensionName: dimName, originalScore: origScore, rttScore: null, diff: null,
+        status: 'Not evaluated',
+        explanation: `No ${dimName} RTT method has been computed. The semantic RTT score is not reused for this dimension.`,
         applicable: true
       };
     });
 
     // Calculate overall scores
-    const applicableScores = Object.values(dimensionScores).filter((d) => d.applicable && d.originalScore !== null && d.rttScore !== null);
+    // Overall = semantic only (the only dimension with an RTT method); no averaging across dimensions.
+    const applicableScores = Object.values(dimensionScores).filter((d) => d.dimensionKey === 'semantic' && d.applicable && d.originalScore !== null && d.rttScore !== null);
     const overallOrig = applicableScores.length > 0
       ? Math.round((applicableScores.reduce((acc, d) => acc + (d.originalScore || 0), 0) / applicableScores.length) * 10) / 10
       : null;

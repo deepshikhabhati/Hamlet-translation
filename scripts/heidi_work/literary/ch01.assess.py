@@ -1,0 +1,503 @@
+# Heidi Part I, Chapter 1 — eight-dimension literary assessment (model-assisted, provisional).
+# Format: see scripts/heidi_literary_pipeline.py (ASSESSMENT FORMAT). German = authoritative source.
+# item: (dimension, category, weight 1-3, German phrase | None, English phrase | None, explanation[, confidence])
+{
+'ch01-a001': {'items': [
+ ('sem', 'C', 2, 'Vom freundlichen Dorfe Maienfeld', 'The little old town of Mayenfeld is charmingly situated.', 'German "friendly village" becomes a "little old town"; the settlement type changes and "charmingly situated" recasts the epithet as a separate statement.'),
+ ('sem', 'P', 2, 'durch grüne, baumreiche Fluren', 'through green, well-wooded stretches', 'Route through green, wooded fields preserved.'),
+ ('sem', 'C', 1, 'kräftigen Bergkräutern', 'pungent herbage', '"Kräftig" (hearty, vigorous) herbs become "pungent" herbage, shifting the quality to smell.'),
+ ('img', 'C', 2, 'groß und ernst auf das Tal herniederschauen', 'look down imposingly upon the valley', 'The personified heights still "look down", but the paired "large and solemn" collapses into "imposingly"; the solemnity is softened.'),
+ ('img', 'P', 2, 'dem Kommenden entgegenzuduften', 'sends out its soft perfume to meet the wayfarer', 'Personified scent going out to meet the walker is preserved; "soft" is an added nuance.'),
+ ('ton', 'P', 1, 'freundlichen', 'charmingly', 'The warm, inviting narrative tone of the opening is kept.'),
+ ('cul', 'C', 1, 'Maienfeld', 'Mayenfeld', 'Swiss place name kept but respelled in an older/anglicised form.'),
+ ('omi', 'A', 1, None, 'The little old town of Mayenfeld is charmingly situated.', 'The English opens with an added framing sentence ("little old", "charmingly situated") not present in the German.'),
+ ('wpl', 'U', 1, 'Heideland', 'the heath', 'Possible sound echo between "Heideland" (heath land) and the heroine\'s name Heidi; English "heath" keeps a similar echo. Intentionality is uncertain.', 'l'),
+], 'na': {'voi': 'Narration only; no character speech.'}},
+
+'ch01-a002': {'items': [
+ ('sem', 'P', 2, 'ein großes, kräftig aussehendes Mädchen dieses Berglandes', 'a tall, vigorous maiden of the mountain region', 'The tall, strong-looking girl of the mountain region is preserved.'),
+ ('sem', 'C', 2, 'ein großes, rotes Baumwolltuch um und um gebunden', 'around her shoulders a large red cotton shawl', 'The shawl, its size, colour and material are preserved, but the German says it was wrapped round and round the child; the English places it "around her shoulders" and drops the repeated wrapping.'),
+ ('sem', 'P', 1, 'zwei, wenn nicht drei Kleider übereinander angezogen', 'she wore two dresses, if not three', 'The layered dresses are preserved; "übereinander" (one over another) is implicit.'),
+ ('sem', 'P', 1, "'im Dörfli' heißt", 'This hamlet was called "Im Dörfli"', 'The hamlet and its name are preserved.'),
+ ('sem', 'P', 1, 'einmal vom Fenster, einmal von einer Haustür und einmal vom Wege her', 'from windows and doors, and very often from the road', 'Greetings from windows, doors and the road are preserved (the rhythmic triple "einmal" is not).'),
+ ('emo', 'U', 1, 'dessen Wangen so glühend waren', "The youngster's cheeks were in such a glow", 'Glowing cheeks are explained by the heat and the bundling ("kein Wunder ... so verpackt"); this is physical, not an emotion, so no emotional classification is made.', 'l'),
+ ('img', 'C', 3, 'flammend rot durchleuchteten', 'in such a glow that it showed even through her sun-browned skin', 'The vivid image of flaming red shining through the brown skin is softened to a "glow"; the colour and the flame metaphor are lost, although the shining-through is kept.'),
+ ('img', 'P', 1, 'als hätte es sich eines bitteren Frostes zu erwehren', 'as if she had to brave a bitter frost', 'The ironic simile of bundling against a bitter frost is preserved.'),
+ ('img', 'P', 1, 'eine völlig formlose Figur', 'this hot and shapeless little person', 'The image of a shapeless little figure toiling uphill is preserved.'),
+ ('ton', 'C', 1, 'Es war auch kein Wunder:', 'Small wonder though!', 'A calm narrative aside becomes an exclamation, making the narrator more colloquial and emphatic.'),
+ ('ton', 'C', 1, 'Wart einen Augenblick, Dete', 'Deta, please wait one moment!', 'The request is preserved, but "please" adds politeness to a brisk dialectal "Wart".'),
+ ('voi', 'C', 2, 'Wart einen Augenblick, Dete, ich komme mit, wenn du weiter hinaufgehst.', 'Deta, please wait one moment! I am coming with you, if you are going further up.', 'Barbel\'s clipped, colloquial "Wart" is rendered in correct, polite standard English; the regional informality of the speaker is neutralised.'),
+ ('cul', 'P', 2, "'im Dörfli'", '"Im Dörfli" or "The Little Village."', 'The regional place name is retained and an explanatory gloss is added; this helps the reader rather than distorting the source.'),
+ ('cul', 'C', 2, 'auf halber Höhe der Alm', 'half-way up the great mountain named the Alm', '"Alm" (an alpine pasture) is treated as the proper name of a "great mountain"; the agricultural meaning of the Swiss term is lost.'),
+ ('cul', 'C', 1, 'Dete', 'Deta', "The aunt's Swiss name Dete is changed to Deta throughout."),
+ ('omi', 'L', 2, 'um und um gebunden', None, 'The repeated wrapping (round and round), which explains the shapeless figure, has no explicit English counterpart.'),
+ ('omi', 'A', 1, None, 'around her shoulders', 'The English adds where the shawl is worn; the German does not say "shoulders".'),
+ ('omi', 'A', 1, None, 'or "The Little Village."', 'Explanatory gloss added for English readers.'),
+], 'na': {'emo': 'No clear emotion: the glowing cheeks are caused by heat and over-dressing (see Uncertain evidence).'}},
+
+'ch01-a003': {'items': [
+ ('sem', 'P', 2, 'sofort machte sich das Kind von ihrer Hand los und setzte sich auf den Boden', 'the child instantly let go her hand and promptly sat down on the ground', 'Action sequence preserved.'),
+ ('sem', 'C', 1, 'Die Angeredete stand still', 'When the girl stood still to wait', '"The one addressed" becomes "the girl", and "to wait" adds a motive.'),
+ ('omi', 'A', 1, None, 'to wait', 'Motive added.'),
+ ('ton', 'P', 1, 'sofort', 'instantly', 'Brisk narrative pace preserved (English adds a second "promptly").'),
+], 'na': {}},
+
+'ch01-a004': {'items': [
+ ('sem', 'P', 2, 'Bist du müde, Heidi?', 'Are you tired, Heidi?', 'Question preserved exactly.'),
+ ('sem', 'C', 1, 'fragte die Begleiterin', 'Deta asked the child', '"The companion" is replaced by the name Deta and "the child" is added as addressee.'),
+ ('emo', 'P', 1, 'müde', 'tired', 'Concern about tiredness preserved.'),
+ ('voi', 'P', 1, 'Bist du müde, Heidi?', 'Are you tired, Heidi?', 'Simple, direct speech preserved.'),
+ ('ton', 'P', 1, 'Bist du müde', 'Are you tired', 'Gentle, informal "du" address rendered naturally.'),
+ ('omi', 'A', 1, None, 'the child', 'Addressee "the child" added.', 'l'),
+], 'na': {}},
+
+'ch01-a005': {'items': [
+ ('sem', 'C', 1, 'Nein, es ist mir heiß', 'No, but hot', 'Meaning preserved; the full sentence becomes elliptical and "but" adds contrast.'),
+ ('voi', 'C', 1, 'Nein, es ist mir heiß', 'No, but hot', "Heidi's plain childlike sentence becomes terse and fragmentary."),
+ ('sem', 'C', 1, 'entgegnete das Kind', 'she replied', '"The child" becomes "she".'),
+ ('ton', 'C', 1, 'Nein, es ist mir heiß', 'No, but hot', 'Heidi\'s plain statement becomes clipped and slightly contrary ("but").'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a006': {'items': [
+ ('sem', 'C', 2, 'Wir sind jetzt gleich oben', 'We shall be up in an hour', 'German says "we are nearly up" and later "in an hour"; English keeps only the hour, losing the reassurance that they are almost there.'),
+ ('sem', 'P', 1, 'große Schritte nehmen', 'take big steps', 'Preserved.'),
+ ('emo', 'P', 1, 'ermunterte die Gefährtin', 'tried to encourage her small companion', 'Encouragement preserved; "tried" slightly undercuts it.'),
+ ('ton', 'C', 1, 'du musst dich nur noch ein wenig anstrengen', 'climb with all your little might!', 'A matter-of-fact instruction becomes a cheerful, playful exhortation with an exclamation.'),
+ ('img', 'A', 1, None, 'with all your little might', 'Playful idiom added.'),
+ ('omi', 'L', 1, 'Wir sind jetzt gleich oben', None, '"We are almost there" is not rendered.'),
+ ('voi', 'C', 1, 'du musst dich nur noch ein wenig anstrengen und große Schritte nehmen', 'if you take big steps and climb with all your little might!', "Dete's practical speech becomes more coaxing and childlike."),
+], 'na': {}},
+
+'ch01-a007': {'items': [
+ ('sem', 'P', 2, 'eine breite gutmütig aussehende Frau', 'A stout, pleasant-looking woman', 'Preserved ("breit" → stout, "gutmütig" good-natured → pleasant).'),
+ ('sem', 'C', 1, 'in ein lebhaftes Gespräch gerieten über allerlei Bewohner', 'immediately started gossiping about their friends in the neighborhood', 'A "lively conversation" becomes "gossiping", a more judgemental word.'),
+ ('ton', 'C', 1, 'lebhaftes Gespräch', 'gossiping', 'The neutral narrative tone gains a slightly ironic edge.'),
+ ('cul', 'C', 1, "'Dörfli'", 'the hamlet', 'The regional name Dörfli is replaced by the generic "hamlet".'),
+ ('omi', 'L', 1, 'vieler umherliegender Behausungen', None, 'The scattered dwellings around are generalised to "the neighborhood".', 'l'),
+], 'na': {}},
+
+'ch01-a008': {'items': [
+ ('sem', 'P', 2, 'Aber wohin willst du eigentlich mit dem Kinde, Dete?', 'Where are you taking the child, Deta?', 'Question preserved; "eigentlich" (actually) is dropped.'),
+ ('sem', 'C', 1, 'Es wird wohl deiner Schwester Kind sein, das hinterlassene.', 'Is she the child your sister left?', 'A conjecture ("it must be ...") becomes a direct question; "hinterlassene" (left behind, orphaned) is softened to "left".'),
+ ('voi', 'C', 1, 'deiner Schwester Kind sein, das hinterlassene', 'the child your sister left', "Barbel's dialectal afterthought construction is smoothed into standard syntax."),
+ ('ton', 'P', 1, 'fragte jetzt die neu Hinzugekommene', 'asked the newcomer', 'Neutral narrative tone preserved.'),
+ ('omi', 'L', 1, 'eigentlich', None, '"Eigentlich" (actually), which marks Barbel\'s curiosity, is not rendered.'),
+], 'na': {}},
+
+'ch01-a009': {'items': [
+ ('sem', 'P', 2, 'ich will mit ihm hinauf zum Öhi', 'I am taking her up to the Alm-Uncle', 'Destination preserved.'),
+ ('sem', 'C', 1, 'es muss dort bleiben', 'there I want her to remain', 'German "she must stay there" (necessity) becomes "I want her to remain" (wish), softening Dete\'s determination.'),
+ ('cul', 'C', 2, 'Öhi', 'Alm-Uncle', 'The dialect word Öhi (uncle) is translated and expanded to "Alm-Uncle"; the Swiss form disappears.'),
+ ('voi', 'C', 1, 'Das ist es', 'Yes', 'Dete\'s blunt confirmation becomes a plain "Yes"; "assured her" adds politeness.'),
+ ('ton', 'C', 1, 'erwiderte Dete', 'Deta assured her', '"Replied" becomes "assured her", a more conciliatory tone.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a010': {'items': [
+ ('sem', 'C', 2, 'Was, beim Alm-Öhi soll das Kind bleiben?', "You can't really mean to take her there Deta.", 'An incredulous question about the child staying becomes a statement about taking her there.'),
+ ('sem', 'P', 2, 'Du bist, denk ich, nicht recht bei Verstand, Dete!', 'You must have lost your senses, to go to him.', 'Accusation of madness preserved.'),
+ ('sem', 'C', 1, 'Der Alte wird dich aber schon heimschicken mit deinem Vorhaben!', "I am sure the old man will show you the door and won't even listen to what you say.", 'Sending her home is preserved as "show you the door"; "won\'t even listen" is added.'),
+ ('emo', 'L', 2, 'Wie kannst du so etwas tun!', None, "Barbel's outraged exclamation is omitted, lowering her emotional intensity.", 'h'),
+ ('ton', 'C', 2, 'Du bist, denk ich, nicht recht bei Verstand, Dete!', 'You must have lost your senses, to go to him.', 'Three exclamations in German; the English uses none, so the indignant tone is flattened.'),
+ ('voi', 'L', 1, 'denk ich', None, 'Barbel\'s colloquial filler "denk ich" is not reproduced.', 'm'),
+ ('img', 'C', 1, 'heimschicken', 'show you the door', 'Plain "send home" becomes the idiom "show you the door".'),
+ ('cul', 'L', 1, 'Alm-Öhi', None, 'Alm-Öhi is not named; English says "there" / "him".'),
+ ('omi', 'L', 2, 'Wie kannst du so etwas tun!', None, 'Exclamation omitted.'),
+ ('omi', 'A', 1, None, "won't even listen to what you say", 'Added detail.'),
+], 'na': {}},
+
+'ch01-a011': {'items': [
+ ('sem', 'P', 2, 'er ist der Großvater, er muss etwas tun', "As he's her grandfather, it is high time he should do something for the child.", 'The obligation of the grandfather is preserved; "high time" intensifies it.'),
+ ('sem', 'C', 2, 'dass ich einen Platz, wie ich ihn jetzt haben kann, nicht dahinten lasse um des Kindes willen', 'now a good place has been offered to me. The child shall not hinder me from accepting it', 'Meaning preserved but restructured; "a good place has been offered" adds that it was offered.'),
+ ('sem', 'C', 1, 'ich habe das Kind bis jetzt gehabt', 'I have taken care of her until this summer', '"Until now" becomes "until this summer".'),
+ ('emo', 'P', 2, 'das kann ich dir schon sagen', 'I tell you that!', "Dete's defiant self-justification is preserved."),
+ ('ton', 'P', 1, 'jetzt soll der Großvater das Seinige tun', 'I tell you that!', 'Defensive, defiant tone preserved.'),
+ ('voi', 'L', 1, 'Barbel', None, 'Dete\'s direct address "Barbel" is dropped.', 'm'),
+ ('omi', 'L', 1, 'jetzt soll der Großvater das Seinige tun', None, 'The closing "now the grandfather shall do his share" is folded into the opening sentence.', 'l'),
+], 'na': {}},
+
+'ch01-a012': {'items': [
+ ('sem', 'P', 2, 'wenn der wäre wie andere Leute', 'if he were like other mortals', 'Preserved ("Leute" → "mortals", slightly elevated).'),
+ ('sem', 'C', 2, 'Aber wo willst du denn hin?', 'But tell me of your prospects.', 'A direct question about where Dete is going becomes a request about her "prospects".'),
+ ('emo', 'P', 2, "Das hält's nicht aus bei ihm!", "She'll never get along with him, I am sure of that!", 'Barbel\'s worried conviction preserved; "I am sure of that" adds emphasis.'),
+ ('voi', 'C', 1, 'aber du kennst ja den', 'But you know him yourself.', 'Colloquial demonstrative "den" (that one) is normalised to "him".'),
+ ('ton', 'L', 1, 'bestätigte die kleine Barbel eifrig', None, 'The eager tag ("little Barbel eagerly confirmed") is omitted.'),
+ ('omi', 'L', 1, 'bestätigte die kleine Barbel eifrig', None, 'Speech tag and the description of Barbel as small and eager are omitted.'),
+ ('img', 'C', 1, 'andere Leute', 'other mortals', 'Mildly elevated word choice.'),
+], 'na': {}},
+
+'ch01-a013': {'items': [
+ ('sem', 'C', 2, 'da bekomm ich einen extraguten Dienst', 'I am going to a splendid house in Frankfurt.', 'A very good job ("Dienst", service) becomes a "splendid house".'),
+ ('sem', 'P', 2, 'Die Herrschaft war schon im vorigen Sommer unten im Bad', 'Last summer some people went off to the baths', 'Preserved; "Herrschaft" (the employers, gentry) is flattened to "some people".'),
+ ('sem', 'C', 1, 'und ich will auch gehen, da kannst du sicher sein', 'have persuaded me to go with them', 'Dete\'s own will ("I want to go, you can be sure") becomes being persuaded.'),
+ ('voi', 'C', 2, 'extraguten', 'splendid', 'The colloquial "extragut" and the breathless "und ... und ..." chain are smoothed.'),
+ ('cul', 'C', 1, 'Herrschaft', 'some people', "The social term for one's employers/gentry is lost."),
+ ('omi', 'A', 1, None, 'As they got to like me', 'Added motive.'),
+ ('omi', 'L', 1, 'ich habe ihre Zimmer auf meinem Gang gehabt', None, 'Detail that their rooms were on her corridor is reduced to "took care of their rooms".', 'l'),
+ ('ton', 'L', 1, 'da kannst du sicher sein', None, "Dete's emphatic, boastful close is dropped, so her tone is more neutral."),
+], 'na': {}},
+
+'ch01-a014': {'items': [
+ ('sem', 'P', 2, 'Ich möchte nicht das Kind sein!', 'I am glad I am not the child!', 'Preserved.'),
+ ('sem', 'P', 2, 'jahraus, jahrein setzt er keinen Fuß in eine Kirche', "from one year's end to the other he keeps away from church", 'Preserved.'),
+ ('sem', 'C', 1, 'wenn er mit seinem dicken Stock im Jahr einmal herunterkommt', 'When he wanders along the road with his twisted stick', '"Thick stick" becomes "twisted stick"; the yearly descent is moved to an earlier sentence.'),
+ ('emo', 'P', 2, 'muss sich vor ihm fürchten', 'We all fear him', 'Fear preserved; English adds "we all" and repeats fear at the end.'),
+ ('emo', 'C', 1, 'mit abwehrender Gebärde', 'with a shudder', 'A warding-off gesture becomes a shudder: a bodily sign of fear rather than a defensive gesture.'),
+ ('img', 'C', 2, 'dem furchtbaren Bart', 'that huge uncanny beard', '"Frightful beard" becomes "huge uncanny"; intensity kept, nuance altered.'),
+ ('img', 'P', 2, 'wie ein alter Heide und Indianer', 'like a heathen or an old Indian', 'Simile preserved.'),
+ ('cul', 'P', 1, 'Heide und Indianer', 'heathen or an old Indian', 'Period comparison retained.'),
+ ('wpl', 'U', 1, 'wie ein alter Heide', 'like a heathen', 'Possible echo of the name Heidi in "Heide" (heathen); "heathen" preserves a similar sound link. Intentionality is uncertain.', 'l'),
+ ('cul', 'C', 1, 'die Barbel', 'Barbara', 'Swiss diminutive "Barbel" anglicised to Barbara.'),
+ ('ton', 'P', 1, 'Es weiß ja kein Mensch', 'Nobody knows anything', 'Gossipy, fearful tone preserved.'),
+ ('omi', 'A', 1, None, 'and he is really just like', '"Really just" adds emphasis.', 'l'),
+], 'na': {}},
+
+'ch01-a015': {'items': [
+ ('sem', 'C', 2, 'Und wenn auch', 'That is not my fault,', '"And even so" (a defiant concession) becomes "That is not my fault".'),
+ ('sem', 'P', 2, "er wird ihm wohl nichts tun, sonst hat er's zu verantworten, nicht ich", "He won't do her any harm; and if he should, he is responsible, not I.", 'Preserved.'),
+ ('omi', 'L', 2, 'er ist der Großvater und muss für das Kind sorgen', None, 'The repeated argument that he is the grandfather and must care for the child is omitted.'),
+ ('emo', 'P', 1, 'sagte Dete trotzig', 'said Deta stubbornly', 'Defiance preserved.'),
+ ('voi', 'P', 1, 'nicht ich', 'not I', "Dete's curt self-exoneration preserved."),
+ ('ton', 'P', 1, 'nicht ich', 'not I', 'Defiant tone preserved.'),
+], 'na': {}},
+
+'ch01-a016': {'items': [
+ ('sem', 'P', 2, 'was der Alte auf dem Gewissen hat', "what weighs on the old man's conscience", 'Preserved.'),
+ ('sem', 'C', 1, 'dass er solche Augen macht', 'Why are his eyes so fierce', '"Makes such eyes" becomes explicitly "fierce".'),
+ ('img', 'P', 1, 'so mutterseelenallein da droben', 'up there all alone', 'Isolation kept; the vivid idiom "mutterseelenallein" (utterly alone) is plainer in English.'),
+ ('emo', 'P', 1, 'sagte die Barbel forschend', 'I wish I knew', 'The probing curiosity is conveyed by the questions; the tag itself is omitted.'),
+ ('omi', 'A', 1, None, 'Nobody ever sees him', 'Restates "sich fast nie blicken lässt" (rarely shows himself) as an absolute.'),
+ ('ton', 'P', 1, 'Man sagt allerhand von ihm', 'we hear many strange things about him', 'Gossipy tone preserved; "strange" added.'),
+], 'na': {}},
+
+'ch01-a017': {'items': [
+ ('sem', 'P', 2, 'Freilich, aber ich rede nicht', 'Of course she did, but I shall hold my tongue.', 'Preserved.'),
+ ('img', 'C', 1, 'so käme ich schön an', 'He would make me pay for it', 'Ironic idiom ("I\'d be in for it") rendered as a plain consequence.'),
+ ('voi', 'C', 1, 'so käme ich schön an!', "He would make me pay for it if I didn't.", "Dete's ironic colloquialism is flattened."),
+ ('emo', 'P', 1, "wenn er's hörte", 'He would make me pay for it', 'Fear of the uncle is preserved in the threat of payback.', 'l'),
+ ('ton', 'C', 1, 'so käme ich schön an!', "He would make me pay for it if I didn't.", 'Ironic colloquial tone becomes plain.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a018': {'items': [
+ ('sem', 'P', 2, 'warum der Alte von allen Leuten im Dörfli der Alm-Öhi genannt wurde', 'why he was called the Alm-Uncle', 'Preserved.'),
+ ('sem', 'C', 1, 'als fürchteten sie sich, gegen ihn zu sein, und wollten doch nicht für ihn sein', 'as if they were afraid', 'The paradox (afraid to be against him yet unwilling to be for him) is reduced to fear.'),
+ ('omi', 'C', 3, 'Die Dete, ihre gute Bekannte, war dagegen vom Dörfli gebürtig und hatte da gelebt mit ihrer Mutter bis vor einem Jahr', 'Deta had been bred there', 'Background on Dete, the hotel job in Ragaz and the hay-wagon ride is condensed to one sentence.'),
+ ('omi', 'L', 2, 'bis Maienfeld hatte sie auf einem Heuwagen fahren können', None, 'The hay-wagon detail is omitted.'),
+ ('omi', 'L', 2, 'nannte den Alten nie anders als Öhi, was die Aussprache der Gegend für Oheim ist', None, 'The explanation that Öhi is the local pronunciation of Oheim (uncle) is omitted.'),
+ ('cul', 'L', 2, 'was die Aussprache der Gegend für Oheim ist', None, 'Dialect note on Öhi/Oheim lost; the regional flavour disappears.'),
+ ('cul', 'L', 1, 'unten im Prättigau', None, "Barbel's origin in the Prättigau valley is not mentioned here."),
+ ('cul', 'L', 1, 'nach dem Bade Ragaz', None, 'The spa town Ragaz is not named here.'),
+ ('emo', 'P', 1, 'sie fasste vertraulich die Dete am Arm', "She confidentially seized Deta's arm", 'Confiding eagerness preserved.'),
+ ('voi', 'C', 1, 'du weißt, denk ich, die ganze Geschichte', 'you know it all—people only gossip', 'Barbel\'s filler "denk ich" disappears; the speech becomes tidier.'),
+ ('ton', 'C', 1, 'ein solcher Menschenhasser war', 'Did he always hate his fellow-creatures?', 'The compound "Menschenhasser" becomes a slightly formal periphrasis.'),
+ ('omi', 'A', 1, None, 'Nobody had a good word for him', 'Added generalisation.'),
+], 'na': {}},
+
+'ch01-a019': {'items': [
+ ('sem', 'C', 3, 'er sicher siebzig Jahr alt', 'He being sixty years old', 'Factual change: the German says the uncle is surely seventy; the English says sixty.', 'h'),
+ ('sem', 'P', 2, 'meine Mutter war aus dem Domleschg und er auch', 'My mother and he both came from Domleschg.', 'Preserved.'),
+ ('sem', 'C', 1, 'Wenn ich aber wüsste, dass es nachher nicht im ganzen Prättigau herumkäme', "But if you'll promise to keep it to yourself and not set all the people in Prätiggan talking", 'Conditional ("if I knew") becomes a request for a promise.'),
+ ('cul', 'C', 1, 'Prättigau', 'Prätiggan', 'Place name misspelled ("Prätiggan").'),
+ ('voi', 'C', 1, 'kann ich, denk ich, nicht präzis wissen', 'I cannot tell you whether he always did, and that for a very good reason.', 'Dete\'s colloquial hedging ("denk ich", "präzis") becomes a more literary turn ("for a very good reason").'),
+ ('ton', 'C', 1, 'das wirst du nicht erwarten', "you can't expect me to give you an account of his early youth", 'Slightly more formal ("give you an account").'),
+ ('omi', 'A', 1, None, 'and that for a very good reason', 'Added phrase.'),
+], 'na': {}},
+
+'ch01-a020': {'items': [
+ ('sem', 'P', 2, 'es geht nicht so streng mit dem Schwatzen im Prättigau', 'People do not gossip much in Prätiggan', 'Preserved.'),
+ ('emo', 'P', 2, 'ein wenig beleidigt', 'in an offended tone', 'Offence preserved; "ein wenig" (a little) is dropped, slightly intensifying it.'),
+ ('voi', 'C', 2, 'A bah, Dete, was meinst denn?', 'How can you talk like that, Deta?', 'The dialectal interjection "A bah" and colloquial "was meinst denn" are normalised.'),
+ ('cul', 'L', 1, 'A bah', None, 'Swiss interjection not rendered.'),
+ ('sem', 'P', 1, 'es muss dich nicht gereuen', "You won't repent of having told me", 'Preserved.'),
+ ('omi', 'A', 1, None, 'I assure you!', 'Added assurance.'),
+ ('ton', 'P', 1, 'ein wenig beleidigt', 'in an offended tone', 'Hurt, indignant tone preserved.'),
+], 'na': {}},
+
+'ch01-a021': {'items': [
+ ('sem', 'P', 2, 'aber halt Wort!', 'but keep your word!', 'Preserved.'),
+ ('sem', 'P', 2, 'es war aber niemand darauf sichtbar', 'no one was on the path', 'Preserved.'),
+ ('sem', 'C', 1, 'mahnte die Dete', 'said Deta warningly', 'Preserved, restructured.'),
+ ('omi', 'A', 1, None, 'While the two young women had talked at such a rate', 'English makes explicit that both are "young women" and adds "at such a rate".'),
+ ('voi', 'C', 1, 'Ja nu, so will ich', 'All right', 'Dialectal "Ja nu" is normalised.'),
+ ('ton', 'P', 1, 'im Eifer der Unterhaltung', 'had talked at such a rate', 'Light ironic narrative tone kept.'),
+], 'na': {}},
+
+'ch01-a022': {'items': [
+ ('sem', 'P', 2, 'Es klettert die Abhänge hinauf mit dem Geißenpeter und seinen Geißen', 'She is climbing up with the goatherd Peter and his goats', 'Preserved.'),
+ ('sem', 'P', 1, 'Warum der heut so spät hinauffährt mit seinen Tieren?', 'I wonder why he is so late to-day.', 'Preserved.'),
+ ('cul', 'C', 2, 'Geißenpeter', 'the goatherd Peter', 'The dialect compound "Geißenpeter" (Goat-Peter) is explained as "the goatherd Peter".'),
+ ('voi', 'P', 1, "Jetzt seh ich's", 'There she is!', "Barbel's lively exclamation preserved."),
+ ('emo', 'P', 1, 'Es ist aber gerad recht', 'it suits us well enough', 'Satisfaction preserved.'),
+ ('omi', 'A', 1, None, 'without being interrupted', 'Added clarification.'),
+ ('ton', 'P', 1, "Jetzt seh ich's", 'There she is!', 'Lively tone preserved.'),
+], 'na': {}},
+
+'ch01-a023': {'items': [
+ ('sem', 'P', 2, 'es ist nicht dumm für seine fünf Jahre', 'she is bright for her five years', 'Preserved (litotes "not stupid" → "bright").'),
+ ('sem', 'C', 1, 'der Alte hat gar nichts mehr als seine zwei Geißen und die Almhütte', 'He has nothing left in the whole wide world, but his cottage and two goats!', 'Preserved; "in the whole wide world" intensifies.'),
+ ('ton', 'C', 1, 'es ist nicht dumm', 'she is bright', 'Understatement becomes plain praise.'),
+ ('cul', 'C', 1, 'Almhütte', 'cottage', '"Almhütte" (alpine hut) becomes a generic cottage.'),
+ ('omi', 'A', 1, None, 'and I am glad for her', 'Added sentiment.'),
+ ('emo', 'A', 1, None, 'I am glad for her', "Dete's added gladness is not in the German.", 'l'),
+], 'na': {}},
+
+'ch01-a024': {'items': [
+ ('sem', 'P', 2, 'Hat er denn einmal mehr gehabt?', 'Did he once have more?', 'Preserved exactly.'),
+ ('ton', 'P', 1, None, None, 'Tone and register correspond; no marked difference.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a025': {'items': [
+ ('sem', 'C', 2, 'eins der schönsten Bauerngüter im Domleschg hat er gehabt', 'He was heir to a large farm in Domleschg.', '"Had one of the finest farms" becomes "heir to a large farm".'),
+ ('sem', 'P', 2, 'da sind sein Vater und seine Mutter hintereinander gestorben vor lauter Gram', 'His parents died with grief', 'Preserved ("one after the other" lost).'),
+ ('omi', 'L', 3, 'unter das Militär gegangen nach Neapel', None, "The uncle's service as a soldier in Naples is omitted."),
+ ('omi', 'L', 3, 'er habe einen erschlagen', None, 'The rumour that he killed a man in a brawl and deserted is omitted; English has only "many strange rumors".'),
+ ('omi', 'L', 2, 'der Bruder, der nun auch am Bettelstab war', None, "The ruined brother's fate is omitted."),
+ ('omi', 'L', 2, 'Die Frau muss eine Bündnerin gewesen sein', None, "The uncle's wife (a woman from Graubünden) is omitted."),
+ ('omi', 'L', 1, 'Aber es schlossen sich alle Türen vor ihm', None, 'Rejection by his relatives is omitted.'),
+ ('sem', 'C', 2, 'den Herrn spielen und im Lande herumfahren und mit bösem Volk zu tun haben', 'setting up to play the fine gentleman, he soon lost everything with drink and play', 'Play-acting the gentleman is kept; travelling about and keeping bad company are compressed into "drink and play".'),
+ ('img', 'L', 1, 'am Bettelstab', None, 'Idiom "at the beggar\'s staff" (ruined) is lost with the omitted clause.', 'l'),
+ ('cul', 'C', 2, "der 'Alm-Öhi'", "'Alm-Uncle'", 'Dialect title translated.'),
+ ('cul', 'L', 1, 'Bündnerin', None, 'Regional identity (woman from Graubünden) lost.'),
+ ('voi', 'C', 1, 'Der? Ja, das denk ich', 'I should say so.', "Dete's emphatic colloquial opening is condensed."),
+ ('ton', 'L', 2, 'verstehst du', None, "Dete's conspiratorial, gossiping asides are cut, making the story more neutral."),
+ ('emo', 'L', 1, 'Das erbitterte ihn sehr', None, 'His bitterness at being rejected is not stated in English.', 'l'),
+], 'na': {}},
+
+'ch01-a026': {'items': [
+ ('sem', 'P', 2, 'Aber wie ist es dann mit dem Tobias gegangen?', 'But what happened to Tobias?', 'Preserved.'),
+ ('emo', 'P', 1, 'gespannt', 'eagerly', 'Eager curiosity preserved.'),
+ ('ton', 'P', 1, None, None, 'Tone and register correspond; no marked difference.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a027': {'items': [
+ ('sem', 'P', 2, 'fiel ein Balken auf ihn herunter und schlug ihn tot', 'a beam fell on him and killed him', 'Preserved.'),
+ ('sem', 'P', 2, 'fiel die Adelheid vor Schrecken und Leid in ein heftiges Fieber', 'Adelheid was thrown into a violent fever with grief and fright', 'Preserved.'),
+ ('omi', 'L', 2, 'Und wie man den Mann so entstellt nach Hause brachte', None, 'The disfigured body being carried home is omitted.'),
+ ('omi', 'L', 2, 'auch der Herr Pfarrer redete ihm ins Gewissen, er sollte doch jetzt Buße tun', None, "The pastor's call to repentance is omitted."),
+ ('omi', 'L', 2, 'gab es der alten Ursel oben im Pfäfferserdorf in die Kost', None, 'Heidi being boarded with old Ursel in Pfäfers is omitted.'),
+ ('sem', 'C', 1, 'er wurde nur immer grimmiger und verstockter und redete mit niemandem mehr', 'After the death of his son he never spoke to a living soul', 'Growing grim and obdurate is reduced to silence.'),
+ ('img', 'P', 2, 'lebt mit Gott und Menschen im Unfrieden', 'to live there at enmity with God and man', 'Biblical-sounding phrase preserved.'),
+ ('emo', 'P', 2, 'vor Schrecken und Leid', 'with grief and fright', 'Grief and fright preserved.'),
+ ('emo', 'A', 1, None, 'poor Adelheid', 'English adds pity ("poor").'),
+ ('cul', 'C', 1, 'im Bad drunten', 'to Ragatz', 'The spa is named (and spelled Ragatz) where German says "down at the baths".'),
+ ('cul', 'L', 1, 'Pfäfferserdorf', None, 'Place name omitted.'),
+ ('voi', 'P', 1, 'Wart nur, das kommt schon, ich kann nicht alles auf einmal sagen', 'Just wait. How can I tell you everything at once?', "Dete's impatience preserved."),
+ ('ton', 'C', 1, 'das sei die Strafe, die der Öhi verdient habe für sein gottloses Leben', 'People said that heaven had punished the uncle for his misdeeds.', '"Godless life" softened to "misdeeds".'),
+ ('omi', 'A', 1, None, 'Heidi', 'The child is named here for the first time in English; the German does not name her at this point.', 'l'),
+], 'na': {}},
+
+'ch01-a028': {'items': [
+ ('sem', 'P', 2, 'Und dem Alten da droben willst du nun das Kind übergeben?', 'And now you want to hand over the child to this terrible old man.', 'Preserved; question becomes a statement.'),
+ ('emo', 'P', 2, 'vorwurfsvoll', 'with reproach in her voice', 'Reproach preserved.'),
+ ('omi', 'A', 1, None, 'terrible', '"Terrible" is added to "old man".'),
+ ('img', 'C', 1, 'Es nimmt mich nur wunder', 'I really wonder', 'Swiss idiom "es nimmt mich wunder" rendered literally as "I wonder".'),
+ ('cul', 'C', 1, 'Es nimmt mich nur wunder', 'I really wonder', 'Regional idiom normalised.'),
+ ('ton', 'P', 1, 'vorwurfsvoll', 'with reproach in her voice', 'Reproachful tone preserved.'),
+], 'na': {}},
+
+'ch01-a029': {'items': [
+ ('sem', 'P', 2, 'Ich habe das Meinige an dem Kinde getan', 'I have really done enough for the child', 'Preserved.'),
+ ('sem', 'P', 2, 'wir sind ja schon halbwegs auf der Alm', 'We are half-way up the Alm already.', 'Preserved.'),
+ ('voi', 'C', 1, 'Was meinst du denn?', 'It seems to me', 'Dete\'s retort is replaced by "It seems to me", losing her defensiveness.', 'm'),
+ ('ton', 'L', 1, 'gab Dete zurück', None, 'The sharp "retorted" tag is omitted, softening the exchange.'),
+ ('omi', 'L', 1, 'Was meinst du denn?', None, 'Opening retort omitted.'),
+], 'na': {}},
+
+'ch01-a031': {'items': [
+ ('sem', 'P', 2, 'der kleinen, dunkelbraunen Almhütte zuging, die einige Schritte seitwärts vom Pfad in einer Mulde stand', 'approached the tiny, dark-brown mountain hut, which lay in a hollow a few steps away from the path', 'Preserved.'),
+ ('sem', 'C', 1, 'wo sie vor dem Bergwind ziemlich geschützt war', 'the cottage was luckily protected from the mighty winds', '"Fairly sheltered" becomes "luckily protected".'),
+ ('img', 'P', 2, 'dass alles an der Hütte klapperte, Türen und Fenster, und alle die morschen Balken zitterten und krachten', 'the doors and windows rattled and the old rafters shook', 'Sound imagery preserved; "krachten" (creaked/cracked) and "morsch" (rotten) weakened.'),
+ ('img', 'P', 2, 'sie wäre unverzüglich ins Tal hinabgeweht worden', 'the wind would have blown it down the valley without much ado', 'Hyperbole preserved.'),
+ ('cul', 'C', 2, 'Föhnwind', 'south wind', 'The Alpine "Föhn" is generalised to "south wind".'),
+ ('ton', 'C', 1, 'unverzüglich', 'without much ado', 'Humorous understatement added ("without much ado").'),
+ ('omi', 'A', 1, None, 'when the storm season came', 'Added time frame.'),
+], 'na': {}},
+
+'ch01-a032': {'items': [
+ ('sem', 'P', 2, 'der elfjährige Bube, der jeden Morgen unten im Dörfli die Geißen holte', 'a boy eleven years old, who daily fetched the goats from the village', 'Preserved.'),
+ ('sem', 'C', 1, 'weil er sich da noch so lange als möglich mit den Kindern unterhalten musste', 'so that he could be with his friends as long as possible', 'Preserved, with ironic "musste" (had to) lost.'),
+ ('sem', 'C', 1, 'war vor einigen Jahren beim Holzfällen verunglückt', 'had met with an accident some years ago', 'The cause (tree-felling) is omitted.'),
+ ('img', 'P', 1, 'mit den leichtfüßigen Tierchen', 'with the light-footed little goats', 'Preserved.'),
+ ('img', 'C', 1, 'sich aufs Ohr zu legen', 'he sought his bed', 'Colloquial idiom ("lie on his ear") becomes formal.'),
+ ('cul', 'C', 2, 'die Geißenpeterin', '"Goatherd Peter\'s wife"', 'The dialect feminine "Geißenpeterin" is explained as "Goatherd Peter\'s wife" (she was actually his mother; the coinage indicates the family\'s byname).'),
+ ('cul', 'C', 1, 'Brigitte', 'Brigida', 'Name altered.'),
+ ('omi', 'L', 1, 'beim Holzfällen', None, "Cause of the father's accident omitted."),
+ ('ton', 'C', 1, 'hinunterzuschlucken', 'to swallow', 'Comic "gulp down" softened.'),
+], 'na': {}},
+
+'ch01-a033': {'items': [
+ ('sem', 'P', 2, 'zog mit großer Schnelligkeit Schuhe und Strümpfe aus', 'swiftly took off her shoes and stockings', 'Preserved.'),
+ ('sem', 'C', 1, 'zog sein rotes, dickes Halstuch weg', 'undid the heavy shawl', 'Red and thick neck-scarf becomes "heavy shawl"; the colour is dropped here.'),
+ ('sem', 'C', 2, 'blickte aber unverwandt bald auf den Peter', 'looked enviously at Peter', 'German says she looked fixedly; English interprets the look as envy.'),
+ ('emo', 'A', 2, None, 'looked enviously at Peter', 'Envy is an added emotional interpretation; the German describes an unwavering gaze.'),
+ ('emo', 'A', 1, None, 'She envied even more the goats', 'Second added attribution of envy.'),
+ ('emo', 'P', 2, 'vergnüglich in die Luft hinausstreckend', 'In sheer delight at the relief, she threw up her dimpled arms', 'Delight preserved and amplified ("sheer delight").'),
+ ('emo', 'P', 2, 'Heidi, was machst du? Wie siehst du aus?', 'Heidi, what have you done? What a sight you are!', "Dete's alarm preserved."),
+ ('img', 'P', 2, 'sein Mund kam fast von einem Ohr bis zum anderen', 'till his mouth seemed to reach from ear to ear', 'Comic image preserved.'),
+ ('img', 'C', 1, 'mit den dünnen, schlanken Beinchen', 'with their slender legs', 'Diminutive "Beinchen" lost.'),
+ ('img', 'A', 1, None, 'dimpled arms', '"Dimpled" is an added image.'),
+ ('cul', 'C', 1, 'die Base Dete', 'her aunt', '"Base" (Swiss: aunt/cousin) rendered as "aunt".'),
+ ('cul', 'P', 1, 'Sonntagskleidchen über das Alltagszeug', 'her Sunday clothes over her workday garments', 'Period custom preserved.'),
+ ('omi', 'L', 1, 'ganz neue Schuhe habe ich dir gekauft auf den Berg', None, 'Partially kept as a question; "for the mountain" omitted.', 'l'),
+ ('omi', 'A', 1, None, 'The poor little girl', '"Poor" adds narratorial pity.'),
+ ('voi', 'C', 1, 'alles fort! Alles fort!', 'Where are they all, Heidi?', 'Dete\'s repeated wail "Alles fort!" is replaced by a question; her agitation is reduced.'),
+ ('ton', 'C', 1, 'als sie laut aufschrie', 'she cried out shrilly', '"Shrilly" adds a slightly comic tone.'),
+], 'na': {}},
+
+'ch01-a034': {'items': [
+ ('sem', 'P', 2, 'Das Kind zeigte ruhig den Berg hinunter und sagte: "Dort!"', 'The child quietly pointed down and said "There."', 'Preserved.'),
+ ('sem', 'P', 2, 'obenauf war ein roter Punkt, das musste das Halstuch sein', 'a small red dot in the middle, which she recognized as the shawl', 'Preserved ("obenauf" on top → "in the middle").'),
+ ('img', 'P', 1, 'ein roter Punkt', 'a small red dot', 'Visual image preserved.'),
+ ('ton', 'P', 1, 'ruhig', 'quietly', 'Calm tone preserved.'),
+ ('omi', 'A', 1, None, 'which she recognized as', 'Recognition made explicit.', 'l'),
+], 'na': {}},
+
+'ch01-a035': {'items': [
+ ('sem', 'P', 2, 'warum hast du alles ausgezogen?', 'Why have you taken your things all off?', 'Preserved.'),
+ ('emo', 'P', 2, 'in großer Aufregung', 'excitedly', 'Agitation preserved; "great" dropped.'),
+ ('voi', 'C', 1, 'Du Unglückstropf!', 'Unlucky child!', 'The Swiss pet-insult "Unglückstropf" (poor wretch) becomes plain "Unlucky child".'),
+ ('cul', 'C', 1, 'Unglückstropf', 'Unlucky child', 'Regional expressive compound normalised.'),
+ ('sem', 'C', 1, 'Was kommt dir denn in den Sinn', 'What does all this mean?', 'Restructured question.'),
+ ('ton', 'P', 1, 'in großer Aufregung', 'excitedly', 'Agitated tone preserved.'),
+ ('omi', 'L', 1, 'Was soll das sein?', None, 'Third question omitted.'),
+], 'na': {}},
+
+'ch01-a036': {'items': [
+ ('sem', 'P', 2, 'Ich brauch es nicht', 'Because I do not need them', 'Preserved; "Because" added as an answer form.'),
+ ('emo', 'P', 1, 'sah gar nicht reuevoll aus über seine Tat', 'not seeming in the least repentant of her deed', 'Preserved.'),
+ ('voi', 'C', 1, 'Ich brauch es nicht', 'Because I do not need them', 'Heidi\'s clipped colloquial "brauch" becomes a full, correct sentence.'),
+ ('ton', 'P', 1, 'sah gar nicht reuevoll aus', 'not seeming in the least repentant', 'Calm defiance preserved.'),
+ ('omi', 'A', 1, None, 'Because', 'Causal "Because" added.', 'l'),
+], 'na': {}},
+
+'ch01-a037': {'items': [
+ ('sem', 'P', 2, 'Wer sollte nun wieder da hinunter, es ist ja eine halbe Stunde!', "Who do you think will go way down there to fetch those things up again? It is half-an-hour's walk.", 'Preserved.'),
+ ('sem', 'P', 2, 'steh nicht dort und glotze mich an, als wärst du am Boden festgenagelt', 'Do not stand and stare at me as if you were glued to the spot', 'Preserved.'),
+ ('emo', 'P', 2, 'jammerte und schalt die Base weiter', 'in a tone of mingled vexation and reproach', 'Lamenting and scolding become vexation and reproach.'),
+ ('img', 'C', 1, 'am Boden festgenagelt', 'glued to the spot', '"Nailed to the ground" becomes "glued"; equivalent idiom.'),
+ ('voi', 'C', 1, 'Ach du unglückseliges, vernunftloses Heidi', 'How can you be so stupid, Heidi?', 'The exclamatory epithets with neuter "das Heidi" become a direct accusation.'),
+ ('ton', 'C', 1, 'lauf du mir schnell zurück', 'Please, Peter, run down', '"Please" adds politeness to a peremptory command.'),
+ ('cul', 'C', 1, 'vernunftloses Heidi', 'Heidi', 'Swiss neuter article with a name ("das Heidi") cannot be rendered.'),
+ ('omi', 'L', 1, 'komm schnell', None, 'Repeated urging omitted.'),
+], 'na': {}},
+
+'ch01-a038': {'items': [
+ ('sem', 'P', 2, 'Ich bin schon zu spät', 'I am late already', 'Preserved.'),
+ ('sem', 'C', 1, 'sagte Peter langsam', 'replied Peter', '"Slowly" is dropped.'),
+ ('img', 'C', 1, 'dem Schreckensausbruch der Base', "the violent outbreak of Heidi's aunt", '"Outburst of horror" becomes "violent outbreak".'),
+ ('voi', 'P', 1, 'Ich bin schon zu spät', 'I am late already', "Peter's laconic speech preserved."),
+ ('omi', 'L', 1, 'langsam', None, "Peter's slowness is omitted."),
+ ('ton', 'P', 1, 'Ich bin schon zu spät', 'I am late already', 'Laconic, unmoved tone preserved.'),
+], 'na': {}},
+
+'ch01-a039': {'items': [
+ ('sem', 'C', 2, 'Komm her, du musst etwas Schönes haben, siehst du?', "I'll give you this if you go down.", 'An enticement ("come here, you shall have something nice") becomes an explicit bargain.'),
+ ('sem', 'P', 2, 'Plötzlich sprang er auf und davon auf dem geradesten Weg die Alm hinunter', 'That made Peter start and in a great hurry he ran down the straightest path.', 'Preserved.'),
+ ('cul', 'C', 2, 'ein neues Fünferchen', 'a five-penny-piece', 'Swiss coin (Fünfrappenstück) rendered as English "five-penny-piece".'),
+ ('cul', 'C', 1, 'Fünfrappenstück', 'little coin', 'Swiss currency name lost.'),
+ ('img', 'C', 1, 'das glänzte ihm in die Augen', 'held a five-penny-piece under his eyes', 'The shining coin is reduced to holding it under his eyes.'),
+ ('img', 'P', 1, 'sein Gesicht glänzte und lachte in voller Breite', 'his face was beaming', 'Image kept, shortened.'),
+ ('emo', 'P', 2, 'denn ein solcher Schatz wurde ihm nicht oft zuteil', 'He did not often get such a treasure', 'Joy at the treasure preserved.'),
+ ('omi', 'L', 1, 'kam in ungeheuren Sätzen in kurzer Zeit bei dem Häuflein Kleider an, packte sie auf', None, 'The huge leaps and the picking up of the clothes are omitted.'),
+ ('ton', 'C', 1, 'du musst etwas Schönes haben, siehst du?', "I'll give you this if you go down.", 'Coaxing tone becomes a businesslike offer.'),
+], 'na': {}},
+
+'ch01-a040': {'items': [
+ ('sem', 'P', 2, 'Du kannst mir das Zeug noch tragen bis zum Öhi hinauf', 'you can carry the pack till we get there', 'Preserved.'),
+ ('sem', 'C', 2, 'Weiter hinten ging es nochmals bergan bis hoch hinauf in die alten, grauen Felsen, erst noch über schöne, kräuterreiche Höhen', 'Further back the old grey rocks rose high and sheer. Above them you could see green and fertile pastures', 'The German order (herb-rich heights, then scrub, then bare rock) is changed: English puts pastures above the rocks.'),
+ ('img', 'P', 2, 'allen Winden ausgesetzt, aber auch jedem Sonnenblick zugänglich', 'exposed to every wind, but bathed in the full sunlight', 'Image preserved; "bathed" is more lyrical.'),
+ ('img', 'P', 1, 'mit dichten, langen, unbeschnittenen Ästen', 'with great shaggy branches', 'Image preserved, adapted.'),
+ ('emo', 'P', 1, 'hüpften und sprangen fröhlich', 'jumped along gaily', 'Gaiety preserved.'),
+ ('cul', 'C', 1, 'Geißenrute', 'stick', '"Goat switch" generalised.'),
+ ('omi', 'L', 1, 'dann in steiniges Gestrüpp', None, 'Stony scrub omitted.'),
+ ('ton', 'P', 1, 'Willig übernahm dieser den Auftrag', 'The boy readily took the things', 'Willing, cheerful tone preserved.'),
+], 'na': {}},
+
+'ch01-a041': {'items': [
+ ('sem', 'P', 2, 'Hier saß er, eine Pfeife im Mund, beide Hände auf seine Knie gelegt', 'Here he sat, with his pipe between his teeth and both hands resting on his knees', 'Preserved.'),
+ ('sem', 'C', 1, 'denn die Letztere war nach und nach von den anderen überholt worden', 'for the children had caught up to her long ago', 'Dete had gradually been overtaken by the others; the English keeps this but adds "long ago".', 'l'),
+ ('sem', 'P', 2, 'Guten Abend, Großvater!', 'Good evening, grandfather!', 'Preserved.'),
+ ('voi', 'P', 2, 'Guten Abend, Großvater!', 'Good evening, grandfather!', "Heidi's direct, unafraid greeting preserved."),
+ ('ton', 'P', 1, 'schaute ruhig zu', 'quietly watched', 'Calm tone preserved.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a042': {'items': [
+ ('sem', 'P', 2, 'gab dem Kinde kurz die Hand und schaute es mit einem langen, durchdringenden Blick an', 'Giving her his hand for only a moment, he watched her with a long and penetrating look', 'Preserved.'),
+ ('img', 'P', 2, 'aussahen wie eine Art Gesträuch', 'met in the middle like a thicket', 'Simile preserved.'),
+ ('emo', 'C', 1, 'so verwunderlich anzusehen, dass Heidi ihn recht betrachten musste', 'examined him with much curiosity, for he was strange to look at', 'Wonder becomes curiosity.'),
+ ('voi', 'P', 2, 'So, so, wie ist das gemeint?', 'Well, well, what does that mean?', "The uncle's gruff, laconic voice preserved."),
+ ('ton', 'P', 1, 'fragte der Alte barsch', 'replied the old man in a rough voice', 'Brusqueness preserved.'),
+ ('sem', 'C', 1, 'der eine Weile stille stand und zusah, was sich da ereigne', 'who was eager to see what was going to happen', 'Watching quietly becomes being "eager".'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a043': {'items': [
+ ('sem', 'P', 2, 'hier bring ich Euch das Kind vom Tobias und der Adelheid', "This is Tobias's and Adelheid's child.", 'Preserved.'),
+ ('sem', 'P', 2, 'seit es jährig war, habt Ihr es nie mehr gesehen', 'last time you saw her she was scarcely a year old', 'Preserved.'),
+ ('voi', 'C', 2, 'Ich wünsche Euch guten Tag, Öhi', 'Good-day to you, uncle', 'The respectful plural "Ihr/Euch" with which Dete addresses the uncle has no English equivalent; the formal register is partly lost.'),
+ ('ton', 'C', 1, 'Euch', 'you', 'T/V distinction (respectful "Ihr") lost.'),
+ ('cul', 'C', 1, 'Öhi', 'uncle', 'Dialect "Öhi" translated as "uncle".'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a044': {'items': [
+ ('sem', 'P', 2, 'So, was muss das Kind bei mir?', 'Why do you bring her here?', 'Preserved.'),
+ ('sem', 'C', 2, 'du kannst gehen mit deinen Geißen, du bist nicht zu früh; nimm meine mit!', 'Get away and bring my goats. How late you are already!', '"Take mine with you" becomes "bring my goats"; ironic understatement "you\'re not too early" becomes a direct reproach.'),
+ ('ton', 'C', 1, 'du bist nicht zu früh', 'How late you are already!', 'Dry irony replaced by a direct exclamation.'),
+ ('voi', 'P', 1, 'So, was muss das Kind bei mir?', 'Why do you bring her here?', "The uncle's curtness is kept in the clipped questions."),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a045': {'items': [
+ ('sem', 'P', 2, 'Der Peter gehorchte sofort und verschwand', 'Peter obeyed and disappeared on the spot', 'Preserved.'),
+ ('emo', 'C', 1, 'dass er schon genug davon hatte', 'that he was glad to go', '"He had had enough" (intimidation) becomes "glad to go".'),
+ ('ton', 'P', 1, None, None, 'Tone and register correspond; no marked difference.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a046': {'items': [
+ ('sem', 'P', 2, 'Es muss eben bei Euch bleiben, Öhi', 'Uncle, I have brought the little girl for you to keep', 'Preserved.'),
+ ('sem', 'P', 2, 'es wird jetzt wohl an Euch sein, das Eurige auch einmal zu tun', 'now it is your turn to provide for her', 'Preserved.'),
+ ('voi', 'C', 1, 'Ich habe, denk ich, das Meinige an ihm getan', 'I have done my share', 'Dete\'s filler "denk ich" and respectful Euch are lost.'),
+ ('ton', 'P', 1, 'Es muss eben bei Euch bleiben', 'I have brought the little girl for you to keep', 'Firm, matter-of-fact tone preserved.'),
+ ('omi', 'P', 1, None, None, 'No meaningful omission or addition.'),
+], 'na': {}},
+
+'ch01-a047': {'items': [
+ ('sem', 'P', 2, 'Und wenn nun das Kind anfängt, dir nachzuflennen und zu winseln', 'when she begins to whine and cry for you', 'Preserved.'),
+ ('img', 'C', 1, 'warf einen blitzenden Blick auf die Dete', "The old man's eyes flamed with anger.", 'A "flashing look" becomes eyes "flamed with anger"; the anger is made explicit.'),
+ ('emo', 'A', 1, None, 'with anger', 'Anger is named explicitly in English.'),
+ ('cul', 'C', 1, 'nachzuflennen', 'cry for you', 'Swiss "flennen" (blubber) normalised.'),
+ ('omi', 'A', 1, None, "and then I'll be helpless", 'Added clause.'),
+ ('voi', 'P', 1, 'So', 'Indeed!', 'Curt retort preserved.'),
+ ('ton', 'C', 1, 'wie kleine Unvernünftige tun', 'Small children always do', 'Contemptuous "little unreasoning ones" is softened to "small children".'),
+], 'na': {}},
+
+'ch01-a048': {'items': [
+ ('sem', 'P', 2, 'Das ist dann Eure Sache', "You'll have to look out for that!", 'Preserved.'),
+ ('sem', 'P', 2, "wenn Ihr's nicht haben könnt, so macht mit ihm, was Ihr wollt", "If you can't keep the child, you can do with her whatever you please.", 'Preserved.'),
+ ('sem', 'C', 1, 'ein einziges Jährchen alt', 'a few years ago', 'German "only a year old" becomes "a few years ago".'),
+ ('img', 'C', 1, 'als es mir auf den Händen lag', 'was left in my hands', 'Image preserved.'),
+ ('ton', 'C', 1, 'und Ihr werdet wohl nicht nötig haben, noch etwas aufzuladen', 'I am sure you do not want to burden your conscience any further', 'The veiled jibe becomes an explicit reference to conscience.'),
+ ('omi', 'A', 1, None, 'the little innocent', 'Added epithet.'),
+], 'na': {}},
+
+'ch01-a049': {'items': [
+ ('sem', 'P', 2, 'Die Dete hatte kein recht gutes Gewissen bei der Sache, darum war sie so hitzig geworden', 'Deta had said more in her excitement than she had intended, just because her conscience was not quite clear.', 'Preserved.'),
+ ('sem', 'P', 2, 'Mach, dass du hinunterkommst, wo du heraufgekommen bist, und zeig dich nicht so bald wieder!', "Away with you! Begone! Stay wherever you came from and don't venture soon again into my sight!", 'Command preserved; English doubles it.'),
+ ('img', 'P', 2, 'denn die innere Aufregung trieb sie vorwärts wie eine wirksame Dampfkraft', 'Like steam her excitement seemed to drive her forward', 'Steam-power simile preserved.'),
+ ('emo', 'P', 2, 'es war ihr nicht wohl bei der Sache', 'she herself was uneasy', 'Unease preserved.'),
+ ('emo', 'P', 1, 'Das arme Tröpfli!', 'The poor little creature!', 'Pity preserved.'),
+ ('cul', 'C', 2, 'Das arme Tröpfli!', 'The poor little dear!', 'Swiss diminutive "Tröpfli" rendered as "poor little dear/creature".'),
+ ('ton', 'C', 1, 'Mach, dass du hinunterkommst', 'Away with you! Begone!', 'The archaic "Begone!" adds a theatrical register.'),
+ ('voi', 'C', 1, 'So lebt wohl, und du auch, Heidi', 'She said "Good-bye" to Heidi and "Farewell" to the uncle', 'Direct speech becomes reported speech.'),
+ ('omi', 'A', 1, None, 'and looked forward with great delight to her new place', 'Delight is intensified.', 'l'),
+ ('sem', 'C', 1, 'Sie wurde aber so maßleidig', 'She became much provoked', '"Maßleidig" (Swiss: thoroughly fed up) rendered as "provoked".'),
+], 'na': {}},
+
+}

@@ -11,7 +11,7 @@ import { HeidiRttService } from './heidi-rtt.service';
 
 export interface HeidiReaderFilters {
   type: 'all' | 'dialogue' | 'narration';
-  alignment: 'all' | 'aligned' | 'review' | 'unmatched';
+  alignment: 'all' | 'aligned' | 'verified' | 'review' | 'unmatched';
   search: string;
 }
 
@@ -43,6 +43,11 @@ export interface ChapterDimensionSummary {
 
 const LOW = 60;
 
+/** Verified (chapter 1) or automatic high-confidence groups can carry provisional scores. */
+export function isAlignmentUsable(p: HeidiPassage): boolean {
+  return p.alignment.status === 'verified' || p.alignment.status === 'aligned';
+}
+
 @Injectable({ providedIn: 'root' })
 export class HeidiAlignmentService {
   constructor(private reviews: HeidiReviewService, private rtt: HeidiRttService) {}
@@ -55,7 +60,7 @@ export class HeidiAlignmentService {
 
   needsAlignmentReview(p: HeidiPassage): boolean {
     if (this.reviews.alignmentVerified(p.passage_id)) { return false; }
-    return p.alignment.status !== 'aligned';
+    return !isAlignmentUsable(p);
   }
 
   isUnmatched(p: HeidiPassage): boolean {
@@ -65,7 +70,8 @@ export class HeidiAlignmentService {
   matchesFilters(p: HeidiPassage, f: HeidiReaderFilters): boolean {
     if (f.type === 'dialogue' && p.passage_type === 'narration') { return false; }
     if (f.type === 'narration' && p.passage_type !== 'narration') { return false; }
-    if (f.alignment === 'aligned' && p.alignment.status !== 'aligned') { return false; }
+    if (f.alignment === 'aligned' && !isAlignmentUsable(p)) { return false; }
+    if (f.alignment === 'verified' && p.alignment.status !== 'verified') { return false; }
     if (f.alignment === 'review' && !(p.alignment.status === 'needs_review' || p.alignment.status === 'low_confidence')) { return false; }
     if (f.alignment === 'unmatched' && !this.isUnmatched(p)) { return false; }
     const q = (f.search || '').trim().toLowerCase();
@@ -98,15 +104,15 @@ export class HeidiAlignmentService {
         if (this.isUnmatched(p)) {
           push('unmatched', p.alignment.status === 'unmatched_de' ? 'Unmatched German passage' : 'Unmatched English passage',
             'alignment', null, 'No counterpart detected in the other language — possible omission/addition or mis-segmentation.');
-        } else if (p.alignment.status !== 'aligned') {
+        } else if (!isAlignmentUsable(p)) {
           push('low_alignment', 'Low-confidence alignment', 'alignment', null,
-            `${ALIGNMENT_STATUS_LABELS[p.alignment.status]} (confidence ${(p.alignment.confidence * 100).toFixed(0)}%, bead ${p.alignment.bead}).`);
+            `${ALIGNMENT_STATUS_LABELS[p.alignment.status]} (curated confidence "${p.alignment.confidence_label ?? '—'}", bead ${p.alignment.bead}).`);
         }
         const dims = p.analysis?.dimensions || {};
         const sem = this.reviews.effectiveScore(p, 'semantic').score;
         if (sem !== null && sem < LOW) { push('low_semantic', 'Low semantic preservation', 'semantic', sem, dims.semantic?.explanation || ''); }
         const emo = dims.emotion;
-        if (emo && emo.score !== null && (emo.score < LOW || (emo.shift_categories || []).length)) {
+        if (emo && emo.score !== null && (emo.score < LOW || (emo.category_counts?.['changed'] || 0) + (emo.category_counts?.['lost'] || 0) > 0)) {
           push('emotion_shift', 'Emotional shift', 'emotion', this.reviews.effectiveScore(p, 'emotion').score, emo.explanation);
         }
         const img = dims.imagery;
@@ -118,13 +124,13 @@ export class HeidiAlignmentService {
           push('cultural_issue', 'Cultural translation issue', 'cultural', this.reviews.effectiveScore(p, 'cultural').score, cul.explanation);
         }
         const om = dims.omissions;
-        if (om && om.score !== null && ((om.possible_omissions || 0) + (om.possible_additions || 0) > 0)) {
+        if (om && om.score !== null && ((om.category_counts?.['lost'] || 0) + (om.category_counts?.['added'] || 0) > 0) && om.score < 85) {
           push('omissions', 'Omissions & additions', 'omissions', this.reviews.effectiveScore(p, 'omissions').score, om.explanation);
         }
         const r = this.rtt.get(p.passage_id);
         if (r && r.status === 'disagreement') {
-          push('rtt_disagreement', 'RTT disagreement', 'rtt', r.rtt_semantic_score,
-            `Direct ${r.direct_semantic_score ?? '—'} vs RTT ${r.rtt_semantic_score ?? '—'} (Δ ${r.disagreement}).`);
+          push('rtt_disagreement', 'Potential disagreement — review recommended', 'rtt', r.rtt_semantic_score,
+            `Direct ${r.direct_semantic_score ?? '—'} vs RTT ${r.rtt_semantic_score ?? '—'} (|Δ| ${r.disagreement}; threshold not calibrated).`);
         }
       }
     }

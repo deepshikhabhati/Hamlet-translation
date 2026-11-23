@@ -133,6 +133,19 @@
               </div>
             </nav>
 
+            <!-- Phase 6: compact summary of the selected dimension (direct vs RTT, status, provenance) -->
+            <app-dimension-summary
+              style="margin-bottom: 10px;"
+              [dimensionLabel]="getDimensionName(activeInspectorDim)"
+              [direct]="getDialogueDimensionScore(inspectedDialogue, activeInspectorDim)"
+              [rtt]="activeInspectorDim === 'semantic' ? (getRttDimScore('semantic')?.rttScore ?? null) : null"
+              [threshold]="rttThreshold"
+              [provenance]="hamletDirectProvenance(inspectedDialogue)"
+              [provenanceLabel]="hamletDirectProvenanceLabel(inspectedDialogue)"
+              [reviewWarning]="isDialogueFlagged(inspectedDialogue, 'human_german', activeInspectorDim)"
+              [note]="getDialogueDimensionScore(inspectedDialogue, activeInspectorDim) === null ? 'This dimension is not applicable or was not assessed for this dialogue (shown as N/A, not 0).' : null"
+            ></app-dimension-summary>
+
             <!-- Dialogue Analysis Section (Header, Texts, Back-translation, 8 Dimensions, Explanation, Phrase Evidence, Expert Review) -->
             <section class="v15-dialogue-detail-panel v15-dialogue-detail-panel--standalone" aria-label="Dialogue Analysis and Expert Review">
               <!-- 1. Compact Dialogue Heading and Status (A) -->
@@ -156,6 +169,12 @@
                   </span>
                 </div>
                 <div class="v15-dialogue-head-actions">
+                  <button type="button" class="v15-insp-next-btn" (click)="goToDialogue(-1)" [disabled]="!hasPrevDialogue()" title="Previous dialogue in this scene" data-test="dlg-prev">
+                    ← Previous
+                  </button>
+                  <button type="button" class="v15-insp-next-btn" (click)="goToDialogue(1)" [disabled]="!hasNextDialogue()" title="Next dialogue in this scene" data-test="dlg-next">
+                    Next →
+                  </button>
                   <button type="button" class="v15-insp-next-btn" (click)="nextReview()" title="Jump to next review candidate in this scene">
                     Next Review →
                   </button>
@@ -172,6 +191,7 @@
                     <span class="v15-chip v15-chip--changed" title="Changed literary feature">Changed</span>
                     <span class="v15-chip v15-chip--lost" title="Lost literary feature">Lost</span>
                     <span class="v15-chip v15-chip--added" title="Added literary feature">Added</span>
+                    <span class="v15-chip v15-chip--uncertain" title="Evidence requires verification (gray dotted underline)">Uncertain</span>
                   </div>
                 </div>
 
@@ -196,6 +216,7 @@
                       [spans]="getHumanSourceSpansForDialogue(inspectedDialogue, activeInspectorDim)"
                       (segmentHover)="onSegmentHover($event, 'english', inspectedDialogue)"
                       (segmentLeave)="onSegmentLeave()"
+                      [activeLinkId]="activeLinkedSpanId"
                       (segmentClick)="onSegmentClick($event, 'english', inspectedDialogue)"
                     ></app-ha-evidence-highlighted-text>
                   </div>
@@ -228,6 +249,7 @@
                       fallbackText="[No German translation recorded]"
                       (segmentHover)="onSegmentHover($event, 'human_german', inspectedDialogue)"
                       (segmentLeave)="onSegmentLeave()"
+                      [activeLinkId]="activeLinkedSpanId"
                       (segmentClick)="onSegmentClick($event, 'human_german', inspectedDialogue)"
                     ></app-ha-evidence-highlighted-text>
 
@@ -256,127 +278,95 @@
                 </div>
 
                 <div class="v15-evidence-doc-actions">
-                  <button type="button" class="v15-pdf-action-btn" (click)="openPdfBook('english')" title="Open English Hamlet PDF book">
+                  <button type="button" class="v15-pdf-action-btn" (click)="openPdfBook('english', selectedEvidencePhrase?.sourceText || inspectedDialogue.texts.english)" title="Open English Hamlet PDF book">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                     View in Original English Document
                   </button>
-                  <button type="button" class="v15-pdf-action-btn v15-pdf-action-btn--de" (click)="openPdfBook('german')" title="Open German Hamlet PDF book">
+                  <button type="button" class="v15-pdf-action-btn v15-pdf-action-btn--de" (click)="openPdfBook('german', selectedEvidencePhrase?.targetText || inspectedDialogue.texts.human_german)" title="Open German Hamlet PDF book">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                     View in Original German Document
                   </button>
                 </div>
               </div>
 
-              <!-- 3. Round-Trip Translation (RTT) Analysis (Requirement 3) -->
-              <div class="v15-rtt-card" role="region" aria-label="Round-Trip Translation Analysis">
+              <!-- 2b. Other German versions + back-translation, highlighted for the selected dimension -->
+              <div class="v15-phrase-evidence-card" data-test="hamlet-other-versions">
                 <div class="v15-card-head-row">
-                  <div>
-                    <h4 class="v15-card-h4">Round-Trip Translation (RTT) Analysis</h4>
-                    <p class="v15-card-sub">
-                      RTT Process: Original English → Human German → AI Back-Translated English. Evaluates reverse literary preservation across all dimensions.
-                    </p>
-                  </div>
-                  <!-- Three view options -->
-                  <div class="v15-rtt-view-modes" role="group" aria-label="RTT View Option">
-                    <button
-                      type="button"
-                      class="v15-rtt-view-btn"
-                      [class.v15-rtt-view-btn--active]="rttViewMode === 'original'"
-                      (click)="rttViewMode = 'original'"
-                    >
-                      Original Assessment
-                    </button>
-                    <button
-                      type="button"
-                      class="v15-rtt-view-btn"
-                      [class.v15-rtt-view-btn--active]="rttViewMode === 'rtt'"
-                      (click)="rttViewMode = 'rtt'"
-                    >
-                      RTT Assessment
-                    </button>
-                    <button
-                      type="button"
-                      class="v15-rtt-view-btn"
-                      [class.v15-rtt-view-btn--active]="rttViewMode === 'compare'"
-                      (click)="rttViewMode = 'compare'"
-                    >
-                      Compare Both
-                    </button>
-                  </div>
+                  <h4 class="v15-card-h4">AI Translations &amp; Back-Translation: {{ getDimensionName(activeInspectorDim) }}</h4>
+                  <span class="v15-card-sub">Highlights show only {{ getDimensionName(activeInspectorDim) }} evidence for each version.</span>
                 </div>
-
-                <!-- Comparative Dimensions Table -->
-                <div class="v15-rtt-table-wrap">
-                  <table class="v15-rtt-table">
-                    <thead>
-                      <tr>
-                        <th>Dimension</th>
-                        <th *ngIf="rttViewMode === 'original' || rttViewMode === 'compare'">English → German</th>
-                        <th *ngIf="rttViewMode === 'rtt' || rttViewMode === 'compare'">Round Trip</th>
-                        <th *ngIf="rttViewMode === 'compare'">Difference</th>
-                        <th>Status</th>
-                        <th>Evidence Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        *ngFor="let dim of v15Dimensions"
-                        [class.v15-rtt-row--active]="activeInspectorDim === dim.key"
-                        (click)="selectDimension(dim.key)"
-                      >
-                        <td class="v15-rtt-dim-cell">
-                          <strong>{{ dim.name }}</strong>
-                        </td>
-                        <td *ngIf="rttViewMode === 'original' || rttViewMode === 'compare'" class="v15-rtt-score-cell">
-                          <span *ngIf="getRttDimScore(dim.key)?.originalScore !== null" [style.color]="getHumanScoreColor(getRttDimScore(dim.key)?.originalScore)">
-                            {{ formatHumanScore(getRttDimScore(dim.key)?.originalScore) }}
-                          </span>
-                          <span *ngIf="getRttDimScore(dim.key)?.originalScore === null" class="v15-score-na">N/A</span>
-                        </td>
-                        <td *ngIf="rttViewMode === 'rtt' || rttViewMode === 'compare'" class="v15-rtt-score-cell">
-                          <span *ngIf="getRttDimScore(dim.key)?.rttScore !== null" [style.color]="getHumanScoreColor(getRttDimScore(dim.key)?.rttScore)">
-                            {{ formatHumanScore(getRttDimScore(dim.key)?.rttScore) }}
-                          </span>
-                          <span *ngIf="getRttDimScore(dim.key)?.rttScore === null" class="v15-score-na">N/A</span>
-                        </td>
-                        <td *ngIf="rttViewMode === 'compare'" class="v15-rtt-diff-cell">
-                          <ng-container *ngIf="getRttDimScore(dim.key)?.diff !== null">
-                            <span
-                              class="v15-diff-badge"
-                              [class.v15-diff-badge--pos]="(getRttDimScore(dim.key)?.diff || 0) >= 0"
-                              [class.v15-diff-badge--neg]="(getRttDimScore(dim.key)?.diff || 0) < 0"
-                            >
-                              {{ (getRttDimScore(dim.key)?.diff || 0) >= 0 ? '+' : '' }}{{ getRttDimScore(dim.key)?.diff }}
-                            </span>
-                          </ng-container>
-                          <span *ngIf="getRttDimScore(dim.key)?.diff === null" class="v15-score-na">—</span>
-                        </td>
-                        <td>
-                          <span class="v15-chip" [ngClass]="'v15-chip--' + (getRttDimScore(dim.key)?.status || 'preserved').toLowerCase()">
-                            {{ getRttDimScore(dim.key)?.status || 'Preserved' }}
-                          </span>
-                        </td>
-                        <td>
-                          <button type="button" class="v15-rtt-inspect-btn" (click)="$event.stopPropagation(); selectDimension(dim.key)">
-                            {{ activeInspectorDim === dim.key ? 'Active' : 'Select' }}
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <!-- Selected Dimension RTT Explanation & Comparative Evidence -->
-                <div class="v15-rtt-detail-box" *ngIf="getRttDimScore(activeInspectorDim)">
-                  <div class="v15-rtt-detail-head">
-                    <strong>{{ getDimensionName(activeInspectorDim) }} — Round-Trip Comparative Evidence:</strong>
-                    <span class="v15-rtt-source-lbl">English Original vs. AI Back-Translation</span>
+                <div class="v15-evidence-columns">
+                  <div class="v15-evidence-box" *ngFor="let v of hamletVersionPanels">
+                    <div class="v15-evidence-box-title">
+                      <div class="v15-box-title-left">
+                        <span>{{ v.label }}</span>
+                        <span class="v15-box-ver-badge">{{ v.badge }}</span>
+                        <span class="v15-box-ver-badge">{{ getDialogueStatus(inspectedDialogue, v.key, activeInspectorDim) === 'Not Applicable' ? 'N/A' : ($any(inspectedDialogue.analysis)?.[v.key]?.[activeInspectorDim]?.score ?? 'N/A') }}</span>
+                      </div>
+                    </div>
+                    <app-ha-evidence-highlighted-text
+                      [text]="$any(inspectedDialogue.texts)[v.key] || ''"
+                      [spans]="getTargetSpansForDialogue(inspectedDialogue, v.key, activeInspectorDim)"
+                      [activeLinkId]="activeLinkedSpanId"
+                      fallbackText="[Not available]"
+                      (segmentClick)="onSegmentClick($event, v.key, inspectedDialogue)"
+                    ></app-ha-evidence-highlighted-text>
                   </div>
-                  <p class="v15-rtt-detail-explanation">
-                    {{ getRttDimScore(activeInspectorDim)?.explanation }}
-                  </p>
+                  <div class="v15-evidence-box" data-test="hamlet-bt-box">
+                    <div class="v15-evidence-box-title">
+                      <div class="v15-box-title-left">
+                        <span>BT English</span>
+                        <span class="v15-box-ver-badge">AI back-translation of Human German</span>
+                      </div>
+                    </div>
+                    <p class="literary-text" style="margin:0" lang="en">{{ getHamletBtEnglish(inspectedDialogue) || 'Not generated yet — use “Generate Back-Translation” below.' }}</p>
+                    <p class="v15-card-sub" *ngIf="getHamletBtEnglish(inspectedDialogue)">No phrase-level evidence is recorded for back-translations, so no highlights are shown here.</p>
+                  </div>
                 </div>
               </div>
+
+              <!-- 2c. Evidence inspector for the clicked phrase + unlocated evidence -->
+              <div class="v15-unlocated-card" *ngIf="hamletUnlocatedEvidence(inspectedDialogue).length" data-test="hamlet-unlocated">
+                <strong>Unlocated evidence ({{ hamletUnlocatedEvidence(inspectedDialogue).length }})</strong> — recorded phrases that could not be matched to the displayed text; routed to review.
+                <ul><li *ngFor="let u of hamletUnlocatedEvidence(inspectedDialogue)"><button type="button" class="v15-rtt-inspect-btn" (click)="selectHamletEvidence(u.key)">{{ u.key }}</button> {{ u.ev.source_quote }} → {{ u.ev.target_quote }}</li></ul>
+              </div>
+              <p class="v15-card-sub" *ngIf="!selectedEvidenceKey && hamletEvidenceItems(inspectedDialogue, activeInspectorDim).length" style="margin: 4px 0 10px;">
+                Click a highlighted phrase to inspect its evidence, or
+                <button type="button" class="v15-rtt-inspect-btn" (click)="stepHamletEvidence(inspectedDialogue, 0)" data-test="hamlet-first-evidence">open the first of {{ hamletEvidenceItems(inspectedDialogue, activeInspectorDim).length }}</button>.
+              </p>
+              <app-evidence-detail
+                *ngIf="hamletEvidenceVm(inspectedDialogue) as evVm"
+                style="margin-bottom: 12px;"
+                [ev]="evVm"
+                [reviewer]="valReviewer || null"
+                [hasPrev]="hamletEvidenceIndex(inspectedDialogue).i > 0"
+                [hasNext]="hamletEvidenceIndex(inspectedDialogue).i < hamletEvidenceIndex(inspectedDialogue).n - 1"
+                (prev)="stepHamletEvidence(inspectedDialogue, -1)"
+                (next)="stepHamletEvidence(inspectedDialogue, 1)"
+                (close)="selectHamletEvidence(null)"
+              ></app-evidence-detail>
+
+              <!-- 3. Round-Trip Translation (RTT) Analysis — shared panel; semantic RTT only -->
+              <app-rtt-compare-panel
+                style="display:block; margin-bottom: 16px;"
+                title="Round-Trip Translation (RTT) Analysis"
+                direction="RTT Process: Original English → Human German → AI Back-Translated English. Compare Original English ↔ AI Back-Translated English."
+                directionNote="Only a semantic RTT score is computed. RTT is an auxiliary signal and does not validate emotion, imagery, tone or character voice."
+                unitLabel="dialogue"
+                [texts]="hamletRttTexts(inspectedDialogue)"
+                [rows]="hamletRttRows(inspectedDialogue)"
+                [activeKey]="activeInspectorDim"
+                [threshold]="rttThreshold"
+                [provenance]="hamletRttProvenance(inspectedDialogue)"
+                [explanation]="hamletRttExplanation(inspectedDialogue)"
+                [busy]="inlineBtLoading"
+                [error]="inlineBtError"
+                [disabledReason]="inspectedDialogue.texts.human_german ? null : 'No Human German text for this dialogue.'"
+                [mode]="rttViewMode === 'original' ? 'direct' : rttViewMode"
+                (selectDimension)="selectDimensionTab($event)"
+                (generate)="generateHamletRtt()"
+                (thresholdChange)="setRttThreshold($event)"
+              ></app-rtt-compare-panel>
 
               <!-- 4. Dimension-Focused German Translation Generator (Requirement 6) -->
               <div class="v15-focused-trans-card">
@@ -852,7 +842,7 @@
                         <span class="legend-text">Preserved</span>
                       </span>
                       <span class="legend-item legend-item--changed" title="Changed meaning: translation alters nuance, metaphor, or register">
-                        <span class="legend-dot" style="background:#2563eb"></span>
+                        <span class="legend-dot" style="background:#d97706"></span>
                         <span class="legend-text">Changed</span>
                       </span>
                       <span class="legend-item legend-item--lost" title="Lost meaning: source nuance, wordplay, or phrasing omitted">
@@ -862,6 +852,10 @@
                       <span class="legend-item legend-item--added" title="Added meaning: translation introduces new semantic content">
                         <span class="legend-dot" style="background:#9333ea"></span>
                         <span class="legend-text">Added</span>
+                      </span>
+                      <span class="legend-item legend-item--uncertain" title="Uncertain: evidence flagged for review or low-confidence; shown with a gray dotted underline">
+                        <span class="legend-dot" style="background:transparent;border:2px dotted #64748b"></span>
+                        <span class="legend-text">Uncertain</span>
                       </span>
                     </div>
                   </div>
@@ -1809,6 +1803,7 @@
             <span class="v15-hm-sub">Calculated from real dialogue evidence</span>
           </div>
           <p class="v15-hm-desc">Every scene against every dimension. Find the weak spots here, then click a cell to open that scene with that dimension selected.</p>
+          <p class="v15-hm-desc" *ngIf="heatmapAssessmentSource !== 'original'" data-test="hm-rtt-note">RTT columns show the mean of the dataset's computed <strong>semantic</strong> RTT scores (n = dialogues with a completed back-translation / all dialogues). No RTT method exists for the other seven dimensions, so they read “Not evaluated”. The comparison uses the same dialogues for both means.</p>
 
           <div class="v15-hm-controls">
             <!-- Assessment Source Switcher (Requirement 4) -->
@@ -1882,7 +1877,7 @@
                         [class.v15-hm-cell-btn--unassigned]="!isSceneAnalyzed(sc)"
                         [ngClass]="isSceneAnalyzed(sc) && heatmapAssessmentSource !== 'compare' ? getScoreClass(heatmapAssessmentSource === 'rtt' ? getSceneRttScore(sc, dim.key) : getSceneOriginalScore(sc, dim.key)) : ''"
                         (click)="onHeatmapCellClick(sc.act, sc, dim.key, heatmapAssessmentSource)"
-                        [title]="!isSceneAnalyzed(sc) ? 'Not analyzed — click to view scene speeches' : ('Original: ' + formatScore(getSceneOriginalScore(sc, dim.key)) + ' | RTT: ' + formatScore(getSceneRttScore(sc, dim.key)) + ' | Diff: ' + (getSceneRttDiff(sc, dim.key) ?? 0))"
+                        [title]="!isSceneAnalyzed(sc) ? 'Not analyzed — click to view scene speeches' : ('Original: ' + formatScore(getSceneOriginalScore(sc, dim.key)) + ' | RTT: ' + (getSceneRttScore(sc, dim.key) === null ? 'Not evaluated' : formatScore(getSceneRttScore(sc, dim.key)) + ' (semantic RTT, n=' + getSceneRttCoverageLabel(sc, dim.key) + ')') + ' | Diff: ' + (getSceneRttDiff(sc, dim.key) ?? '—'))"
                       >
                         <ng-container *ngIf="!isSceneAnalyzed(sc)">
                           <span style="color:var(--muted); font-size:11px; font-style:italic">Not analyzed</span>
@@ -1895,7 +1890,8 @@
 
                           <!-- 2. Round-Trip Translation (RTT) View -->
                           <ng-container *ngIf="heatmapAssessmentSource === 'rtt'">
-                            <span>{{ formatScore(getSceneRttScore(sc, dim.key)) }}</span>
+                            <span *ngIf="getSceneRttScore(sc, dim.key) !== null">{{ formatScore(getSceneRttScore(sc, dim.key)) }}<small class="v15-hm-cov"> n={{ getSceneRttCoverageLabel(sc, dim.key) }}</small></span>
+                            <span *ngIf="getSceneRttScore(sc, dim.key) === null" class="v15-hm-noteval" title="No RTT computed for this scene/dimension">Not evaluated</span>
                           </ng-container>
 
                           <!-- 3. Compare Both (Original vs RTT + Diff) -->
@@ -1904,9 +1900,11 @@
                               <div class="v15-hm-cmp-scores">
                                 <span class="v15-hm-orig-val" title="English → Human German">{{ formatScore(getSceneOriginalScore(sc, dim.key)) }}</span>
                                 <span class="v15-hm-val-sep">⇄</span>
-                                <span class="v15-hm-rtt-val" title="Round-Trip (RTT)">{{ formatScore(getSceneRttScore(sc, dim.key)) }}</span>
+                                <span class="v15-hm-rtt-val" title="Round-Trip (RTT)">{{ getSceneRttScore(sc, dim.key) === null ? '—' : formatScore(getSceneRttScore(sc, dim.key)) }}</span>
                               </div>
+                              <span *ngIf="getSceneRttDiff(sc, dim.key) === null" class="v15-hm-noteval">Not evaluated</span>
                               <span
+                                *ngIf="getSceneRttDiff(sc, dim.key) !== null"
                                 class="v15-diff-badge v15-diff-badge--sm"
                                 [class.v15-diff-badge--pos]="(getSceneRttDiff(sc, dim.key) || 0) >= 0"
                                 [class.v15-diff-badge--neg]="(getSceneRttDiff(sc, dim.key) || 0) < 0"
@@ -1939,6 +1937,8 @@
       <app-ha-validation-queue
         [items]="getValidationQueueItems()"
         [validations]="expertValidations"
+        [rttThreshold]="rttThreshold"
+        (rttThresholdChange)="setRttThreshold($event)"
         (itemReview)="onQueueItemReview($event)"
       ></app-ha-validation-queue>
     </ng-container>
@@ -2199,7 +2199,7 @@
           <h3>{{ getPdfPanelTitle() }}</h3>
           <p *ngIf="selectedAnalysisScene">
             Act {{ selectedAnalysisScene.act }} · Scene {{ selectedAnalysisScene.scene_number || selectedAnalysisScene.scene_id }}
-            {{ activeInspectedDialogueId ? '· ' + activeInspectedDialogueId : '' }}
+            {{ (activeInspectedDialogueId || readerInspectedDialogueId) ? '· ' + (activeInspectedDialogueId || readerInspectedDialogueId) : '' }}
           </p>
         </div>
       </div>

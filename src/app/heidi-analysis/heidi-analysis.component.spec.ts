@@ -8,9 +8,14 @@ import { HeidiAnalysisComponent, categorizeEvidence, hamletScoreClass } from './
 import { HeidiDataService } from './services/heidi-data.service';
 import { HeidiReviewService } from './services/heidi-review.service';
 import { HeidiRttService } from './services/heidi-rtt.service';
-import { HeidiAlignmentService } from './services/heidi-alignment.service';
+import { HeidiAlignmentService, isAlignmentUsable } from './services/heidi-alignment.service';
+import { SideBySideFile } from './services/heidi-data.service';
+import { HttpTestingController } from '@angular/common/http/testing';
+import { HEIDI_ALIGNMENT_URL } from './models/heidi.models';
+import { EvidenceReviewService } from '../shared/analysis/evidence-review.service';
 import { HEIDI_REVIEW_STORAGE_KEY, HEIDI_RTT_STORAGE_KEY, HeidiDataset, HeidiPassage } from './models/heidi.models';
 import { APP_ROUTES } from '../app-routing.module';
+import { HEIDI_LITERARY_URL, LitFile, mapDimension, mapPassageAnalysis } from './literary/heidi-literary';
 
 const EXPECTED_TITLES_DE = [
   'Zum Alm-Öhi hinauf', 'Beim Großvater', 'Auf der Weide', 'Bei der Großmutter',
@@ -23,17 +28,27 @@ const EXPECTED_TITLES_DE = [
 
 let DATASET: HeidiDataset;
 
-async function loadDataset(): Promise<HeidiDataset> {
-  for (const url of ['/assets/data/heidi_aligned_chapters_1_14.json', '/_karma_webpack_/assets/data/heidi_aligned_chapters_1_14.json']) {
+let SBS: SideBySideFile;
+let LIT: LitFile;
+
+async function fetchAsset<T>(name: string): Promise<T> {
+  for (const url of [`/assets/data/${name}`, `/_karma_webpack_/assets/data/${name}`]) {
     const r = await fetch(url);
     if (r.ok) { return r.json(); }
   }
-  throw new Error('Heidi dataset not served to Karma');
+  throw new Error(`${name} not served to Karma`);
+}
+
+/** Texts come from the curated side-by-side file; scores and evidence from the literary analysis file (no browser scoring). */
+async function loadDataset(): Promise<HeidiDataset> {
+  SBS = SBS || await fetchAsset<SideBySideFile>('heidi_part1_side_by_side.json');
+  LIT = LIT || await fetchAsset<LitFile>('heidi_literary_analysis.json');
+  return new HeidiDataService(null as any).compose(SBS, LIT);
 }
 
 const all = (d: HeidiDataset): HeidiPassage[] => d.parts.flatMap(p => p.chapters.flatMap(c => c.passages));
 
-describe('Heidi dataset integrity (src/assets/data/heidi_aligned_chapters_1_14.json)', () => {
+describe('Heidi dataset integrity (side-by-side text + literary analysis)', () => {
   beforeAll(async () => { DATASET = await loadDataset(); });
 
   it('contains Part I with exactly the 14 chapters, in order, with the specified German titles', () => {
@@ -45,28 +60,34 @@ describe('Heidi dataset integrity (src/assets/data/heidi_aligned_chapters_1_14.j
     expect(chs.every(c => c.passages.length > 0)).toBeTrue();
   });
 
-  it('every passage belongs to its chapter and IDs are unique and stable', () => {
+  it('preserves the chapter, alignment-group and paragraph IDs of the curated file (texts unchanged)', () => {
     const ids = new Set<string>();
-    for (const ch of DATASET.parts[0].chapters) {
-      const prefix = `HEIDI-P1-C${String(ch.chapter_number).padStart(2, '0')}-P`;
-      ch.passages.forEach((p, i) => {
-        expect(p.passage_id.startsWith(prefix)).withContext(p.passage_id).toBeTrue();
-        expect(p.chapter_id).toBe(ch.chapter_id);
-        expect(p.sequence).toBe(i + 1);
-        expect(p.passage_id).toBe(prefix + String(i + 1).padStart(4, '0'));
+    SBS.chapters.forEach((ch, ci) => {
+      const passages = DATASET.parts[0].chapters[ci].passages;
+      expect(passages.length).toBe(ch.rows.length);
+      ch.rows.forEach((r, i) => {
+        const p = passages[i];
+        expect(p.passage_id).toBe(r.id);
+        expect(p.chapter_id).toBe(ch.id);
+        expect(p.source.en_paragraph_ids).toEqual(r.en.map(x => x.id));
+        expect(p.source.de_paragraph_ids).toEqual(r.de.map(x => x.id));
+        expect(p.english_text).toBe(r.en.map(x => x.text).join('\n\n') || null);
+        expect(p.german_text).toBe(r.de.map(x => x.text).join('\n\n') || null);
         ids.add(p.passage_id);
       });
-    }
+    });
     expect(ids.size).toBe(all(DATASET).length);
   });
 
-  it('preserves source order in both languages and uses every extracted paragraph exactly once', () => {
+  it('only Chapter 1 is labelled verified; every other chapter is automatic (never silently verified)', () => {
     for (const ch of DATASET.parts[0].chapters) {
-      const de = ch.passages.flatMap(p => p.source.de_paragraph_indices);
-      const en = ch.passages.flatMap(p => p.source.en_paragraph_indices);
-      expect(de).toEqual(Array.from({ length: ch.source_paragraphs.de }, (_, i) => i));
-      expect(en).toEqual(Array.from({ length: ch.source_paragraphs.en }, (_, i) => i));
+      expect(ch.alignment_status).toBe(ch.chapter_number === 1 ? 'verified' : 'automatic');
+      for (const p of ch.passages) {
+        if (ch.chapter_number !== 1) { expect(p.alignment.status).not.toBe('verified'); }
+        if (p.alignment.status === 'verified') { expect(p.alignment.confidence_label).toBe('verified'); }
+      }
     }
+    expect(all(DATASET).filter(p => p.alignment.status === 'verified').length).toBeGreaterThan(0);
   });
 
   it('keeps unmatched passages visible and flagged, never scored', () => {
@@ -78,20 +99,130 @@ describe('Heidi dataset integrity (src/assets/data/heidi_aligned_chapters_1_14.j
     }
   });
 
-  it('only automatically aligned pairs carry (provisional, labelled) scores; null is never 0 for wordplay', () => {
+  it('only verified or high-confidence groups carry literary scores; disputed groups are withheld; N/A is never 0', () => {
     for (const p of all(DATASET)) {
       const dims = p.analysis.dimensions;
-      if (p.alignment.status !== 'aligned') {
+      if (!isAlignmentUsable(p)) {
         expect(Object.keys(dims).length).withContext(p.passage_id).toBe(0);
       } else {
-        expect(p.analysis.method).toBe('automated_heuristic_v1');
-        expect(dims.wordplay!.score).toBeNull();
+        expect(p.analysis.status).withContext(p.passage_id).toBe('literary_provisional');
         Object.values(dims).forEach(d => {
           expect(d!.provisional).toBeTrue();
-          if (d!.status !== 'scored') { expect(d!.score).toBeNull(); }
+          if (d!.status !== 'scored') { expect(d!.score).withContext(p.passage_id).toBeNull(); }
+          if (d!.status === 'scored') { expect(d!.score).toBeGreaterThanOrEqual(0); expect(d!.score).toBeLessThanOrEqual(100); }
         });
       }
     }
+  });
+
+  it('loads the side-by-side text and the literary analysis, and mutates neither', () => {
+    TestBed.configureTestingModule({ imports: [HttpClientTestingModule] });
+    const svc = TestBed.inject(HeidiDataService);
+    const http = TestBed.inject(HttpTestingController);
+    const before = JSON.stringify(SBS);
+    const litBefore = JSON.stringify(LIT.passages['ch01-a002']);
+    let ds: HeidiDataset | null = null;
+    svc.load().subscribe(d => ds = d);
+    http.expectOne(HEIDI_ALIGNMENT_URL).flush(JSON.parse(before));
+    http.expectOne(HEIDI_LITERARY_URL).flush(LIT);
+    http.verify();
+    expect(ds).toBeTruthy();
+    expect(JSON.stringify(SBS)).toBe(before);
+    expect(JSON.stringify(LIT.passages['ch01-a002'])).toBe(litBefore);
+    expect(JSON.stringify(LIT)).not.toContain('Auf diesem schmalen Bergpfade stieg am hellen, sonnigen Junimorgen ein großes');
+  });
+
+  it('without the analysis file nothing is scored (Not evaluated, never 0)', () => {
+    const ds = new HeidiDataService(null as any).compose(SBS, null);
+    expect(all(ds).every(p => Object.keys(p.analysis.dimensions).length === 0)).toBeTrue();
+    expect(all(ds).some(p => p.analysis.status === 'awaiting_analysis')).toBeTrue();
+  });
+
+  it('covers all 14 chapters: every verified / high-confidence group is analysed or explicitly disputed', () => {
+    const ps = all(DATASET);
+    expect(ps.length).toBe(581);
+    const analysed = ps.filter(p => p.analysis.status === 'literary_provisional');
+    const disputed = ps.filter(p => p.analysis.status === 'alignment_disputed');
+    expect(analysed.length + disputed.length).toBe(434);
+    expect(disputed.every(p => p.alignment.status === 'disputed' && !!p.alignment.note)).toBeTrue();
+    for (let n = 1; n <= 14; n++) {
+      expect(analysed.some(p => p.chapter_id === `ch${String(n).padStart(2, '0')}`)).withContext('chapter ' + n).toBeTrue();
+    }
+    expect(ps.filter(p => p.alignment.status === 'needs_review').length).toBe(106);
+    expect(ps.filter(p => p.alignment.status === 'low_confidence').length).toBe(39);
+    expect(analysed.every(p => p.analysis.dimensions.semantic!.status === 'scored')).toBeTrue();
+    expect(LIT.coverage['unlocated_evidence']).toBe(0);
+  });
+
+  it('ch01-a002 audit: emotion is N/A (heat, not feeling) rather than 0, and reference evidence is present', () => {
+    const p = all(DATASET).find(x => x.passage_id === 'ch01-a002')!;
+    const d = p.analysis.dimensions;
+    expect(d.emotion!.status).toBe('not_applicable');
+    expect(d.emotion!.score).toBeNull();
+    expect(d.emotion!.phrase_evidence.some(e => e.label === 'Uncertain' && e.de?.text === 'dessen Wangen so glühend waren')).toBeTrue();
+    expect(d.semantic!.score).toBeLessThan(100);
+    expect(d.omissions!.phrase_evidence.some(e => e.label === 'Lost' && e.de?.text === 'um und um gebunden')).toBeTrue();
+    expect(d.imagery!.phrase_evidence.some(e => e.label === 'Changed' && e.de?.text === 'flammend rot durchleuchteten')).toBeTrue();
+    expect(d.tone!.phrase_evidence.some(e => e.label === 'Changed' && /Wart einen Augenblick, Dete/.test(e.de?.text || '') && /please/.test(e.en?.text || ''))).toBeTrue();
+    expect(d.cultural!.phrase_evidence.some(e => /Dörfli/.test(e.de?.text || '') && /Little Village/.test(e.en?.text || ''))).toBeTrue();
+    expect(d.wordplay!.status).toBe('not_applicable');
+  });
+
+  it('evidence IDs follow HEIDI-CHnn-Annn-DIM-nnn; Lost has no English and Added no German phrase', () => {
+    for (const lp of Object.values(LIT.passages)) {
+      for (const e of lp.evidence || []) {
+        expect(e.evidence_id).toMatch(/^HEIDI-CH\d\d-A\d{3}-(SEM|EMO|IMG|TON|VOI|CUL|OMI|WPL)-\d{3}$/);
+        if (e.category === 'lost') { expect(e.target_phrase).withContext(e.evidence_id).toBeNull(); }
+        if (e.category === 'added') { expect(e.source_phrase).withContext(e.evidence_id).toBeNull(); }
+        if (e.category === 'preserved' || e.category === 'changed') {
+          expect(!!e.source_phrase === !!e.target_phrase).withContext(e.evidence_id).toBeTrue();
+        }
+        expect(e.provenance).toContain('model_assisted');
+      }
+    }
+  });
+
+  it('a highlight never covers a whole multi-sentence passage', () => {
+    for (const p of all(DATASET)) {
+      for (const d of Object.values(p.analysis.dimensions)) {
+        for (const e of d!.phrase_evidence) {
+          if (e.de && p.german_text && p.german_text.length > 200) { expect(e.de.text.length).withContext(e.id).toBeLessThan(p.german_text.length); }
+          if (e.en && p.english_text && p.english_text.length > 200) { expect(e.en.text.length).withContext(e.id).toBeLessThan(p.english_text.length); }
+        }
+      }
+    }
+  });
+
+  it('a span that does not match the displayed text is not highlighted and is reported as unlocated', () => {
+    const lit = JSON.parse(JSON.stringify(LIT.passages['ch01-a002']));
+    lit.evidence[0].source_span = { start: 0, end: 5, text: 'XXXXX' };
+    const p = all(DATASET).find(x => x.passage_id === 'ch01-a002')!;
+    const m = mapPassageAnalysis(lit, p.german_text, p.english_text);
+    const ev = m.analysis.dimensions.semantic!.phrase_evidence[0];
+    expect(ev.de).toBeNull();
+    expect(m.unlocated.some(u => u.evidence_id === lit.evidence[0].evidence_id)).toBeTrue();
+  });
+
+  it('Unicode: spans are code-point offsets (umlauts / ß / typographic quotes)', () => {
+    const text = 'Großmütterchen „Grüß Gott“ sagte';
+    const dim = { applicability: 'evaluated', score: 100, confidence: 'high', method: 'm', evidence_count: 1,
+      category_counts: { preserved: 1, changed: 0, lost: 0, added: 0, uncertain: 0 }, explanation: '', review_status: 'machine_provisional' } as any;
+    const e = { evidence_id: 'HEIDI-CH01-A001-CUL-001', passage_id: 'ch01-a001', dimension: 'cultural', category: 'preserved', weight: 1,
+      source_language: 'de', source_phrase: '„Grüß Gott“', target_language: 'en', target_phrase: null,
+      source_span: { start: 15, end: 26, text: '„Grüß Gott“' }, target_span: null, span_status: 'located', sentence_alignment_verified: true,
+      explanation: '', confidence: 'high', requires_expert_review: false, provenance: 'model_assisted_provisional:test' } as any;
+    const u: any[] = [];
+    const a = mapDimension(dim, [e], text, 'x', u);
+    expect(a.phrase_evidence[0].de).toEqual({ start: 15, end: 26, text: '„Grüß Gott“' });
+    expect(u.length).toBe(0);
+  });
+
+  it('N/A dimensions stay N/A and not-evaluated dimensions are never turned into 0', () => {
+    const base = { score: null, confidence: null, method: 'm', evidence_count: 0,
+      category_counts: { preserved: 0, changed: 0, lost: 0, added: 0, uncertain: 0 }, explanation: 'x', review_status: 'machine_provisional' } as any;
+    expect(mapDimension({ ...base, applicability: 'not_applicable' }, [], 'a', 'b', []).status).toBe('not_applicable');
+    expect(mapDimension({ ...base, applicability: 'not_evaluated' }, [], 'a', 'b', []).status).toBe('not_assessed');
+    expect(mapDimension({ ...base, applicability: 'not_evaluated', score: 0 }, [], 'a', 'b', []).score).toBeNull();
   });
 
   it('preserves German characters (ä, ö, ü, ß)', () => {
@@ -99,11 +230,14 @@ describe('Heidi dataset integrity (src/assets/data/heidi_aligned_chapters_1_14.j
     for (const c of ['ä', 'ö', 'ü', 'ß', 'Ö']) { expect(de).toContain(c); }
   });
 
-  it('evidence spans point at the exact text they quote', () => {
-    for (const p of all(DATASET).slice(0, 200)) {
+  it('evidence spans point at the exact displayed text they quote (code points)', () => {
+    const cp = (t: string, a: number, b: number) => Array.from(t).slice(a, b).join('');
+    for (const p of all(DATASET)) {
       for (const d of Object.values(p.analysis.dimensions)) {
-        for (const s of d!.evidence_de) { expect(p.german_text!.substring(s.start, s.end)).toBe(s.text); }
-        for (const s of d!.evidence_en) { expect(p.english_text!.substring(s.start, s.end)).toBe(s.text); }
+        for (const e of d!.phrase_evidence) {
+          if (e.de) { expect(cp(p.german_text!, e.de.start, e.de.end)).toBe(e.de.text); }
+          if (e.en) { expect(cp(p.english_text!, e.en.start, e.en.end)).toBe(e.en.text); }
+        }
       }
     }
   });
@@ -171,12 +305,12 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     (el.querySelector('[data-test="toc-ch-7"]') as HTMLElement).click();
     fixture.detectChanges();
     expect(component.selectedChapterNumber).toBe(7);
-    expect(enCells()[0].getAttribute('data-passage-id')).toBe('HEIDI-P1-C07-P0001');
+    expect(enCells()[0].getAttribute('data-passage-id')).toBe('ch07-a001');
   });
 
   it('renders English on the left and German on the right in synchronised rows', () => {
     const heads = el.querySelectorAll('.hd-cell--head .reader-lang-title');
-    expect(heads[0].textContent).toContain('Human English Translation');
+    expect(heads[0].textContent).toContain('Human English — Elisabeth P. Stork');
     expect(heads[1].textContent).toContain('German Original');
     const en = enCells(), de = deCells();
     expect(en.length).toBe(component.chapter!.passages.length);
@@ -205,7 +339,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     const d = el.querySelector('[data-test="dim-tabs"]')!.getBoundingClientRect();
     expect(h.bottom).toBeLessThanOrEqual(d.top + 0.5);
     const tabs = Array.from(el.querySelectorAll('[data-test="dim-tabs"] .reader-dimension-tab-btn')).map(b => b.querySelector('.tab-label')!.textContent!.trim());
-    expect(tabs).toEqual(['Semantic', 'Emotion', 'Metaphor', 'Tone', 'Voice', 'Cultural', 'Omissions']);
+    expect(tabs).toEqual(['Semantic', 'Emotion', 'Metaphor', 'Tone', 'Voice', 'Cultural', 'Omissions', 'Wordplay']);
   });
 
   it('dimension tabs show real chapter scores and selection updates highlights and inspector', () => {
@@ -213,7 +347,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     const semTab = el.querySelector('[data-test="tab-semantic"] .tab-score-pill')!;
     expect(semTab.textContent!.trim()).toBe(component.chapterDimMean(ch, 'semantic')!.toFixed(1));
     component.showAnalysis = true;
-    const p = ch.passages.find(x => x.alignment.status === 'aligned' && (x.analysis.dimensions.cultural?.phrase_evidence.length || 0) > 0)!;
+    const p = ch.passages.find(x => isAlignmentUsable(x) && (x.analysis.dimensions.cultural?.phrase_evidence.length || 0) > 0)!;
     const sem = component.spans(p, 'de');
     (el.querySelector('[data-test="tab-cultural"]') as HTMLElement).click();
     fixture.detectChanges();
@@ -229,7 +363,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
   });
 
   it('Show analysis toggles phrase highlighting and the phrase legend', () => {
-    const p = component.chapter!.passages.find(x => x.alignment.status === 'aligned')!;
+    const p = component.chapter!.passages.find(x => isAlignmentUsable(x))!;
     expect(component.spans(p, 'en').length).toBe(0);
     expect(el.querySelectorAll('.ev-span').length).toBe(0);
     expect(el.querySelector('[data-test="analysis-bar"]')).toBeNull();
@@ -255,7 +389,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
   });
 
   it('alignment-status filter isolates unmatched passages with an explicit missing-counterpart notice', () => {
-    component.selectChapter(10);
+    component.selectChapter(14);
     component.filters.alignment = 'unmatched';
     fixture.detectChanges();
     expect(component.visiblePassages.length).toBeGreaterThan(0);
@@ -348,7 +482,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
   });
 
   it('RTT card shows "—" (not 0) and Not Run before generation; coverage counts only completed results', () => {
-    const p = component.chapter!.passages.find(x => x.alignment.status === 'aligned')!;
+    const p = component.chapter!.passages.find(x => isAlignmentUsable(x))!;
     component.selectPassage(p);
     component.rttExpanded = true;
     fixture.detectChanges();
@@ -356,11 +490,11 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     expect(el.querySelector('[data-test="rtt-status"]')!.textContent).toContain('Not Run');
     expect(el.querySelector('[data-test="rtt-coverage"]')!.textContent).toContain('RTT verified: 0 of');
     const rtt = TestBed.inject(HeidiRttService);
-    rtt.evaluate(p.passage_id, p.german_text!, p.german_text!, 100, 'h');
+    rtt.evaluate(p.passage_id, p.english_text!, p.english_text!, 100, 'h');
     fixture.detectChanges();
     expect(el.querySelector('[data-test="rtt-coverage"]')!.textContent).toContain('RTT verified: 1 of');
     expect(el.querySelector('[data-test="rtt-score"]')!.textContent!.trim()).toBe('100');
-    expect(el.querySelector('[data-test="rtt-bt"]')!.textContent).toContain(p.german_text!.slice(0, 20));
+    expect(el.querySelector('[data-test="rtt-bt"]')!.textContent).toContain(p.english_text!.slice(0, 20));
   });
 
   it('RTT generation is disabled with an explanation for passages that need alignment review', () => {
@@ -371,7 +505,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
   });
 
   it('expert review is stored under the Heidi key, persists, and updates the displayed score', () => {
-    const p = component.chapter!.passages.find(x => x.alignment.status === 'aligned')!;
+    const p = component.chapter!.passages.find(x => isAlignmentUsable(x))!;
     component.selectPassage(p);
     component.reviewerName = 'Dr. Test';
     component.selectedDimension = 'semantic';
@@ -397,7 +531,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     component.exportReviews();
     const names = spy.calls.allArgs().map(a => a[0]);
     expect(names).toEqual(['heidi_chapter_01_passages.csv', 'heidi_all_passages.csv', 'heidi_validation_queue.csv', 'heidi_expert_reviews.json']);
-    expect(String(spy.calls.argsFor(0)[1])).toContain('HEIDI-P1-C01-P0001');
+    expect(String(spy.calls.argsFor(0)[1])).toContain('ch01-a001');
   });
 
   it('Hide TOC collapses the navigator, keeps the inspector usable and expands the reader', () => {
@@ -422,7 +556,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
 
   describe('selected-passage analysis card', () => {
     const openFromToc = (id: string) => {
-      const ch = Number(id.slice(10, 12));
+      const ch = Number(id.slice(2, 4));
       if (!component.isChapterExpanded(component.chapters[ch - 1])) {
         (el.querySelector(`[data-test="toc-expand-${ch}"]`) as HTMLElement).click();
         fixture.detectChanges();
@@ -459,7 +593,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     });
 
     it('highlights only the selected dimension evidence in the card', () => {
-      const p = component.chapters.flatMap(c => c.passages).find(x => x.alignment.status === 'aligned' && (x.analysis.dimensions.cultural?.phrase_evidence.length || 0) > 0)!;
+      const p = component.chapters.flatMap(c => c.passages).find(x => isAlignmentUsable(x) && (x.analysis.dimensions.cultural?.phrase_evidence.length || 0) > 0)!;
       component.openPassageCard(p);
       fixture.detectChanges();
       const sem = component.cardSpans(p, 'de').map(s => s.start);
@@ -476,34 +610,39 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
       expect(el.querySelector('[data-test="card-align-notice"]')).toBeTruthy();
     });
 
-    it('RTT table defaults to Compare Both, shows RTT Not Run, and computes signed differences from real data', () => {
-      const p = component.chapters[0].passages.find(x => x.alignment.status === 'aligned')!;
+    it('RTT panel defaults to Compare Both, shows RTT Not Run, and computes signed differences from real data', () => {
+      const p = component.chapters[0].passages.find(x => isAlignmentUsable(x) && component.eff(x, 'semantic').score !== null)!;
       component.openPassageCard(p);
       fixture.detectChanges();
       expect(component.rttViewMode).toBe('compare');
-      const heads = Array.from(el.querySelectorAll('[data-test="rtt-table"] th')).map(t => t.textContent!.trim());
-      expect(heads).toEqual(['Dimension', 'Direct Assessment', 'Round Trip', 'Difference', 'Status', 'Evidence Action']);
-      expect(el.querySelector('[data-test="rtt-not-run"]')!.textContent).toContain('RTT Not Run');
+      const heads = Array.from(el.querySelectorAll('[data-test="rttp-table"] th')).map(t => t.textContent!.trim());
+      expect(heads).toEqual(['Dimension', 'Direct', 'RTT', 'Difference', 'Status', 'Evidence']);
+      expect(el.querySelector('[data-test="rttp-not-run"]')!.textContent).toContain('RTT Not Run');
+      expect(el.querySelector('[data-test="rtt-panel"]')!.textContent).toContain('Human English → German original → AI back-translated English');
+      expect(el.querySelector('[data-test="rtt-panel"]')!.textContent).toContain('reverse-translation consistency check against the human English translation');
       let rows = component.rttRows(p);
-      expect(rows.length).toBe(7);
+      expect(rows.length).toBe(8);
       expect(rows.every(r => r.diff === null)).toBeTrue();
       const direct = component.eff(p, 'semantic').score!;
-      TestBed.inject(HeidiRttService).evaluate(p.passage_id, p.german_text!, p.german_text!, direct, 'h');
+      TestBed.inject(HeidiRttService).evaluate(p.passage_id, p.english_text!, p.english_text!, direct, 'h');
       fixture.detectChanges();
       rows = component.rttRows(p);
       const sem = rows.find(r => r.key === 'semantic')!;
       expect(sem.rtt).toBe(100);
       expect(sem.diff).toBe(Math.round((100 - direct) * 10) / 10);
       expect(sem.exceeds).toBe(Math.abs(100 - direct) >= 15);
-      expect(rows.find(r => r.key === 'emotion')!.diff).toBeNull();
-      expect(el.querySelector('[data-test="rtt-not-run"]')).toBeNull();
-      (el.querySelector('[data-test="rtt-row-tone"] .v15-rtt-inspect-btn') as HTMLElement).click();
+      // the semantic RTT score is never copied to other dimensions
+      expect(rows.filter(r => r.key !== 'semantic').every(r => r.rtt === null && r.diff === null)).toBeTrue();
+      expect(component.heidiRttPanelRows(p).filter(r => r.key !== 'semantic').every(r => r.rtt === null)).toBeTrue();
+      expect(el.querySelector('[data-test="rttp-not-run"]')).toBeNull();
+      expect(el.querySelector('[data-test="rttp-bt"]')!.textContent).toContain(p.english_text!.slice(0, 20));
+      (el.querySelector('[data-test="rttp-row-tone"] .sa-btn') as HTMLElement).click();
       fixture.detectChanges();
       expect(component.selectedDimension).toBe('tone');
-      expect(el.querySelector('[data-test="rtt-row-tone"]')!.classList).toContain('v15-rtt-row--active');
-      (el.querySelector('[data-test="rtt-mode-original"]') as HTMLElement).click();
+      expect(el.querySelector('[data-test="rttp-row-tone"]')!.classList).toContain('on');
+      (el.querySelector('[data-test="rttp-direct"]') as HTMLElement).click();
       fixture.detectChanges();
-      expect(Array.from(el.querySelectorAll('[data-test="rtt-table"] th')).map(t => t.textContent!.trim())).not.toContain('Round Trip');
+      expect(Array.from(el.querySelectorAll('[data-test="rttp-table"] th')).map(t => t.textContent!.trim())).toEqual(['Dimension', 'Direct', 'Status', 'Evidence']);
     });
 
     it('Next Review moves to the next flagged, unreviewed passage and updates the TOC selection', () => {
@@ -559,7 +698,7 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     });
 
     it('saves verdicts and overrides, and imports review JSON exported by the page', () => {
-      const p = component.chapters[0].passages.find(x => x.alignment.status === 'aligned')!;
+      const p = component.chapters[0].passages.find(x => isAlignmentUsable(x))!;
       component.openPassageCard(p);
       fixture.detectChanges();
       component.setVerdict('revise');
@@ -589,6 +728,235 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     });
   });
 
+  describe('Phase 6 — dimension highlighting, evidence inspector and RTT (Heidi)', () => {
+    beforeEach(() => {
+      localStorage.removeItem('heidi_evidence_reviews_v1');
+      TestBed.inject(EvidenceReviewService).reload('heidi');
+    });
+    afterEach(() => localStorage.removeItem('heidi_evidence_reviews_v1'));
+
+    /** A verified passage with ≥2 located, paired semantic evidence items whose first item is Preserved; wordplay N/A. */
+    const verifiedWithEvidence = () => component.chapters[0].passages.find(x => x.alignment.status === 'verified'
+      && x.analysis.dimensions.wordplay?.status === 'not_applicable'
+      && (x.analysis.dimensions.semantic?.phrase_evidence || []).filter(e => e.de && e.en).length > 1
+      && x.analysis.dimensions.semantic!.phrase_evidence[0].label === 'Preserved' && !!x.analysis.dimensions.semantic!.phrase_evidence[0].de)!;
+
+    it('shows all eight dimensions with N/A (not 0) for unassessed ones, e.g. Wordplay', () => {
+      const p = verifiedWithEvidence();
+      component.openPassageCard(p);
+      fixture.detectChanges();
+      const pills = Array.from(el.querySelectorAll('[data-test="card-dim-tabs"] button')).map(b => b.querySelector('.tab-label')!.textContent!.trim() + ' ' + b.querySelector('.tab-score-pill')!.textContent!.trim());
+      expect(pills.length).toBe(8);
+      expect(pills[7]).toBe('Wordplay N/A');
+      component.selectDimension('wordplay');
+      fixture.detectChanges();
+      expect(el.querySelector('[data-test="ds-direct"]')!.textContent).toBe('Not evaluated');
+      expect(el.querySelectorAll('[data-test="card-de"] .ev-span').length).toBe(0);
+    });
+
+    it('links German and English spans of one evidence item by evidence ID and opens the inspector; Next evidence steps', () => {
+      const p = verifiedWithEvidence();
+      component.openPassageCard(p);
+      fixture.detectChanges();
+      const de = component.cardSpans(p, 'de'), en = component.cardSpans(p, 'en');
+      expect(de.length).toBeGreaterThan(0);
+      const code = 'HEIDI-' + p.passage_id.toUpperCase().replace('-', '-') + '-SEM-';
+      expect(de.every(s => !!s.linkId && s.linkId.startsWith(code))).toBeTrue();
+      expect(de.some(s => en.some(e => e.linkId === s.linkId))).toBeTrue();
+      (el.querySelector('[data-test="card-de"] .ev-span') as HTMLElement).click();
+      fixture.detectChanges();
+      expect(el.querySelector('[data-test="evidence-detail"]')).toBeTruthy();
+      expect(el.querySelectorAll('[data-test="card-en"] .ev-span-active-link').length + el.querySelectorAll('[data-test="card-de"] .ev-span-active-link').length).toBe(2);
+      const first = component.selectedEvidenceId;
+      (el.querySelector('[data-test="ed-next"]') as HTMLElement).click();
+      fixture.detectChanges();
+      expect(component.selectedEvidenceId).not.toBe(first);
+      expect(component.activeLinkId).toBe(component.selectedEvidenceId);
+    });
+
+    it('expert reclassification changes the displayed highlight but preserves the machine category', () => {
+      const p = verifiedWithEvidence();
+      component.openPassageCard(p);
+      component.stepEvidence(p, 0);
+      fixture.detectChanges();
+      const id = component.selectedEvidenceId!;
+      (el.querySelector('[data-test="ed-reclassify"]') as HTMLElement).click();
+      fixture.detectChanges();
+      const sel = el.querySelector('[data-test="ed-category"]') as HTMLSelectElement;
+      sel.value = sel.options[2].value; // Lost
+      sel.dispatchEvent(new Event('change'));
+      (el.querySelector('[data-test="ed-save-reclassify"]') as HTMLElement).click();
+      fixture.detectChanges();
+      expect(component.cardSpans(p, 'de').find(s => s.linkId === id)!.status).toBe('Lost');
+      expect(component.evidenceItems(p, 'semantic').find(x => x.id === id)!.machineCategory).toBe('Preserved');
+      expect(el.querySelector('[data-test="ed-machine-cat"]')!.textContent).toContain('Preserved');
+    });
+
+    it('highlights only the selected dimension: switching dimension never shows another dimension\'s evidence', () => {
+      const p = verifiedWithEvidence();
+      component.openPassageCard(p);
+      for (const k of ['semantic', 'imagery', 'tone', 'cultural', 'omissions'] as const) {
+        component.selectDimension(k);
+        const code = { semantic: 'SEM', imagery: 'IMG', tone: 'TON', cultural: 'CUL', omissions: 'OMI' }[k];
+        for (const side of ['de', 'en'] as const) {
+          expect(component.cardSpans(p, side).every(sp => (sp.linkId || '').includes('-' + code + '-'))).withContext(k).toBeTrue();
+        }
+      }
+    });
+
+    it('Revise stores corrected classification, explanation and score while keeping the machine result', () => {
+      const p = verifiedWithEvidence();
+      component.openPassageCard(p);
+      component.stepEvidence(p, 0);
+      fixture.detectChanges();
+      const id = component.selectedEvidenceId!;
+      (el.querySelector('[data-test="ed-revise"]') as HTMLElement).click();
+      fixture.detectChanges();
+      const cmp = fixture.debugElement.query(sel => sel.name === 'app-evidence-detail' && !!sel.componentInstance?.ev).componentInstance;
+      cmp.category = 'Changed';
+      cmp.explanation = 'Expert: nuance shifts.';
+      cmp.score = 150;
+      cmp.decide('revise');
+      expect(cmp.scoreError).toBeTruthy();
+      cmp.score = 70;
+      cmp.decide('revise');
+      const rec = TestBed.inject(EvidenceReviewService).get('heidi', id)!;
+      expect(rec.decision).toBe('revise');
+      expect(rec.corrected_category).toBe('Changed');
+      expect(rec.corrected_explanation).toBe('Expert: nuance shifts.');
+      expect(rec.corrected_score).toBe(70);
+      expect(rec.original.category).toBe('Preserved');
+      component.onEvidenceDecided();
+      expect(component.cardSpans(p, 'de').find(sp => sp.linkId === id)!.status).toBe('Changed');
+      expect(component.evidenceItems(p, 'semantic').find(x => x.id === id)!.machineCategory).toBe('Preserved');
+    });
+
+    it('dimension selector shows badges, indicator bars and a review dot; RTT workflows are labelled and separate', () => {
+      const p = component.chapters[0].passages.find(x => x.passage_id === 'ch01-a002')!;
+      component.openPassageCard(p);
+      fixture.detectChanges();
+      expect(el.querySelectorAll('[data-test="card-dim-tabs"] .hd-dimsel-bar').length).toBe(8);
+      expect(el.querySelector('[data-test="card-tab-score-emotion"]')!.textContent!.trim()).toBe('N/A');
+      expect(el.querySelector('[data-test="card-tab-score-semantic"]')!.textContent!.trim()).toBe(String(p.analysis.dimensions.semantic!.score));
+      expect(el.querySelectorAll('[data-test="tab-review-dot"]').length).toBeGreaterThan(0);
+      expect(el.querySelector('[data-test="card-cat-counts"]')!.textContent).toContain('Preserved');
+      const ver = el.querySelector('[data-test="card-rtt-verification"]')!.textContent!;
+      expect(ver).toContain('Workflow A: German original → AI English');
+      expect(ver).toContain('Workflow B: Human English → AI German → AI English');
+      expect(ver).toContain('not');
+      expect(el.querySelector('[data-test="rtt-b-none"]')).toBeTruthy();
+      // RTT never feeds other dimensions
+      expect(component.rttRows(p).filter(r => r.key !== 'semantic').every(r => r.rtt === null)).toBeTrue();
+    });
+
+    it('opens in-app PDF reader panel with highlighted passage/phrase text instead of external tab', () => {
+      const p = component.chapters[0].passages[0];
+      component.selectPassage(p);
+      expect(component.pdfPanelOpen).toBeFalse();
+
+      component.openPdfBook('english', p);
+      expect(component.pdfPanelOpen).toBeTrue();
+      expect(component.activePdfBook).toBe('english');
+      expect(component.pdfSource).toBe('assets/heidi/heidi_en_pg20781.pdf');
+      expect(component.pdfHighlightText).toBe((p.english_text || '').trim());
+
+      component.openPdfBook('german', p);
+      expect(component.pdfPanelOpen).toBeTrue();
+      expect(component.activePdfBook).toBe('german');
+      expect(component.pdfSource).toBe('assets/heidi/heidi_de_pg7500.pdf');
+      expect(component.pdfHighlightText).toBe((p.german_text || '').trim());
+
+      fixture.detectChanges();
+      const panel = el.querySelector('.ha-pdf-panel');
+      expect(panel).toBeTruthy();
+
+      // Escape key closes PDF panel
+      component.onEsc();
+      expect(component.pdfPanelOpen).toBeFalse();
+    });
+
+    it('sidebar shows chapter coverage and passage status; disputed groups are labelled', () => {
+      fixture.detectChanges();
+      expect(el.querySelector('[data-test="toc-coverage"]')!.textContent).toMatch(/\d+\/\d+ analysed/);
+      const d = component.chapters.flatMap(c => c.passages).find(x => x.analysis.status === 'alignment_disputed')!;
+      expect(component.passageStatusShort(d)).toBe('Alignment disputed');
+      expect(component.align.needsAlignmentReview(d)).toBeTrue();
+      expect(component.tabBadge(d, 'semantic').text).toBe('Alignment disputed');
+    });
+
+    it('single-side evidence (and omissions/additions) are highlighted on one side only', () => {
+      // Literary analysis: an Added item exists only in English, a Lost item only in German.
+      const added = component.chapters.flatMap(c => c.passages).find(x => isAlignmentUsable(x)
+        && (x.analysis.dimensions.omissions?.phrase_evidence || []).some(e => e.label === 'Added' && !!e.en))!;
+      const ev = added.analysis.dimensions.omissions!.phrase_evidence.find(e => e.label === 'Added' && !!e.en)!;
+      component.openPassageCard(added);
+      component.selectDimension('omissions');
+      fixture.detectChanges();
+      expect(ev.de).toBeNull();
+      expect(component.cardSpans(added, 'en').some(s => s.linkId === ev.id && s.status === 'Added')).toBeTrue();
+      expect(component.cardSpans(added, 'de').some(s => s.linkId === ev.id)).toBeFalse();
+      const om = component.chapters.flatMap(c => c.passages).find(x => isAlignmentUsable(x)
+        && (x.analysis.dimensions.omissions?.phrase_evidence || []).some(e => !e.en || !e.de));
+      if (om) {
+        component.openPassageCard(om);
+        component.selectDimension('omissions');
+        for (const e of om.analysis.dimensions.omissions!.phrase_evidence.filter(x => !x.en || !x.de)) {
+          const id = component.evLink(om, e);
+          expect(component.cardSpans(om, e.en ? 'de' : 'en').some(s => s.linkId === id)).toBeFalse();
+        }
+      }
+    });
+
+    it('low-confidence evidence is shown as Uncertain and medium/low alignments withhold highlights', () => {
+      const all = component.chapters.flatMap(c => c.passages);
+      const p = all.find(x => isAlignmentUsable(x) && Object.values(x.analysis.dimensions).some(d => d!.phrase_evidence.some(e => e.confidence === 'low')));
+      if (p) {
+        const [k, d] = Object.entries(p.analysis.dimensions).find(([, d]) => d!.phrase_evidence.some(e => e.confidence === 'low'))!;
+        const low = d!.phrase_evidence.find(e => e.confidence === 'low')!;
+        expect(component.evidenceItems(p, k as any).find(x => x.id === component.evLink(p, low))!.category).toBe('Uncertain');
+      }
+      const medium = all.find(x => x.alignment.status === 'needs_review')!;
+      expect(component.cardSpans(medium, 'en').length).toBe(0);
+      expect(medium.alignment.confidence_label).toBe('medium');
+    });
+
+    it('evidence whose offsets do not match the displayed text is listed as Unlocated evidence and not highlighted', () => {
+      const p = JSON.parse(JSON.stringify(verifiedWithEvidence())) as HeidiPassage;
+      p.passage_id = p.passage_id; // same id, cloned data
+      p.analysis.dimensions.semantic!.phrase_evidence[0].de!.text = 'NICHT-IM-TEXT';
+      const items = component.evidenceItems({ ...p, passage_id: p.passage_id + '-clone' }, 'semantic');
+      expect(items[0].located).toBeFalse();
+      expect(component.cardSpans({ ...p, passage_id: p.passage_id + '-clone' }, 'de').some(s => s.linkId === items[0].id)).toBeFalse();
+      expect(component.unlocatedFor({ ...p, passage_id: p.passage_id + '-clone' }).length).toBeGreaterThan(0);
+    });
+
+    it('keeps the active dimension across Previous / Next passage navigation', () => {
+      const p = component.chapters[0].passages[2];
+      component.openPassageCard(p);
+      component.selectDimension('voice');
+      component.stepCard(1);
+      expect(component.selectedPassageId).toBe(component.chapters[0].passages[3].passage_id);
+      expect(component.selectedDimension).toBe('voice');
+      component.stepCard(-1);
+      expect(component.selectedPassageId).toBe(p.passage_id);
+      expect(component.selectedDimension).toBe('voice');
+      expect(component.hasAdjacent(component.chapters[0].passages[0], -1)).toBeFalse();
+    });
+
+    it('RTT disagreements above the configurable threshold enter the validation queue as potential disagreements', () => {
+      const p = component.chapters.flatMap(c => c.passages).find(x => isAlignmentUsable(x) && (component.eff(x, 'semantic').score ?? 0) >= 90)!;
+      const rtt = TestBed.inject(HeidiRttService);
+      component.setRttThreshold(15);
+      rtt.evaluate(p.passage_id, 'Completely unrelated words about Frankfurt rain.', p.english_text!, component.eff(p, 'semantic').score, 'h');
+      component.rebuildQueue();
+      const q = component.queueItems.filter(i => i.passage.passage_id === p.passage_id && i.issue === 'rtt_disagreement');
+      expect(q.length).toBe(1);
+      expect(q[0].issueLabel).toBe('Potential disagreement — review recommended');
+      // the direct score is never overwritten or averaged
+      expect(component.eff(p, 'semantic').score).toBe(p.analysis.dimensions.semantic!.score);
+    });
+  });
+
   it('maps dataset evidence kinds onto Hamlet phrase categories and score bands', () => {
     const ev = (kind: string) => ({ id: 'x', de: null, en: null, kind, explanation: '', confidence: 'low' as const });
     expect(categorizeEvidence('semantic', ev('lexical_correspondence'))).toBe('Preserved');
@@ -606,6 +974,8 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
 class OutletHostComponent {}
 
 describe('Project routes (Hamlet v1.5 | Heidi v1.0)', () => {
+  beforeAll(async () => { DATASET = DATASET || await loadDataset(); });
+
   it('resolves /hamlet-analysis, lazy-loads /heidi-analysis and keeps the empty path on Hamlet', async () => {
     await TestBed.configureTestingModule({
       imports: [OutletHostComponent, HttpClientTestingModule, RouterTestingModule.withRoutes(APP_ROUTES)],
@@ -634,11 +1004,11 @@ describe('Project routes (Hamlet v1.5 | Heidi v1.0)', () => {
     TestBed.configureTestingModule({});
     const reviews = TestBed.inject(HeidiReviewService);
     reviews.reload();
-    const r = reviews.blank('HEIDI-P1-C01-P0001');
+    const r = reviews.blank('ch01-a001');
     r.commentary = 'x';
     reviews.save(r, 'R');
     const fresh = new HeidiReviewService();
-    expect(fresh.get('HEIDI-P1-C01-P0001')?.commentary).toBe('x');
+    expect(fresh.get('ch01-a001')?.commentary).toBe('x');
     expect(localStorage.getItem('hamlet_v5_expert_reviews')).toBe(hamlet);
     localStorage.removeItem('hamlet_v5_expert_reviews');
     localStorage.removeItem(HEIDI_REVIEW_STORAGE_KEY);

@@ -87,3 +87,61 @@ a.verification-btn { text-decoration: none; }
 .v15-chip.hd-chip--disagreement { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .v15-evidence-box app-ha-evidence-highlighted-text { display: block; }
 .v15-rtt-table-wrap { overflow-x: auto; }
+
+/* ---- Literary analysis UI (eight-dimension comparison) ---- */
+/* Left navigator 300–340px (Hamlet uses 340–400px); centre keeps two equal columns. */
+.ha-layout-three-col { grid-template-columns: clamp(300px, 22vw, 340px) minmax(0, 1fr) minmax(260px, 300px); }
+.ha-layout-three-col.ha-toc-collapsed { grid-template-columns: 0px minmax(0, 1fr) minmax(260px, 300px); }
+.ha-layout-three-col.ha-layout-two-col, .ha-layout-two-col { grid-template-columns: clamp(300px, 22vw, 340px) minmax(0, 1fr); }
+@media (max-width: 1024px) {
+  .ha-layout-three-col, .ha-layout-two-col { grid-template-columns: clamp(300px, 30vw, 340px) minmax(0, 1fr); }
+}
+.ha-col-toc, .table-of-contents, .toc-panel { min-width: 0; }
+
+/* Reading text: serif 17–19px, no fixed heights */
+.hd-sync-grid .reader-dialogue-body, .hd-sync-grid .literary-text,
+.v15-evidence-box--primary .literary-text, .v15-evidence-box--primary app-ha-evidence-highlighted-text {
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+  font-size: clamp(17px, 1.05vw + 4px, 19px); line-height: 1.65; max-height: none; height: auto;
+}
+.v15-evidence-columns--two { align-items: stretch; }
+.v15-evidence-box--primary { max-height: none !important; height: auto !important; overflow: visible !important; }
+.reader-lang-title { font-size: 14px; }
+
+/* Dimension selector: badge, indicator bar, review dot, horizontal scroll */
+.hd-dimsel-track { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; gap: 4px; padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+.hd-dimsel-btn { position: relative; flex: 0 0 auto; scroll-snap-align: start; display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 84px; padding-bottom: 6px !important;
+  &.reader-dimension-tab-btn--active { box-shadow: inset 0 -2px 0 #2563eb; }
+  &:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; } }
+.hd-dimsel-bar { display: block; width: 100%; height: 3px; border-radius: 2px; background: #e2e8f0; overflow: hidden;
+  i { display: block; height: 100%; } }
+.tab-score-pill.hd-na { color: #64748b !important; font-weight: 500; font-size: 10.5px; }
+.hd-review-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #d97706; margin-left: 4px; vertical-align: middle; }
+
+/* Compact summary of evidence categories */
+.hd-count-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12px; }
+.hd-count-lbl { color: #64748b; font-size: 11.5px; }
+.v15-chip.hd-chip--uncertain, .hd-count-strip .v15-chip.hd-chip--uncertain { background: #f1f5f9; color: #475569; border: 1px dotted #64748b; }
+
+/* Evidence list extras */
+.hd-verify-tag--soft { background: #f1f5f9 !important; color: #475569 !important; }
+.hd-ev-id { font-size: 10px; color: #94a3b8; margin-left: 4px; }
+.hd-toc-status { font-size: 10px; color: #64748b;
+  &[data-status="Needs review"] { color: #b45309; } &[data-status="Alignment disputed"] { color: #b91c1c; }
+  &[data-status="Reviewed"] { color: #1d4ed8; } &[data-status="Analysed"] { color: #15803d; } }
+
+/* RTT workflow B */
+.hd-rtt-b { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e2e8f0; }
+.hd-rtt-b-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 6px 0;
+  .literary-text { font-family: Georgia, serif; font-size: 15px; line-height: 1.55; }
+  @media (max-width: 720px) { grid-template-columns: minmax(0, 1fr); } }
+/* Narrower navigator: keep the Hamlet TOC controls inside the column */
+.ha-col-toc { overflow: hidden; }
+.ha-col-toc .toc-header, .ha-col-toc .toc-header * { box-sizing: border-box; max-width: 100%; }
+.ha-col-toc .toc-filter-pills-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ha-col-toc .toc-filter-pill { flex: 1 1 120px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ha-col-toc .toc-search-wrap, .ha-col-toc .toc-search-input-box, .ha-col-toc .toc-select-wrapper, .ha-col-toc .toc-color-by-select { width: 100%; }
+.ha-col-toc, .table-of-contents, .toc-panel { width: 100% !important; flex: 0 0 auto !important; min-width: 0 !important; max-width: 340px; }
+.ha-layout-three-col.ha-toc-collapsed .ha-col-toc { width: 0 !important; }

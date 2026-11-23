@@ -67,30 +67,28 @@ export class PdfHighlighterComponent implements OnInit, OnChanges, OnDestroy {
 
   private prepareSearchText(text: string): string {
     let cleaned = (text || '')
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
+      .replace(/\r\n/g, ' ')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
 
     if (!cleaned) {
       return '';
     }
 
-    const quoteIndex = Math.min(
-      ...['"', "'"].map((q) => cleaned.indexOf(q)).filter((i) => i >= 0)
-    );
-    if (Number.isFinite(quoteIndex) && quoteIndex >= 0) {
-      cleaned = cleaned.slice(0, quoteIndex).trim();
-    }
+    // Strip wrapping quotes if any
+    cleaned = cleaned.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
 
     if (cleaned.length > this.maxSearchLength) {
       const chunk = cleaned.slice(0, this.maxSearchLength);
       const lastBreak = Math.max(
-        chunk.lastIndexOf('\n'),
         chunk.lastIndexOf('. '),
         chunk.lastIndexOf('? '),
-        chunk.lastIndexOf('! ')
+        chunk.lastIndexOf('! '),
+        chunk.lastIndexOf(', '),
+        chunk.lastIndexOf(' ')
       );
-      cleaned = (lastBreak > 40 ? chunk.slice(0, lastBreak + 1) : chunk).trim();
+      cleaned = (lastBreak > 40 ? chunk.slice(0, lastBreak) : chunk).trim();
     }
 
     return cleaned;

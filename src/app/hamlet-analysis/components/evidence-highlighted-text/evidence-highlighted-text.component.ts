@@ -40,6 +40,11 @@ export function codePointLength(text: string): number {
           (mouseenter)="onSegmentHover(seg, $event)"
           (mouseleave)="onSegmentLeave()"
           (click)="onSegmentClick(seg, $event)"
+          (keydown.enter)="onSegmentClick(seg, $any($event))"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="segmentLabel(seg)"
+          [attr.data-category]="categoryOf(seg)"
         >{{ seg.text }}</span>
         <ng-template #plainText>{{ seg.text }}</ng-template>
       </ng-container>
@@ -69,9 +74,9 @@ export function codePointLength(text: string): number {
       border-radius: 2px;
     }
     .ev-span-changed {
-      text-decoration-color: #2563eb;
-      color: #1d4ed8;
-      background: rgba(37, 99, 235, 0.08);
+      text-decoration-color: #d97706;
+      color: #92400e;
+      background: rgba(217, 119, 6, 0.10);
       border-radius: 2px;
     }
     .ev-span-lost {
@@ -87,10 +92,10 @@ export function codePointLength(text: string): number {
       border-radius: 2px;
     }
     .ev-span-review {
-      text-decoration-style: dashed;
-      text-decoration-color: #d97706;
-      color: #92400e;
-      background: rgba(217, 119, 6, 0.08);
+      text-decoration-style: dotted;
+      text-decoration-color: #64748b;
+      color: #334155;
+      background: rgba(100, 116, 139, 0.06);
       border-radius: 2px;
     }
     .ev-span-source-cue {
@@ -130,10 +135,22 @@ export class EvidenceHighlightedTextComponent implements OnChanges {
 
   segments: TextSegment[] = [];
 
+  private lastSignature: string | null = null;
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['text'] || changes['spans']) {
+      // Callers often pass a freshly built (but identical) span array on every change-detection pass.
+      // Rebuilding would recreate the DOM under the pointer (breaking hover/click), so skip identical inputs.
+      const sig = this.signature();
+      if (sig === this.lastSignature) { return; }
+      this.lastSignature = sig;
       this.buildSegments();
     }
+  }
+
+  private signature(): string {
+    const sp = (this.spans || []).map((s) => `${s.start}-${s.end}-${s.status}-${s.isSource ? 1 : 0}-${s.needs_review ? 1 : 0}-${s.linkId || ''}`).join('|');
+    return `${this.text?.length || 0}:${this.text}#${sp}`;
   }
 
   private buildSegments(): void {
@@ -191,7 +208,7 @@ export class EvidenceHighlightedTextComponent implements OnChanges {
 
   getSegmentClasses(seg: TextSegment): Record<string, boolean> {
     const st = (seg.status || 'Preserved').toLowerCase();
-    const isRev = !!seg.needsReview || st.includes('review');
+    const isRev = !!seg.needsReview || st.includes('review') || st.includes('uncertain');
     return {
       'ev-span-source-cue': !!seg.isSource,
       'ev-span-preserved': st.includes('preserv') && !isRev,
@@ -200,6 +217,20 @@ export class EvidenceHighlightedTextComponent implements OnChanges {
       'ev-span-added': st.includes('add') && !isRev,
       'ev-span-review': isRev
     };
+  }
+
+  /** Five-way display category (Preserved / Changed / Lost / Added / Uncertain). */
+  categoryOf(seg: TextSegment): string {
+    const st = (seg.status || 'Preserved').toLowerCase();
+    if (seg.needsReview || st.includes('review') || st.includes('uncertain')) { return 'Uncertain'; }
+    if (st.includes('lost')) { return 'Lost'; }
+    if (st.includes('add')) { return 'Added'; }
+    if (st.includes('chang')) { return 'Changed'; }
+    return 'Preserved';
+  }
+
+  segmentLabel(seg: TextSegment): string {
+    return `${this.categoryOf(seg)} evidence: ${seg.text}`;
   }
 
   onSegmentHover(seg: TextSegment, event: MouseEvent): void {

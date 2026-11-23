@@ -8,30 +8,38 @@ Switch projects with the bar at the top of the app.
 - English: *Heidi* (Gift Edition), tr. Elisabeth P. Stork — Project Gutenberg #20781
 - Scope: Part I, chapters 1–14 only. PDFs are served from `src/assets/heidi/`.
 
-## Data pipeline (reproducible)
+## Data (single file)
+The whole Heidi dataset is `src/assets/data/heidi_part1_side_by_side.json`: the curated English/German parallel index with
+chapter, alignment-group (`chCC-aGGG`) and paragraph (`en-CC-PPP`, `de-CC-PPP`) IDs. Chapter 1 is verified; chapters 2–14 are automatic.
+The app loads only this file. Every score and every phrase-level evidence span is computed in the browser by
+`src/app/heidi-analysis/scoring/heidi-scoring.ts` (see `docs/DIMENSION_HIGHLIGHTING_RTT.md` §5).
+
+## Method resources (rebuild only if the method changes)
 ```bash
-pip install pdfplumber snowballstemmer
+pip install snowballstemmer
 apt-get download trans-de-en && dpkg-deb -x trans-de-en_*.deb ding   # Ding de-en dictionary (GPL)
 export DING_DE_EN=$PWD/ding/usr/share/trans/de-en
-
-python3 scripts/heidi_extract.py --en-pdf EN.pdf --de-pdf DE.pdf   # -> scripts/heidi_work/heidi_extracted.json
-python3 scripts/heidi_lexicon.py                                   # builds the stem lexicon cache (not committed)
-python3 scripts/heidi_align.py                                     # -> scripts/heidi_work/heidi_alignment.json
-python3 scripts/heidi_build_dataset.py                             # -> src/assets/data/heidi_aligned_chapters_1_14.json
-python3 scripts/heidi_validate.py --en-pdf EN.pdf --de-pdf DE.pdf  # -> src/assets/data/heidi_alignment_validation_report.json
-python3 scripts/heidi_rtt_pipeline.py --limit 20                   # needs network access to api.mymemory.translated.net
+python3 scripts/heidi_lexicon.py                       # stem lexicon cache (not committed)
+python3 scripts/heidi_build_lexicon_ts.py              # -> src/app/heidi-analysis/scoring/heidi-lexicon.data.ts
+HEIDI_V2_OUT=/tmp/ref.json python3 scripts/heidi_build_v2.py && node scripts/heidi_scoring_parity.mjs /tmp/ref.json   # 0 differences
+python3 scripts/heidi_rtt_pipeline.py --limit 20       # optional offline RTT (needs api.mymemory.translated.net)
 ```
 
 ## What the statuses mean
-- **Alignment** `aligned` = automatic, confidence ≥ 0.55 — *not* expert-verified. `needs_review` / `low_confidence` are shown
-  as **Needs Alignment Review** and receive no literary scores. `unmatched_de` / `unmatched_en` = no counterpart detected.
-- **Analysis** `automated_heuristic_v1` scores are provisional lexicon/dictionary heuristics (see the docstring in
-  `scripts/heidi_build_dataset.py`). They are labelled as such everywhere and are never mixed with expert scores.
-  Wordplay is `not_assessed` (null), never 0.
-- **RTT**: English (Stork) → MyMemory NMT (en|de) → AI German, compared with Spyri's German using
-  `heidi-german-lexical-sim-v1` (CISTEM stems + char 4-grams). Not calibrated against the direct score — triage only.
+- **Alignment**: `verified` (Chapter 1, checked by reading) and `aligned` (curated confidence *high*, automatic, unreviewed) are scored.
+  `needs_review` (medium) / `low_confidence` (low) are shown as **Needs Alignment Review** and receive no literary scores.
+  `unmatched_de` / `unmatched_en` = an empty side.
+- **Analysis**: `automated_heuristic_v1` scores are provisional lexicon/dictionary heuristics. They are labelled as such everywhere
+  and are never mixed with expert scores. Wordplay is `not_assessed` (null), never 0.
+- **RTT**: a reverse-translation consistency check against the human English translation: Human English → German original →
+  AI back-translated English (MyMemory de|en), compared with Stork's English using `heidi-english-lexical-sim-v1`.
+  Semantic only; not calibrated against the direct score, so it is used for triage only.
 
 ## Storage keys (browser localStorage)
-- `heidi_analysis_reviews_v1` — expert reviews (Hamlet uses `hamlet_v5_expert_reviews`)
-- `heidi_analysis_rtt_v1` — RTT results
+- `heidi_analysis_reviews_v2` — passage-level expert reviews (Hamlet uses `hamlet_v5_expert_reviews`)
+- `heidi_evidence_reviews_v1` — evidence-level decisions (machine assessment preserved)
+- `heidi_analysis_rtt_v2` — RTT results; `heidi_analysis_rtt_threshold_v1` — disagreement threshold
 - `heidi_analysis_reviewer_v1` — last reviewer name
+
+
+> **Update:** scores and phrase evidence now come from the eight-dimension literary comparison — see [HEIDI_LITERARY_ANALYSIS.md](HEIDI_LITERARY_ANALYSIS.md). The browser heuristic scorer is no longer used for scores.

@@ -209,8 +209,9 @@ class Bilex:
             extra |= self.de2en.get(k, set())
         if t or extra:
             return (t or set()) | extra
-        if s in self._comp_cache:
-            return self._comp_cache[s]
+        # cache by word (not stem) so the result never depends on call order
+        if de_word.lower() in self._comp_cache:
+            return self._comp_cache[de_word.lower()]
         # German compound fallback: try head (rightmost) component >= 4 chars
         res = set()
         w = de_word.lower()
@@ -223,7 +224,7 @@ class Bilex:
                 if mod in self.de2en:
                     res |= self.de2en[mod]
                 break
-        self._comp_cache[s] = res
+        self._comp_cache[de_word.lower()] = res
         return res
 
     def coverage(self, de_text, en_text):

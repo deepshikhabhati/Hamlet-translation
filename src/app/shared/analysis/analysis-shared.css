@@ -1,0 +1,47 @@
+/* Shared scholarly-analysis styles (Hamlet v1.5 tokens) used by the shared analysis components. */
+:host { display: block; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; }
+.sa-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(15, 23, 42, .06); }
+.sa-h4 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
+.sa-sub { margin: 2px 0 0; font-size: 12.5px; color: #475569; }
+.sa-muted { font-size: 11.5px; color: #64748b; }
+.sa-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.sa-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; margin-bottom: 10px; }
+.sa-tabs { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+.sa-tabs button { border: 0; background: #fff; padding: 6px 12px; font: inherit; font-size: 12.5px; color: #334155; cursor: pointer; }
+.sa-tabs button + button { border-left: 1px solid #cbd5e1; }
+.sa-tabs button.on { background: #0f172a; color: #fff; font-weight: 600; }
+.sa-tabs button:focus-visible, .sa-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.sa-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
+.sa-panel { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; background: #fafafa; min-width: 0; }
+.sa-panel--ai { background: #faf5ff; border-color: #e9d5ff; }
+.sa-panel h5 { margin: 0 0 4px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #475569; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sa-panel p { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 14px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.sa-ai-tag { font-size: 9.5px; letter-spacing: 0; text-transform: none; background: #7c3aed; color: #fff; border-radius: 3px; padding: 0 5px; }
+.sa-table-wrap { overflow-x: auto; }
+.sa-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
+.sa-table th { text-align: left; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #64748b; background: #f8fafc; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+.sa-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+.sa-table tr.on td { background: #eff6ff; }
+.sa-table tbody tr { cursor: pointer; }
+.sa-table td.num, .sa-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.sa-na { color: #94a3b8; font-style: italic; }
+.sa-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.sa-badge--agree { background: #dcfce7; color: #166534; }
+.sa-badge--potential_disagreement { background: #fef3c7; color: #92400e; }
+.sa-badge--not_evaluated { background: #f1f5f9; color: #64748b; }
+.sa-diff { font-variant-numeric: tabular-nums; font-weight: 600; }
+.sa-btn { border: 1px solid #cbd5e1; background: #fff; color: #1e293b; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.sa-btn:hover:not(:disabled) { border-color: #2563eb; color: #1d4ed8; }
+.sa-btn:disabled { opacity: .5; cursor: not-allowed; }
+.sa-btn--primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.sa-btn--primary:hover:not(:disabled) { background: #1d4ed8; color: #fff; }
+.sa-btn.on { background: #0f172a; border-color: #0f172a; color: #fff; }
+.sa-notrun { border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+.sa-notrun strong { color: #92400e; }
+.sa-err { color: #b91c1c; font-size: 12px; }
+.sa-prov { font-size: 11px; color: #64748b; margin-top: 8px; }
+.sa-prov code { font-size: 10.5px; }
+.sa-cat { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid transparent; }
+.sa-cat i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.sa-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 12.5px; }
+textarea.sa-input { width: 100%; min-height: 48px; }

@@ -48,7 +48,7 @@ export interface QueueItem {
           <div class="queue-summary-pills">
             <span class="queue-pill queue-pill--dlgs">{{ uniqueDialogueCount }} Unique Dialogues</span>
             <span class="queue-pill queue-pill--assessments">{{ items.length }} Assessments</span>
-            <span class="queue-pill queue-pill--rtt" *ngIf="rttDisagreementCount > 0">{{ rttDisagreementCount }} RTT Disagreements</span>
+            <span class="queue-pill queue-pill--rtt" *ngIf="rttDisagreementCount > 0">{{ rttDisagreementCount }} potential RTT disagreements</span>
             <span class="queue-pill queue-pill--done">{{ reviewedCount }} Reviewed</span>
           </div>
         </div>
@@ -82,7 +82,7 @@ export interface QueueItem {
           <label class="issue-select-label">Filter issue:
             <select class="issue-select" [(ngModel)]="issueFilter">
               <option value="all">All issues ({{ items.length }})</option>
-              <option value="rtt_disagreements">RTT Disagreements ({{ rttDisagreementCount }})</option>
+              <option value="rtt_disagreements">Potential RTT disagreements ({{ rttDisagreementCount }})</option>
               <option value="invalid_evidence">Invalid evidence spans</option>
               <option value="model_needs_review">Model needs review</option>
               <option value="low_confidence">Low confidence (&lt;0.70)</option>
@@ -93,7 +93,7 @@ export interface QueueItem {
 
           <!-- Configurable Disagreement Threshold (Task 4) -->
           <div class="rtt-thresh-wrapper" *ngIf="issueFilter === 'rtt_disagreements' || issueFilter === 'all'">
-            <label class="rtt-thresh-label" for="rtt-thresh-input" title="Configurable disagreement threshold; calibrated using expert reviews">
+            <label class="rtt-thresh-label" for="rtt-thresh-input" title="Configurable disagreement threshold — not yet calibrated against expert judgements">
               RTT Threshold:
               <input
                 type="number"
@@ -102,7 +102,7 @@ export interface QueueItem {
                 min="1"
                 max="50"
                 step="1"
-                [(ngModel)]="rttThreshold"
+                [ngModel]="rttThreshold" (ngModelChange)="rttThreshold = +$event; rttThresholdChange.emit(+$event)"
               />
               <span class="rtt-thresh-unit">pts</span>
             </label>
@@ -155,7 +155,7 @@ export interface QueueItem {
                 <div class="queue-score-item queue-rtt-score-item" *ngIf="q.rttScore !== null && q.rttScore !== undefined">
                   <span class="queue-score-lbl">RTT:</span>
                   <strong class="queue-rtt-num">{{ q.rttScore }}</strong>
-                  <span class="queue-diff-badge" [class.is-divergent]="(q.disagreement || 0) >= rttThreshold">
+                  <span class="queue-diff-badge" [class.is-divergent]="isDisagreement(q)">
                     Δ {{ q.disagreement }} pts
                   </span>
                 </div>
@@ -164,8 +164,8 @@ export interface QueueItem {
               <!-- Review Reason & Provenance (Task 4) -->
               <span class="queue-issue-col">
                 <span class="queue-reason-tag" [ngClass]="getReasonClass(q)">{{ q.issueType }}</span>
-                <span *ngIf="q.disagreement !== null && q.disagreement !== undefined && q.disagreement >= rttThreshold" class="queue-rtt-disagree-badge">
-                  RTT Disagreement (Δ {{ q.disagreement }} pts)
+                <span *ngIf="isDisagreement(q)" class="queue-rtt-disagree-badge">
+                  Potential disagreement — review recommended (|Δ| {{ absDiff(q) }} pts)
                 </span>
                 <span *ngIf="q.evidenceValidity === 'Invalid offset'" class="queue-invalid-badge">Invalid span offset</span>
                 <span *ngIf="q.provenance" class="queue-prov-tag" [title]="q.provenance">{{ q.provenance }}</span>
@@ -202,7 +202,18 @@ export class ValidationQueueComponent {
 
   statusFilter: 'open' | 'done' | 'all' = 'open';
   issueFilter: string = 'all';
-  rttThreshold: number = 15;
+  @Input() rttThreshold: number = 15;
+  @Output() rttThresholdChange = new EventEmitter<number>();
+
+  absDiff(q: QueueItem): number | null {
+    return q.disagreement === null || q.disagreement === undefined ? null : Math.round(Math.abs(q.disagreement) * 10) / 10;
+  }
+
+  /** |direct − RTT| at or above the (uncalibrated) threshold. */
+  isDisagreement(q: QueueItem): boolean {
+    const a = this.absDiff(q);
+    return a !== null && a >= this.rttThreshold;
+  }
   sortBy: 'priority' | 'disagreement' | 'score' | 'dialogue_id' = 'priority';
 
   get uniqueDialogueCount(): number {
@@ -219,7 +230,7 @@ export class ValidationQueueComponent {
 
   get rttDisagreementCount(): number {
     return this.items.filter(
-      (item) => item.disagreement !== null && item.disagreement !== undefined && item.disagreement >= this.rttThreshold
+      (item) => this.isDisagreement(item)
     ).length;
   }
 
@@ -235,7 +246,7 @@ export class ValidationQueueComponent {
       if (this.statusFilter === 'done' && !done) return false;
 
       if (this.issueFilter === 'rtt_disagreements') {
-        const hasDisagree = item.disagreement !== null && item.disagreement !== undefined && item.disagreement >= this.rttThreshold;
+        const hasDisagree = this.isDisagreement(item);
         if (!hasDisagree) return false;
       } else if (this.issueFilter === 'invalid_evidence') {
         const isInv = item.issueType.includes('Invalid') || item.evidenceValidity === 'Invalid offset' || (item.reasons && item.reasons.includes('invalid_evidence_span'));

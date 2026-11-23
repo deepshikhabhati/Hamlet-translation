@@ -40,30 +40,30 @@ describe('HeidiReviewService (expert validation, namespaced storage)', () => {
     localStorage.removeItem(HAMLET_KEY);
   });
 
-  it('uses the heidi_analysis_reviews_v1 key and never touches Hamlet review data', () => {
-    expect(HEIDI_REVIEW_STORAGE_KEY).toBe('heidi_analysis_reviews_v1');
-    const r = svc.blank('HEIDI-P1-C01-P0001');
+  it('uses the heidi_analysis_reviews_v2 key and never touches Hamlet review data', () => {
+    expect(HEIDI_REVIEW_STORAGE_KEY).toBe('heidi_analysis_reviews_v2');
+    const r = svc.blank('ch01-a001');
     r.alignment.decision = 'accept';
     r.commentary = 'Pairing verified against both PDFs.';
     svc.save(r, 'Reviewer A');
     expect(localStorage.getItem(HAMLET_KEY)).toBe(hamletSnapshot);
     const stored = JSON.parse(localStorage.getItem(HEIDI_REVIEW_STORAGE_KEY)!);
-    expect(stored['HEIDI-P1-C01-P0001'].reviewer).toBe('Reviewer A');
-    expect(stored['HEIDI-P1-C01-P0001'].reviewed_at).toBeTruthy();
+    expect(stored['ch01-a001'].reviewer).toBe('Reviewer A');
+    expect(stored['ch01-a001'].reviewed_at).toBeTruthy();
     expect(stored['A1-S1-D001']).toBeUndefined();
   });
 
   it('persists across service instances (reload)', () => {
-    const r = svc.blank('HEIDI-P1-C02-P0003');
+    const r = svc.blank('ch02-a003');
     r.omission_addition = 'omission';
     svc.save(r, 'B');
     const fresh = new HeidiReviewService();
-    expect(fresh.get('HEIDI-P1-C02-P0003')?.omission_addition).toBe('omission');
-    expect(fresh.isReviewed('HEIDI-P1-C02-P0003')).toBeTrue();
+    expect(fresh.get('ch02-a003')?.omission_addition).toBe('omission');
+    expect(fresh.isReviewed('ch02-a003')).toBeTrue();
   });
 
   it('override changes the displayed score but preserves automated score and provenance', () => {
-    const p = scored('HEIDI-P1-C01-P0002', 72);
+    const p = scored('ch01-a002', 72);
     expect(svc.effectiveScore(p, 'semantic')).toEqual(jasmine.objectContaining({ score: 72, provenance: 'automated_heuristic', automatedScore: 72 }));
     const r = svc.blank(p.passage_id);
     r.dimensions.semantic = { decision: 'override', score_override: 55, comment: 'Stork condenses the clause.' };
@@ -77,7 +77,7 @@ describe('HeidiReviewService (expert validation, namespaced storage)', () => {
   });
 
   it('accepting a score keeps the automated value with expert provenance', () => {
-    const p = scored('HEIDI-P1-C01-P0003', 64);
+    const p = scored('ch01-a003', 64);
     const r = svc.blank(p.passage_id);
     r.dimensions.semantic = { decision: 'accept', score_override: null, comment: null };
     svc.save(r, 'D');
@@ -85,7 +85,7 @@ describe('HeidiReviewService (expert validation, namespaced storage)', () => {
   });
 
   it('corrected RTT semantic score overrides semantic display only', () => {
-    const p = scored('HEIDI-P1-C01-P0004', 90);
+    const p = scored('ch01-a004', 90);
     const r = svc.blank(p.passage_id);
     r.rtt_inaccurate = true;
     r.rtt_corrected_semantic_score = 70;
@@ -94,7 +94,7 @@ describe('HeidiReviewService (expert validation, namespaced storage)', () => {
   });
 
   it('never converts missing / not-assessed scores to 0', () => {
-    const p = scored('HEIDI-P1-C01-P0005', null);
+    const p = scored('ch01-a005', null);
     expect(svc.effectiveScore(p, 'semantic').score).toBeNull();
     expect(svc.effectiveScore(p, 'wordplay').score).toBeNull();
     expect(svc.effectiveScore(p, 'emotion').score).toBeNull();

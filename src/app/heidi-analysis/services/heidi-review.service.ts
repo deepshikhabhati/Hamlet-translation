@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
+  HEIDI_PASSAGE_ID_RE,
   HEIDI_REVIEW_STORAGE_KEY,
   HeidiDimensionKey,
   HeidiPassage,
@@ -137,7 +138,7 @@ export class HeidiReviewService {
     }
     let n = 0;
     for (const [id, r] of Object.entries(parsed.reviews as Record<string, HeidiPassageReview>)) {
-      if (r && typeof r === 'object' && (r as HeidiPassageReview).passage_id === id && /^HEIDI-P1-C\d\d-P\d{4}$/.test(id)) {
+      if (r && typeof r === 'object' && (r as HeidiPassageReview).passage_id === id && HEIDI_PASSAGE_ID_RE.test(id)) {
         this.reviews[id] = r as HeidiPassageReview;
         n++;
       }

@@ -109,7 +109,7 @@
                           </div>
                           <div class="toc-scene-short-title toc-scene-location-sub">{{ ch.title_en }}</div>
                           <div class="hd-toc-de" lang="de" [title]="ch.title_de">{{ ch.title_de }}</div>
-                          <div class="toc-scene-counts-sub toc-scene-stats-sub">{{ fmt(chapterScore(ch)) }} · {{ chapterFlagged(ch) }} flagged</div>
+                          <div class="toc-scene-counts-sub toc-scene-stats-sub" data-test="toc-coverage">{{ chapterCoverage(ch).analysed }}/{{ chapterCoverage(ch).total }} analysed · {{ chapterFlagged(ch) }} need review<ng-container *ngIf="chapterCoverage(ch).disputed"> · {{ chapterCoverage(ch).disputed }} disputed</ng-container></div>
                         </div>
                         <div class="toc-scene-score-box" [title]="'Chapter ' + ch.chapter_number + ' ' + tocDimensionLabel() + ' score: ' + fmt(chapterScore(ch))">
                           <div class="toc-scene-score-top">
@@ -148,6 +148,8 @@
                             <span class="toc-dialogue-speaker">{{ p.passage_type === 'narration' ? 'Narration' : (p.speaker_label || (p.passage_type === 'mixed' ? 'Narration + speech' : 'Dialogue')) }}</span>
                             <span class="toc-dialogue-dot-sep">·</span>
                             <span class="toc-dialogue-id">{{ shortId(p) }}</span>
+                            <span class="toc-dialogue-dot-sep">·</span>
+                            <span class="hd-toc-status" [attr.data-status]="passageStatusShort(p)">{{ passageStatusShort(p) }}</span>
                           </div>
                           <span *ngIf="passageNeedsReview(p)" class="toc-dialogue-flag" title="Requires expert review" aria-label="Requires expert review">⚑</span>
                         </div>
@@ -193,21 +195,48 @@
               </nav>
               <div class="v15-workspace-actions">
                 <button type="button" class="v15-back-to-scene-btn" (click)="closePassageCard()" data-test="back-to-chapter">← Back to Chapter {{ chapter?.chapter_number }}</button>
-                <a class="v15-pdf-action-btn" href="assets/heidi/heidi_en_pg20781.pdf" target="_blank" rel="noopener">View English PDF</a>
-                <a class="v15-pdf-action-btn v15-pdf-action-btn--de" href="assets/heidi/heidi_de_pg7500.pdf" target="_blank" rel="noopener">View German PDF</a>
+                <button type="button" class="v15-pdf-action-btn" (click)="openPdfBook('english', p)" title="Open English Heidi PDF book">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  View English PDF
+                </button>
+                <button type="button" class="v15-pdf-action-btn v15-pdf-action-btn--de" (click)="openPdfBook('german', p)" title="Open German Heidi PDF book">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  View German PDF
+                </button>
               </div>
             </div>
 
-            <nav class="dimension-toolbar reader-dimension-tabs-bar" aria-label="Literary dimensions in passage" role="tablist" style="margin-bottom: 10px;" data-test="card-dim-tabs">
-              <div class="reader-dimension-tabs-track">
-                <button *ngFor="let d of tabDims" type="button" role="tab" [attr.aria-selected]="selectedDimension === d.key"
-                        class="dimension-tab reader-dimension-tab-btn" [class.reader-dimension-tab-btn--active]="selectedDimension === d.key"
-                        (click)="selectDimension(d.key)" [attr.data-test]="'card-tab-' + d.key">
-                  <span class="tab-label">{{ dimShort[d.key] }}</span>
-                  <span class="tab-score-pill" [style.color]="scoreColor(eff(p, d.key).score)">{{ eff(p, d.key).score ?? 'N/A' }}</span>
+            <nav class="dimension-toolbar reader-dimension-tabs-bar hd-dimsel" aria-label="Literary dimensions in passage" role="tablist" style="margin-bottom: 10px;" data-test="card-dim-tabs">
+              <div class="reader-dimension-tabs-track hd-dimsel-track">
+                <ng-container *ngFor="let d of tabDims"><ng-container *ngIf="tabBadge(p, d.key) as b">
+                <button type="button" role="tab" [attr.aria-selected]="selectedDimension === d.key"
+                        class="dimension-tab reader-dimension-tab-btn hd-dimsel-btn" [class.reader-dimension-tab-btn--active]="selectedDimension === d.key"
+                        (click)="selectDimension(d.key)" [attr.data-test]="'card-tab-' + d.key" [title]="b.title">
+                  <span class="tab-label">{{ dimShort[d.key] }}<i class="hd-review-dot" *ngIf="b.review" aria-label="needs expert review" data-test="tab-review-dot"></i></span>
+                  <span class="tab-score-pill" [class.hd-na]="b.score === null" [style.color]="scoreColor(b.score)" [attr.data-test]="'card-tab-score-' + d.key">{{ b.text }}</span>
+                  <span class="hd-dimsel-bar"><i [style.width.%]="b.score ?? 0" [style.background]="scoreColor(b.score)"></i></span>
                 </button>
+                </ng-container></ng-container>
               </div>
             </nav>
+
+            <app-dimension-summary
+              style="margin-bottom: 10px; display:block"
+              data-test="card-dim-summary"
+              [dimensionLabel]="dimLabel(selectedDimension)"
+              [direct]="eff(p, selectedDimension).score"
+              [rtt]="selectedDimension === 'semantic' ? (rttRecord(p)?.rtt_semantic_score ?? null) : null"
+              [threshold]="rtt.threshold"
+              [provenance]="summaryProvenance(p)"
+              [provenanceLabel]="summaryProvenanceLabel(p)"
+              [reviewWarning]="passageNeedsReview(p) && !reviews.isReviewed(p.passage_id)"
+              [note]="summaryNote(p)"
+            ></app-dimension-summary>
+            <div class="hd-count-strip" *ngIf="p.analysis.status === 'literary_provisional'" data-test="card-cat-counts" aria-label="Evidence categories for the selected dimension">
+              <span class="hd-count-lbl">{{ dimShort[selectedDimension] }} evidence:</span>
+              <span *ngFor="let c of catKeys" class="v15-chip" [ngClass]="chipClass(c)" [attr.data-test]="'cnt-' + c">{{ c }} {{ dimCounts(p, selectedDimension)[c] }}</span>
+              <span class="hd-count-lbl" *ngIf="p.analysis.sentence_alignment as sa">· sentences DE {{ sa.sentences_de }} / EN {{ sa.sentences_en }}, unmatched {{ sa.unmatched_de }}/{{ sa.unmatched_en }}</span>
+            </div>
 
             <section class="v15-dialogue-detail-panel v15-dialogue-detail-panel--standalone" aria-label="Passage analysis and expert review" data-test="passage-card">
               <!-- 1. Header -->
@@ -223,6 +252,8 @@
                   <span class="v15-dialogue-cur-score">Score: <strong [style.color]="scoreColor(eff(p, selectedDimension).score)" data-test="card-score">{{ eff(p, selectedDimension).score ?? (statusText(p, selectedDimension) || 'N/A') }}</strong></span>
                 </div>
                 <div class="v15-dialogue-head-actions">
+                  <button type="button" class="v15-insp-next-btn" (click)="stepCard(-1)" [disabled]="!hasAdjacent(p, -1)" title="Previous passage in this chapter" data-test="card-prev">← Previous</button>
+                  <button type="button" class="v15-insp-next-btn" (click)="stepCard(1)" [disabled]="!hasAdjacent(p, 1)" title="Next passage in this chapter" data-test="card-next">Next →</button>
                   <button type="button" class="v15-insp-next-btn" (click)="nextReview()" [disabled]="!nextReviewPassage()" title="Jump to the next flagged, unreviewed passage (active filters apply)" data-test="next-review">Next Review →</button>
                   <button type="button" class="v15-insp-close-btn" (click)="closePassageCard()" aria-label="Close passage analysis and return to the chapter" data-test="card-close">✕</button>
                 </div>
@@ -237,133 +268,103 @@
                     <span class="v15-chip v15-chip--changed">Changed</span>
                     <span class="v15-chip v15-chip--lost">Lost</span>
                     <span class="v15-chip v15-chip--added">Added</span>
+                    <span class="v15-chip v15-chip--uncertain" title="Evidence requires verification (gray dotted underline)">Uncertain</span>
                   </div>
                 </div>
                 <div *ngIf="align.needsAlignmentReview(p)" class="v15-no-phrase-notice" data-test="card-align-notice">
                   <span class="v15-notice-icon">⚠️</span>
-                  <span>{{ align.statusLabel(p) }} — this pairing requires verification. Phrase highlights and literary scores are withheld until an expert accepts the alignment.</span>
+                  <span>{{ align.statusLabel(p) }} — this pairing requires verification. Phrase highlights and literary scores are withheld until the alignment is corrected or verified.<ng-container *ngIf="p.analysis.note"> {{ p.analysis.note }}</ng-container></span>
                 </div>
                 <div *ngIf="!align.needsAlignmentReview(p) && !cardSpans(p, 'en').length && !cardSpans(p, 'de').length" class="v15-no-phrase-notice">
                   <span class="v15-notice-icon">ℹ️</span>
-                  <span>No phrase evidence for {{ dimShort[selectedDimension] }} in this passage — requires verification rather than an assumed result.</span>
+                  <span>No highlighted phrase for {{ dimShort[selectedDimension] }} in this passage{{ (assessment(p, selectedDimension)?.phrase_evidence?.length || 0) > 0 ? ' — the evidence below applies to the passage as a whole' : '' }}. {{ statusText(p, selectedDimension) === 'N/A' ? 'N/A (not 0).' : '' }}</span>
                 </div>
                 <div class="v15-evidence-columns v15-evidence-columns--two">
                   <div class="v15-evidence-box v15-evidence-box--primary" data-test="card-en">
                     <div class="v15-evidence-box-title">
-                      <div class="v15-box-title-left"><span>Human English</span><span class="v15-box-ver-badge">Stork</span></div>
-                      <div class="v15-box-title-actions">
-                        <button type="button" class="v15-inline-bt-btn" (click)="toggleInlineBackTranslation(p)" [disabled]="rttBusy || !p.english_text"
-                                title="Translate Stork's English back into German with the RTT model (English text only is sent)" data-test="translate-de">
-                          <span class="v15-bt-icon">⇄</span>
-                          <span class="v15-bt-label">{{ inlineBtOpen ? 'Hide Back-Translation' : 'Translate to German' }}</span>
-                        </button>
-                      </div>
+                      <div class="v15-box-title-left"><span>Human English — Elisabeth P. Stork</span></div>
                     </div>
                     <app-ha-evidence-highlighted-text *ngIf="p.english_text; else cardNoEn" [text]="p.english_text" [spans]="cardSpans(p, 'en')"
                       [activeLinkId]="activeLinkId" (segmentClick)="onSegmentClick($event, p)" (linkClick)="onLinkClick($event)"></app-ha-evidence-highlighted-text>
                     <ng-template #cardNoEn><span class="hd-missing">— No English counterpart detected (possible omission by the translator) —</span></ng-template>
-                    <div *ngIf="inlineBtOpen" class="v15-inline-bt-panel" role="region" aria-label="AI back-translation" data-test="inline-bt">
-                      <div class="v15-inline-bt-header"><span class="v15-inline-bt-tag">AI Back-Translation (English → German)</span>
-                        <span *ngIf="rttRecord(p)?.input_hash" class="v15-bt-cached-pill">Cached</span></div>
-                      <div *ngIf="rttBusy" class="v15-inline-bt-loading"><span class="v15-spinner"></span> Translating English passage to German…</div>
-                      <div *ngIf="rttError && !rttBusy" class="v15-inline-bt-error"><span>{{ rttError }}</span></div>
-                      <div *ngIf="!rttBusy && rttDisabledReason(p) as why" class="v15-inline-bt-error"><span>{{ why }}</span></div>
-                      <div *ngIf="rttRecord(p)?.back_translated_german as bt" class="v15-inline-bt-body">
-                        <div class="v15-inline-bt-text literary-text" lang="de">{{ bt }}</div>
-                        <div class="v15-inline-bt-note">German original: {{ p.german_text }}</div>
-                      </div>
-                    </div>
                   </div>
                   <div class="v15-evidence-box v15-evidence-box--primary" data-test="card-de">
                     <div class="v15-evidence-box-title">
-                      <div class="v15-box-title-left"><span>German Original</span><span class="v15-box-ver-badge">Spyri</span></div>
+                      <div class="v15-box-title-left"><span>German Original — Johanna Spyri</span></div>
+                      <div class="v15-box-title-actions">
+                        <button type="button" class="v15-inline-bt-btn" (click)="toggleInlineBackTranslation(p)" [disabled]="rttBusy || !p.german_text"
+                                title="Translate Spyri's German into English with the RTT model (only the German is sent)" data-test="translate-en">
+                          <span class="v15-bt-icon">⇄</span>
+                          <span class="v15-bt-label">{{ inlineBtOpen ? 'Hide Back-Translation' : 'Translate to English' }}</span>
+                        </button>
+                      </div>
                     </div>
                     <app-ha-evidence-highlighted-text *ngIf="p.german_text; else cardNoDe" [text]="p.german_text" [spans]="cardSpans(p, 'de')"
                       [activeLinkId]="activeLinkId" (segmentClick)="onSegmentClick($event, p)" (linkClick)="onLinkClick($event)"></app-ha-evidence-highlighted-text>
                     <ng-template #cardNoDe><span class="hd-missing">— No German counterpart detected (possible addition by the translator) —</span></ng-template>
                   </div>
+                  <div class="v15-evidence-box" data-test="card-bt" *ngIf="inlineBtOpen || rttRecord(p)?.back_translated_english">
+                    <div class="v15-evidence-box-title">
+                      <div class="v15-box-title-left"><span>BT English</span><span class="v15-box-ver-badge">AI back-translation of the German original</span>
+                        <span *ngIf="rttRecord(p)?.input_hash" class="v15-bt-cached-pill">Cached</span></div>
+                    </div>
+                    <div *ngIf="rttBusy" class="v15-inline-bt-loading"><span class="v15-spinner"></span> Translating German passage to English…</div>
+                    <div *ngIf="rttError && !rttBusy" class="v15-inline-bt-error"><span>{{ rttError }}</span></div>
+                    <div *ngIf="!rttBusy && !rttRecord(p)?.back_translated_english && rttDisabledReason(p) as why" class="v15-inline-bt-error"><span>{{ why }}</span></div>
+                    <p class="literary-text" lang="en" style="margin:0" *ngIf="rttRecord(p)?.back_translated_english as bt" data-test="card-bt-text">{{ bt }}</p>
+                    <p class="hd-ev-meta" *ngIf="rttRecord(p)?.back_translated_english">No phrase-level evidence exists for back-translations, so no highlights are shown here.</p>
+                  </div>
                 </div>
                 <div class="v15-evidence-doc-actions">
-                  <a class="v15-pdf-action-btn" href="assets/heidi/heidi_en_pg20781.pdf" target="_blank" rel="noopener">View in Original English Document (p. {{ pages(p.alignment.source_pages_en) }})</a>
-                  <a class="v15-pdf-action-btn v15-pdf-action-btn--de" href="assets/heidi/heidi_de_pg7500.pdf" target="_blank" rel="noopener">View in Original German Document (p. {{ pages(p.alignment.source_pages_de) }})</a>
+                  <button type="button" class="v15-pdf-action-btn" (click)="openPdfBook('english', p)" title="Open English Heidi PDF book">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    View in Original English Document<ng-container *ngIf="p.alignment.source_pages_en.length"> (p. {{ pages(p.alignment.source_pages_en) }})</ng-container>
+                  </button>
+                  <button type="button" class="v15-pdf-action-btn v15-pdf-action-btn--de" (click)="openPdfBook('german', p)" title="Open German Heidi PDF book">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    View in Original German Document<ng-container *ngIf="p.alignment.source_pages_de.length"> (p. {{ pages(p.alignment.source_pages_de) }})</ng-container>
+                  </button>
                 </div>
               </div>
 
-              <!-- 3. RTT analysis -->
-              <div class="v15-rtt-card" role="region" aria-label="Round-Trip Translation Analysis" data-test="card-rtt">
-                <div class="v15-card-head-row">
-                  <div>
-                    <h4 class="v15-card-h4">Round-Trip Translation (RTT) Analysis</h4>
-                    <p class="v15-card-sub">RTT Process: German Original → Human English (Stork) → AI Back-Translated German. The back-translation is compared with Spyri's original German.</p>
-                  </div>
-                  <div class="v15-rtt-view-modes" role="group" aria-label="RTT View Option">
-                    <button type="button" class="v15-rtt-view-btn" [class.v15-rtt-view-btn--active]="rttViewMode === 'original'" (click)="rttViewMode = 'original'" data-test="rtt-mode-original">Original Assessment</button>
-                    <button type="button" class="v15-rtt-view-btn" [class.v15-rtt-view-btn--active]="rttViewMode === 'rtt'" (click)="rttViewMode = 'rtt'" data-test="rtt-mode-rtt">RTT Assessment</button>
-                    <button type="button" class="v15-rtt-view-btn" [class.v15-rtt-view-btn--active]="rttViewMode === 'compare'" (click)="rttViewMode = 'compare'" data-test="rtt-mode-compare">Compare Both</button>
-                  </div>
-                </div>
-                <div class="hd-rtt-notrun" *ngIf="!(rttRecord(p)?.rtt_semantic_score !== null && rttRecord(p))" data-test="rtt-not-run">
-                  <strong>RTT Not Run</strong>
-                  <span>No back-translation has been generated for this passage, so no round-trip scores exist.</span>
-                  <button type="button" class="rtt-generate-btn" (click)="generateRtt(p)" [disabled]="!!rttDisabledReason(p) || rttBusy" data-test="card-rtt-generate">{{ rttBusy ? 'Generating…' : 'Generate Back-Translation' }}</button>
-                  <span class="hd-ev-meta" *ngIf="rttDisabledReason(p) as why">{{ why }}</span>
-                  <span class="rtt-error-text" *ngIf="rttError">{{ rttError }}</span>
-                </div>
-                <div class="v15-rtt-table-wrap">
-                  <table class="v15-rtt-table" data-test="rtt-table">
-                    <thead>
-                      <tr>
-                        <th>Dimension</th>
-                        <th *ngIf="rttViewMode !== 'rtt'">Direct Assessment</th>
-                        <th *ngIf="rttViewMode !== 'original'">Round Trip</th>
-                        <th *ngIf="rttViewMode === 'compare'">Difference</th>
-                        <th>Status</th>
-                        <th>Evidence Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let r of rttRows(p)" [class.v15-rtt-row--active]="selectedDimension === r.key" (click)="selectDimension(r.key)" [attr.data-test]="'rtt-row-' + r.key">
-                        <td class="v15-rtt-dim-cell"><strong>{{ r.name }}</strong></td>
-                        <td *ngIf="rttViewMode !== 'rtt'" class="v15-rtt-score-cell">
-                          <span *ngIf="r.direct !== null" [style.color]="scoreColor(r.direct)">{{ fmt(r.direct) }}</span>
-                          <span *ngIf="r.direct === null" class="v15-score-na">N/A</span>
-                        </td>
-                        <td *ngIf="rttViewMode !== 'original'" class="v15-rtt-score-cell">
-                          <span *ngIf="r.rtt !== null" [style.color]="scoreColor(r.rtt)">{{ fmt(r.rtt) }}</span>
-                          <span *ngIf="r.rtt === null" class="v15-score-na">{{ r.key === 'semantic' ? 'Not run' : 'N/A' }}</span>
-                        </td>
-                        <td *ngIf="rttViewMode === 'compare'" class="v15-rtt-diff-cell">
-                          <span *ngIf="r.diff !== null" class="v15-diff-badge" [class.v15-diff-badge--pos]="r.diff >= 0" [class.v15-diff-badge--neg]="r.diff < 0" [class.hd-diff-exceeds]="r.exceeds">{{ r.diff >= 0 ? '+' : '' }}{{ r.diff }}</span>
-                          <span *ngIf="r.diff === null" class="v15-score-na">—</span>
-                        </td>
-                        <td><span class="v15-chip" [ngClass]="chipClass(r.status)">{{ r.status }}</span></td>
-                        <td><button type="button" class="v15-rtt-inspect-btn" (click)="$event.stopPropagation(); selectDimension(r.key); evidenceExpanded = true">{{ selectedDimension === r.key ? 'Active' : 'Select' }}</button></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="v15-rtt-detail-box">
-                  <div class="v15-rtt-detail-head">
-                    <strong>{{ dimShort[selectedDimension] }} — Round-Trip Comparative Evidence:</strong>
-                    <span class="v15-rtt-source-lbl">German Original vs. AI Back-Translation</span>
-                  </div>
-                  <p class="v15-rtt-detail-explanation" data-test="rtt-detail">{{ rttDimExplanation(p, selectedDimension) }}</p>
-                </div>
-              </div>
+              <!-- 3. RTT analysis (shared panel). Heidi direction: reverse-translation consistency check. -->
+              <app-rtt-compare-panel
+                style="display:block; margin-bottom: 16px;"
+                data-test="card-rtt"
+                title="Reverse-Translation Consistency Check (RTT)"
+                direction="Human English → German original → AI back-translated English. Compare Human English ↔ AI back-translated English."
+                directionNote="A reverse-translation consistency check against the human English translation: Spyri's German is the original and Stork's English is the translation. Only a semantic RTT score is computed; it does not validate emotion, imagery, tone or voice."
+                [texts]="heidiRttTexts(p)"
+                [rows]="heidiRttPanelRows(p)"
+                [activeKey]="selectedDimension"
+                [threshold]="rtt.threshold"
+                [provenance]="heidiRttProvenance(p)"
+                [explanation]="rttDimExplanation(p, selectedDimension)"
+                [busy]="rttBusy"
+                [error]="rttError"
+                [disabledReason]="rttDisabledReason(p)"
+                [mode]="rttViewMode === 'original' ? 'direct' : rttViewMode"
+                (selectDimension)="selectDimension($any($event)); evidenceExpanded = true"
+                (generate)="generateRtt(p)"
+                (thresholdChange)="setRttThreshold($event)"
+              ></app-rtt-compare-panel>
 
               <!-- 4. Phrase-level evidence & alignment -->
               <div class="v15-explanation-card" data-test="card-evidence">
                 <div class="v15-card-head-row">
                   <h4 class="v15-card-h4">Phrase-Level Evidence &amp; Alignment · {{ dimShort[selectedDimension] }}</h4>
-                  <span class="hd-align-badge" [ngClass]="alignmentBadgeClass(p)">{{ align.statusLabel(p) }} · {{ pct(p.alignment.confidence) }} · bead {{ p.alignment.bead }}</span>
+                  <span class="hd-align-badge" [ngClass]="alignmentBadgeClass(p)">{{ align.statusLabel(p) }} · confidence “{{ p.alignment.confidence_label || '—' }}” · bead {{ p.alignment.bead }}</span>
                 </div>
                 <ng-container *ngIf="assessment(p, selectedDimension) as a; else cardNoEvidence">
                   <ul class="hd-ev-list" *ngIf="a.phrase_evidence.length">
-                    <li *ngFor="let ev of a.phrase_evidence" [class.on]="activeLinkId === p.passage_id + ':' + ev.id" (click)="activeLinkId = p.passage_id + ':' + ev.id">
+                    <li *ngFor="let ev of a.phrase_evidence" [class.on]="activeLinkId === evLink(p, ev)" (click)="selectEvidence(p, ev)" tabindex="0"
+                        (keydown.enter)="selectEvidence(p, ev)" [attr.data-test]="'ev-' + ev.id">
                       <span><span class="v15-chip" [ngClass]="chipClass(categorizeEv(ev))">{{ categorizeEv(ev) }}</span>
-                        <span class="hd-verify-tag" *ngIf="ev.confidence === 'low'">Requires verification</span></span>
-                      <span class="hd-ev-pair"><span lang="de">{{ ev.de?.text || '—' }}</span> ↔ <span>{{ ev.en?.text || 'not rendered' }}</span></span>
-                      <span class="hd-ev-meta">{{ ev.explanation }} · confidence {{ ev.confidence }}</span>
+                        <span class="hd-verify-tag" *ngIf="ev.requires_expert_review || ev.confidence === 'low'">Requires expert review</span>
+                        <span class="hd-verify-tag hd-verify-tag--soft" *ngIf="ev.passage_level">Whole passage</span>
+                        <code class="hd-ev-id">{{ ev.id }}</code></span>
+                      <span class="hd-ev-pair" *ngIf="!ev.passage_level"><span lang="de">{{ ev.de?.text || ev.source_phrase || '— (no German phrase)' }}</span> ↔ <span>{{ ev.en?.text || ev.target_phrase || (ev.label === 'Lost' ? 'not rendered' : '— (no English phrase)') }}</span></span>
+                      <span class="hd-ev-meta">{{ ev.explanation }} · weight {{ ev.weight ?? '—' }} · confidence {{ ev.confidence }}</span>
                     </li>
                   </ul>
                   <p class="hd-ev-meta" *ngIf="!a.phrase_evidence.length && (a.evidence_de.length || a.evidence_en.length)">
@@ -373,36 +374,55 @@
                   <p class="hd-ev-meta" *ngIf="!a.phrase_evidence.length && !a.evidence_de.length && !a.evidence_en.length">No phrase-level evidence recorded for this dimension.</p>
                 </ng-container>
                 <ng-template #cardNoEvidence><p class="hd-ev-meta">{{ p.analysis.note || 'No assessment for this dimension.' }}</p></ng-template>
-                <p class="hd-ev-meta">Alignment method <code>{{ p.alignment.method }}</code> · EN paragraphs {{ p.source.en_paragraph_indices.join(', ') || '—' }} · DE paragraphs {{ p.source.de_paragraph_indices.join(', ') || '—' }} · EN PDF p. {{ pages(p.alignment.source_pages_en) }} · DE PDF p. {{ pages(p.alignment.source_pages_de) }}</p>
+                <p class="hd-ev-meta">Alignment method <code>{{ p.alignment.method }}</code> · EN paragraphs {{ (p.source.en_paragraph_ids || []).join(', ') || '—' }} · DE paragraphs {{ (p.source.de_paragraph_ids || []).join(', ') || '—' }}<ng-container *ngIf="p.alignment.note"> · note: {{ p.alignment.note }}</ng-container></p>
               </div>
+
+              <div class="v15-unlocated-card" *ngIf="unlocatedFor(p).length" data-test="card-unlocated">
+                <strong>Unlocated evidence ({{ unlocatedFor(p).length }})</strong> — recorded phrases that could not be matched to the displayed text; routed to review.
+                <ul><li *ngFor="let u of unlocatedFor(p)">{{ u.dimension }} · {{ u.side }} · “{{ u.text }}”</li></ul>
+              </div>
+              <app-evidence-detail
+                *ngIf="heidiEvidenceVm(p) as evVm"
+                data-test="card-evidence-detail"
+                style="margin-bottom: 12px; display:block"
+                [ev]="evVm"
+                [reviewer]="reviewerName || null"
+                [hasPrev]="heidiEvidenceIndex(p).i > 0"
+                [hasNext]="heidiEvidenceIndex(p).i < heidiEvidenceIndex(p).n - 1"
+                (prev)="stepEvidence(p, -1)"
+                (next)="stepEvidence(p, 1)"
+                (close)="clearEvidence()"
+                (decided)="onEvidenceDecided()"
+              ></app-evidence-detail>
 
               <!-- 5. Literary explanation -->
               <div class="v15-explanation-card" data-test="card-explanation">
                 <div class="v15-card-head-row">
                   <h4 class="v15-card-h4">{{ dimShort[selectedDimension] }} — Literary Explanation</h4>
                   <div class="v15-provenance-badge" [class.v15-provenance-badge--expert]="eff(p, selectedDimension).provenance === 'expert_override' || eff(p, selectedDimension).provenance === 'expert_accepted'">
-                    {{ eff(p, selectedDimension).provenance === 'none' ? 'No assessment' : provenanceLabel(eff(p, selectedDimension)) }}
+                    {{ eff(p, selectedDimension).provenance === 'none' ? (statusText(p, selectedDimension) || 'Not evaluated') : provenanceLabel(eff(p, selectedDimension)) }}
                   </div>
                 </div>
                 <div class="v15-eval-metrics-row">
                   <div class="v15-eval-metric"><span class="v15-eval-metric-lbl">Preservation Category:</span>
                     <span class="v15-chip" [ngClass]="chipClass(passageCategory(p, selectedDimension))">{{ passageCategory(p, selectedDimension) }}</span></div>
                   <div class="v15-eval-metric"><span class="v15-eval-metric-lbl">Score:</span>
-                    <strong class="v15-eval-metric-val" [style.color]="scoreColor(eff(p, selectedDimension).score)">{{ eff(p, selectedDimension).score ?? 'N/A' }}</strong></div>
+                    <strong class="v15-eval-metric-val" [style.color]="scoreColor(eff(p, selectedDimension).score)">{{ eff(p, selectedDimension).score ?? (statusText(p, selectedDimension) || 'Not evaluated') }}</strong></div>
                   <div class="v15-eval-metric" *ngIf="assessment(p, selectedDimension)?.confidence as c"><span class="v15-eval-metric-lbl">Confidence:</span><strong class="v15-eval-metric-val">{{ c }}</strong></div>
                 </div>
                 <p class="v15-explanation-body">{{ selectedPhrase?.explanation || assessment(p, selectedDimension)?.explanation || p.analysis.note || 'No assessment exists for this dimension.' }}</p>
-                <p class="hd-ev-meta">Method <code>{{ assessment(p, selectedDimension)?.method || '—' }}</code>. Automated heuristic scores are provisional and not expert-validated.</p>
+                <p class="hd-ev-meta">Method <code>{{ assessment(p, selectedDimension)?.method || '—' }}</code> · assessor <code>{{ p.analysis.assessor || '—' }}</code>. Model-assisted literary assessment, provisional and not expert-validated; N/A and “Not evaluated” are never shown as 0.</p>
               </div>
 
               <!-- 6. RTT verification -->
               <div class="v15-explanation-card" data-test="card-rtt-verification">
                 <div class="v15-card-head-row">
-                  <h4 class="v15-card-h4">RTT Verification</h4>
+                  <h4 class="v15-card-h4">RTT Verification · Workflow A: German original → AI English</h4>
                   <span class="v15-rtt-status-pill hd-rtt-status" [ngClass]="rttStatusClass(p)">{{ rttStatus(p) }}</span>
                 </div>
+                <p class="hd-ev-meta">Spyri's German is machine-translated into English and compared with Stork's English. This is a semantic consistency check only; it is never copied into the other dimensions. The German original is not a translation of the English.</p>
                 <ng-container *ngIf="rttRecord(p) as r; else rttVerNone">
-                  <div class="v15-inline-bt-text literary-text" lang="de" *ngIf="r.back_translated_german">{{ r.back_translated_german }}</div>
+                  <div class="v15-inline-bt-text literary-text" lang="en" *ngIf="r.back_translated_english">{{ r.back_translated_english }}</div>
                   <div class="v15-eval-metrics-row">
                     <div class="v15-eval-metric"><span class="v15-eval-metric-lbl">Direct semantic:</span><strong class="v15-eval-metric-val">{{ fmt(r.direct_semantic_score) }}</strong></div>
                     <div class="v15-eval-metric"><span class="v15-eval-metric-lbl">RTT semantic:</span><strong class="v15-eval-metric-val">{{ fmt(r.rtt_semantic_score) }}</strong></div>
@@ -410,7 +430,24 @@
                   </div>
                   <p class="hd-ev-meta">Translation model <code>{{ r.translation_model }}</code> · similarity model <code>{{ r.similarity_model }}</code> · generated {{ r.generated_at ? (r.generated_at | date:'medium') : '—' }}<ng-container *ngIf="r.requires_expert_review"> · <strong class="text-danger">requires expert review</strong></ng-container><ng-container *ngIf="r.error"> · {{ r.error }}</ng-container></p>
                 </ng-container>
-                <ng-template #rttVerNone><p class="hd-ev-meta">RTT Not Run. Use “Generate Back-Translation” above; results are cached and persisted under <code>heidi_analysis_rtt_v1</code>.</p></ng-template>
+                <ng-template #rttVerNone><p class="hd-ev-meta">RTT Not Run. Use “Generate Back-Translation” above; results are cached and persisted under <code>heidi_analysis_rtt_v2</code>.</p></ng-template>
+                <p class="hd-ev-meta" *ngIf="rttRecord(p)?.rtt_semantic_score !== null && rttRecord(p)">Review recommendation: {{ rttRecord(p)?.requires_expert_review ? 'review — direct and RTT signals disagree beyond the threshold (' + rtt.threshold + ', not calibrated)' : 'no RTT-based flag' }}. The direct score is a literary rubric score and the RTT score a lexical similarity; their difference is indicative only.</p>
+
+                <div class="hd-rtt-b" data-test="rtt-workflow-b">
+                  <div class="v15-card-head-row">
+                    <h4 class="v15-card-h4">Workflow B: Human English → AI German → AI English</h4>
+                    <button type="button" class="v15-insp-next-btn" (click)="runEnRtt(p)" [disabled]="enRttBusy || !p.english_text" data-test="rtt-b-run">{{ enRttBusy ? 'Running…' : (enRtt(p)?.status === 'done' ? 'Re-run' : 'Generate') }}</button>
+                  </div>
+                  <p class="hd-ev-meta">Stork's English is machine-translated into German and back. This tests how stable the English is under machine round-tripping; the AI German below is <strong>not</strong> Spyri's original and the result is not a fidelity score.</p>
+                  <ng-container *ngIf="enRtt(p) as b; else rttBNone">
+                    <div class="hd-rtt-b-grid" *ngIf="b.status === 'done'">
+                      <div><span class="v15-eval-metric-lbl">AI German (machine translation of Stork)</span><div class="literary-text" lang="de" data-test="rtt-b-de">{{ b.ai_german }}</div></div>
+                      <div><span class="v15-eval-metric-lbl">AI back-translated English</span><div class="literary-text" lang="en" data-test="rtt-b-en">{{ b.ai_back_english }}</div></div>
+                    </div>
+                    <p class="hd-ev-meta">Similarity to Stork's English: <strong data-test="rtt-b-sim">{{ b.similarity_to_human_english ?? '—' }}</strong> ({{ b.similarity_model }}) · {{ b.translation_model }} · {{ b.generated_at ? (b.generated_at | date:'medium') : '—' }}<ng-container *ngIf="b.error"> · {{ b.error }}</ng-container></p>
+                  </ng-container>
+                  <ng-template #rttBNone><p class="hd-ev-meta" data-test="rtt-b-none">Not generated. Stored separately under <code>heidi_analysis_rtt_en_v1</code>.</p></ng-template>
+                </div>
               </div>
 
               <!-- 7. Expert validation & editorial review -->
@@ -508,9 +545,24 @@
                     <i class="fa fa-sync-alt" aria-hidden="true"></i>
                     RTT verified: {{ s.rtt }} of {{ s.eligible }} passages
                   </span>
+                  <button type="button" class="v15-rtt-inspect-btn" *ngIf="!chapterRttBusy && chapterRttPending(ch).length" (click)="runChapterRtt(ch)"
+                          [title]="'Back-translate the German original of ' + chapterRttPending(ch).length + ' eligible passage(s) to English, one at a time (MyMemory, free daily quota ≈ 5,000 characters)'"
+                          data-test="chapter-rtt-run">Run RTT for chapter</button>
+                  <span class="hd-ev-meta" *ngIf="chapterRttBusy || chapterRttProgress" data-test="chapter-rtt-progress">
+                    <ng-container *ngIf="chapterRttProgress as pr">RTT {{ pr.done }}/{{ pr.total }}<ng-container *ngIf="pr.stopped"> · {{ pr.stopped }}</ng-container></ng-container>
+                    <button type="button" class="v15-rtt-inspect-btn" *ngIf="chapterRttBusy" (click)="cancelChapterRtt()">Stop</button>
+                  </span>
                 </div>
               </div>
               <div class="reader-header-actions reader-toggle-box">
+                <button type="button" class="v15-pdf-action-btn" (click)="openPdfBook('english')" title="Open English Heidi PDF book">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  View English PDF
+                </button>
+                <button type="button" class="v15-pdf-action-btn v15-pdf-action-btn--de" (click)="openPdfBook('german')" title="Open German Heidi PDF book">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  View German PDF
+                </button>
                 <label class="reader-toggle-label" for="hdShowAnalysis">
                   <span class="reader-toggle-text">Show analysis</span>
                   <input type="checkbox" id="hdShowAnalysis" class="reader-toggle-input" [checked]="showAnalysis" (change)="showAnalysis = !showAnalysis" data-test="show-analysis" />
@@ -520,16 +572,24 @@
             </header>
 
             <!-- 2. Literary dimension toolbar -->
-            <nav class="dimension-toolbar reader-dimension-tabs-bar v15-human-matrix-section" aria-label="Literary dimensions" role="tablist" data-test="dim-tabs">
-              <div class="reader-dimension-tabs-track">
-                <button *ngFor="let d of tabDims" type="button" role="tab" [attr.aria-selected]="selectedDimension === d.key"
-                        class="dimension-tab reader-dimension-tab-btn" [class.reader-dimension-tab-btn--active]="selectedDimension === d.key"
-                        (click)="selectDimension(d.key)" [attr.data-test]="'tab-' + d.key" [title]="d.label + ' — ' + d.description">
-                  <span class="tab-label">{{ dimShort[d.key] }}</span>
-                  <span class="tab-score-pill" [style.color]="scoreColor(chapterDimMean(ch, d.key))">{{ chapterDimDisplay(ch, d.key) }}</span>
+            <nav class="dimension-toolbar reader-dimension-tabs-bar v15-human-matrix-section hd-dimsel" aria-label="Literary dimensions" role="tablist" data-test="dim-tabs">
+              <div class="reader-dimension-tabs-track hd-dimsel-track">
+                <ng-container *ngFor="let d of tabDims"><ng-container *ngIf="tabBadge(null, d.key) as b">
+                <button type="button" role="tab" [attr.aria-selected]="selectedDimension === d.key"
+                        class="dimension-tab reader-dimension-tab-btn hd-dimsel-btn" [class.reader-dimension-tab-btn--active]="selectedDimension === d.key"
+                        (click)="selectDimension(d.key)" [attr.data-test]="'tab-' + d.key" [title]="d.label + ' — ' + d.description + '. ' + b.title">
+                  <span class="tab-label">{{ dimShort[d.key] }}<i class="hd-review-dot" *ngIf="b.review" aria-label="contains evidence that needs expert review"></i></span>
+                  <span class="tab-score-pill" [class.hd-na]="b.score === null" [style.color]="scoreColor(b.score)">{{ b.text }}</span>
+                  <span class="hd-dimsel-bar"><i [style.width.%]="b.score ?? 0" [style.background]="scoreColor(b.score)"></i></span>
                 </button>
+                </ng-container></ng-container>
               </div>
             </nav>
+            <div class="hd-count-strip" data-test="reader-cat-counts" *ngIf="chapterDimCounts(ch, selectedDimension) as cc">
+              <span class="hd-count-lbl">Chapter {{ ch.chapter_number }} · {{ dimShort[selectedDimension] }} evidence:</span>
+              <span *ngFor="let c of catKeys" class="v15-chip" [ngClass]="chipClass(c)">{{ c }} {{ cc[c] }}</span>
+              <span class="hd-count-lbl">· {{ chapterCoverage(ch).analysed }}/{{ chapterCoverage(ch).total }} passages analysed</span>
+            </div>
 
             <!-- 3. Phrase legend + shortcuts (only with Show analysis) -->
             <section *ngIf="showAnalysis" class="reader-analysis-summary-bar" aria-label="Chapter analysis controls and legend" data-test="analysis-bar">
@@ -538,9 +598,10 @@
                   <span class="legend-header-lbl">Phrase Annotation:</span>
                   <div class="legend-items-list">
                     <span class="legend-item legend-item--preserved"><span class="legend-dot" style="background:#16a34a"></span><span class="legend-text">Preserved</span></span>
-                    <span class="legend-item legend-item--changed"><span class="legend-dot" style="background:#2563eb"></span><span class="legend-text">Changed</span></span>
+                    <span class="legend-item legend-item--changed"><span class="legend-dot" style="background:#d97706"></span><span class="legend-text">Changed</span></span>
                     <span class="legend-item legend-item--lost"><span class="legend-dot" style="background:#dc2626"></span><span class="legend-text">Lost</span></span>
                     <span class="legend-item legend-item--added"><span class="legend-dot" style="background:#9333ea"></span><span class="legend-text">Added</span></span>
+                    <span class="legend-item legend-item--uncertain" title="Uncertain: low-confidence alignment or flagged evidence"><span class="legend-dot" style="background:transparent;border:2px dotted #64748b"></span><span class="legend-text">Uncertain</span></span>
                   </div>
                 </div>
                 <div class="analysis-summary-stats">
@@ -555,7 +616,7 @@
                   <button type="button" class="analysis-shortcut-btn" [class.analysis-shortcut-btn--active]="phraseFilter === 'diff'" (click)="phraseFilter = 'diff'" data-test="pf-diff">Biggest Differences ({{ c.diff }})</button>
                 </div>
               </div>
-              <p class="hd-provisional-note">Scores are machine-generated initial assessments (<code>automated_heuristic_v1</code>, provisional). Highlights are shown only for automatically aligned passages.</p>
+              <p class="hd-provisional-note">Scores come from the eight-dimension literary comparison (model-assisted, provisional, <code>rubric_v1</code>). Highlights are shown only for verified/high-confidence alignment groups; N/A and “Not evaluated” are never 0.</p>
             </section>
 
             <!-- 4. Compact secondary filter strip -->
@@ -591,12 +652,10 @@
             <section class="reader-reading-container parallel-reader" aria-label="Parallel Reading Text">
               <div class="hd-sync-grid" data-test="sync-grid">
                 <header class="reader-lang-header reader-panel-header hd-cell hd-cell--en hd-cell--head">
-                  <h3 class="reader-lang-title">Human English Translation</h3>
-                  <span class="reader-lang-sub">Elisabeth P. Stork · English</span>
+                  <h3 class="reader-lang-title">Human English — Elisabeth P. Stork</h3>
                 </header>
                 <header class="reader-lang-header reader-panel-header hd-cell hd-cell--de hd-cell--head">
-                  <h3 class="reader-lang-title">German Original</h3>
-                  <span class="reader-lang-sub">Johanna Spyri · German</span>
+                  <h3 class="reader-lang-title">German Original — Johanna Spyri</h3>
                 </header>
 
                 <ng-container *ngFor="let p of visiblePassages; trackBy: trackById; let last = last">
@@ -705,9 +764,11 @@
                   <span class="explanation-lbl">{{ evidenceExpanded ? '▾' : '▸' }} Phrase-level evidence ({{ a.phrase_evidence.length || (a.evidence_de.length + a.evidence_en.length) }})</span>
                 </button>
                 <ul class="hd-ev-list" *ngIf="evidenceExpanded">
-                  <li *ngFor="let ev of a.phrase_evidence" [class.on]="activeLinkId === p.passage_id + ':' + ev.id" (click)="activeLinkId = p.passage_id + ':' + ev.id; showAnalysis = true">
+                  <li *ngFor="let ev of a.phrase_evidence" [class.on]="activeLinkId === evLink(p, ev)" (click)="selectEvidence(p, ev); showAnalysis = true">
                     <span class="inspector-status-badge" [ngClass]="'status-' + (('' + categorizeEv(ev)) | lowercase)">{{ categorizeEv(ev) }}</span>
-                    <span class="hd-ev-pair"><span lang="de">{{ ev.de?.text || '—' }}</span> ↔ <span>{{ ev.en?.text || 'not rendered' }}</span></span>
+                    <span class="hd-verify-tag hd-verify-tag--soft" *ngIf="ev.passage_level">Whole passage</span>
+                    <span class="hd-verify-tag" *ngIf="ev.requires_expert_review">Review</span>
+                    <span class="hd-ev-pair" *ngIf="!ev.passage_level"><span lang="de">{{ ev.de?.text || ev.source_phrase || '—' }}</span> ↔ <span>{{ ev.en?.text || ev.target_phrase || 'not rendered' }}</span></span>
                     <span class="hd-ev-meta">{{ ev.explanation }} · conf. {{ ev.confidence }}<ng-container *ngIf="ev.de"> · DE @{{ ev.de.start }}–{{ ev.de.end }}</ng-container><ng-container *ngIf="ev.en"> · EN @{{ ev.en.start }}–{{ ev.en.end }}</ng-container></span>
                   </li>
                   <li *ngIf="!a.phrase_evidence.length && (a.evidence_de.length || a.evidence_en.length)" class="hd-ev-plain">
@@ -717,6 +778,19 @@
                   <li *ngIf="!a.phrase_evidence.length && !a.evidence_de.length && !a.evidence_en.length" class="hd-ev-plain">No phrase-level evidence for this dimension.</li>
                 </ul>
                 <p class="hd-ev-meta">method <code>{{ a.method }}</code> · confidence {{ a.confidence || '—' }} · review: {{ a.review_status }}</p>
+                <app-evidence-detail
+                  *ngIf="heidiEvidenceVm(p) as evVm"
+                  data-test="inspector-evidence-detail"
+                  style="margin-top: 8px; display:block"
+                  [ev]="evVm"
+                  [reviewer]="reviewerName || null"
+                  [hasPrev]="heidiEvidenceIndex(p).i > 0"
+                  [hasNext]="heidiEvidenceIndex(p).i < heidiEvidenceIndex(p).n - 1"
+                  (prev)="stepEvidence(p, -1)"
+                  (next)="stepEvidence(p, 1)"
+                  (close)="clearEvidence()"
+                  (decided)="onEvidenceDecided()"
+                ></app-evidence-detail>
               </div>
 
               <!-- Passage / source provenance -->
@@ -724,10 +798,12 @@
                 <div class="provenance-item"><span class="provenance-lbl">Chapter:</span><span class="provenance-val">{{ chapter?.chapter_number }} · passage {{ p.sequence }} of {{ chapter?.passages?.length }}</span></div>
                 <div class="provenance-item"><span class="provenance-lbl">Alignment:</span>
                   <span class="provenance-val"><span class="hd-align-badge" [ngClass]="alignmentBadgeClass(p)">{{ align.statusLabel(p) }}</span>
-                    {{ pct(p.alignment.confidence) }} · bead {{ p.alignment.bead }} (DE:EN)</span></div>
+                    curated confidence “{{ p.alignment.confidence_label || '—' }}” · chapter {{ p.alignment.chapter_alignment_status || '—' }} · bead {{ p.alignment.bead }} (DE:EN)</span></div>
+                <div class="provenance-item" *ngIf="p.alignment.note"><span class="provenance-lbl">Alignment note:</span><span class="provenance-val">{{ p.alignment.note }}</span></div>
+                <div class="provenance-item"><span class="provenance-lbl">Paragraph IDs:</span><span class="provenance-val">EN {{ (p.source.en_paragraph_ids || []).join(', ') || '—' }} · DE {{ (p.source.de_paragraph_ids || []).join(', ') || '—' }}</span></div>
                 <div class="provenance-item"><span class="provenance-lbl">Method:</span><code class="provenance-code">{{ p.alignment.method }}</code></div>
                 <div class="provenance-item"><span class="provenance-lbl">Sources:</span>
-                  <span class="provenance-val">EN PDF p. {{ pages(p.alignment.source_pages_en) }}<ng-container *ngIf="p.alignment.print_pages_en.length"> (print p. {{ pages(p.alignment.print_pages_en) }})</ng-container> · DE PDF p. {{ pages(p.alignment.source_pages_de) }}</span></div>
+                  <span class="provenance-val">heidi_part1_side_by_side.json · EN Project Gutenberg #20781 (Stork) · DE Project Gutenberg #7500 (Spyri)</span></div>
                 <div class="provenance-item"><span class="provenance-lbl">Evidence ID:</span><code class="provenance-code">{{ selectedPhrase?.evidenceId || p.passage_id }}</code></div>
               </div>
 
@@ -741,22 +817,22 @@
                   </div>
                 </button>
                 <div class="inspector-rtt-content" *ngIf="rttExpanded">
-                  <p class="hd-ev-meta">German original → Stork's English → AI back-translated German. Only the English is sent to the model; the original German is the evaluation reference.</p>
+                  <p class="hd-ev-meta">Reverse-translation consistency check against the human English translation: Human English → German original → AI back-translated English; Human English ↔ AI back-translated English are compared. Only the German original is sent to the model.</p>
                   <div class="inspector-quote-block">
-                    <span class="quote-header-lbl">Human English (input):</span>
+                    <span class="quote-header-lbl">Human English (Stork — comparison reference):</span>
                     <blockquote class="quote-text quote-text--en">{{ p.english_text || '—' }}</blockquote>
                   </div>
                   <div class="inspector-quote-block">
-                    <span class="quote-header-lbl">German Original (reference):</span>
+                    <span class="quote-header-lbl">German Original (Spyri — sent to the model):</span>
                     <blockquote class="quote-text quote-text--de" lang="de">{{ p.german_text || '—' }}</blockquote>
                   </div>
                   <div class="inspector-quote-block">
                     <div class="rtt-bt-header-line">
-                      <span class="quote-header-lbl">AI Back-Translated German:</span>
+                      <span class="quote-header-lbl">AI Back-Translated English:</span>
                       <span class="rtt-model-badge">{{ rttRecord(p)?.translation_model || translationModel }}</span>
                     </div>
-                    <blockquote class="quote-text quote-text--bt" lang="de" *ngIf="rttRecord(p)?.back_translated_german as bt" data-test="rtt-bt">{{ bt }}</blockquote>
-                    <p class="rtt-empty-text" *ngIf="!rttRecord(p)?.back_translated_german"><em>Not generated yet.</em></p>
+                    <blockquote class="quote-text quote-text--bt" lang="en" *ngIf="rttRecord(p)?.back_translated_english as bt" data-test="rtt-bt">{{ bt }}</blockquote>
+                    <p class="rtt-empty-text" *ngIf="!rttRecord(p)?.back_translated_english"><em>Not generated yet.</em></p>
                   </div>
                   <div class="rtt-comparison-summary">
                     <div class="rtt-summary-row"><span class="rtt-metric-lbl">Direct Semantic Score:</span><strong class="rtt-metric-val">{{ fmt(rttRecord(p)?.direct_semantic_score ?? eff(p, 'semantic').score) }}</strong></div>
@@ -774,15 +850,21 @@
                     <span *ngIf="rttError" class="rtt-error-text">{{ rttError }}</span>
                   </div>
                   <p class="hd-ev-meta" *ngIf="rttDisabledReason(p) as why">{{ why }}</p>
-                  <p class="hd-ev-meta">Similarity model <code>{{ similarityModel }}</code> is a lexical-morphological German measure; its scale is not calibrated against the direct heuristic or Hamlet — disagreements are a triage signal only.</p>
+                  <p class="hd-ev-meta">Similarity model <code>{{ similarityModel }}</code> is a lexical English measure; its scale is not calibrated against the direct heuristic or Hamlet — disagreements are a triage signal only (“Potential disagreement — review recommended”).</p>
                 </div>
               </div>
 
               <div class="inspector-pdf-verification-block">
                 <span class="verification-title">Original Source Verification</span>
                 <div class="verification-btn-group">
-                  <a class="verification-btn" href="assets/heidi/heidi_en_pg20781.pdf" target="_blank" rel="noopener">View in English Source PDF (p. {{ pages(p.alignment.source_pages_en) }})</a>
-                  <a class="verification-btn verification-btn--de" href="assets/heidi/heidi_de_pg7500.pdf" target="_blank" rel="noopener">View in German Source PDF (p. {{ pages(p.alignment.source_pages_de) }})</a>
+                  <button type="button" class="verification-btn" (click)="openPdfBook('english', p)" title="Open English Heidi PDF book">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    View in English Source PDF<ng-container *ngIf="p.alignment.source_pages_en.length"> (p. {{ pages(p.alignment.source_pages_en) }})</ng-container>
+                  </button>
+                  <button type="button" class="verification-btn verification-btn--de" (click)="openPdfBook('german', p)" title="Open German Heidi PDF book">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    View in German Source PDF<ng-container *ngIf="p.alignment.source_pages_de.length"> (p. {{ pages(p.alignment.source_pages_de) }})</ng-container>
+                  </button>
                 </div>
               </div>
 
@@ -931,7 +1013,7 @@
                 <option *ngFor="let d of tabDims" [ngValue]="d.key">{{ d.label }}</option>
               </select>
             </label>
-            <span class="v15-hm-sub">Click a cell to open the passage · dashed border = alignment needs review · red dot = RTT disagreement · bar = alignment confidence</span>
+            <span class="v15-hm-sub">Click a cell to open the passage · dashed border = alignment needs review · red dot = potential RTT disagreement · bar = curated alignment confidence (verified / high / medium / low)</span>
           </div>
           <div class="hd-cells" data-test="heat-cells">
             <button type="button" *ngFor="let p of heatmapPassages(); trackBy: trackById"
@@ -943,7 +1025,7 @@
                     (click)="openPassageCard(p, heatmapDimension)">
               <span class="hd-cell-seq">{{ p.sequence }}</span>
               <span class="hd-cell-val">{{ eff(p, heatmapDimension).score ?? '·' }}</span>
-              <span class="hd-cell-conf" [style.width.%]="p.alignment.confidence * 100"></span>
+              <span class="hd-cell-conf" [style.width.%]="p.alignment.confidence * 100" [title]="'Curated alignment confidence: ' + (p.alignment.confidence_label || '—')"></span>
             </button>
           </div>
         </div>
@@ -964,7 +1046,7 @@
             <div class="queue-summary-pills">
               <span class="queue-pill queue-pill--dlgs">{{ queueUniquePassages }} Unique Passages</span>
               <span class="queue-pill queue-pill--assessments">{{ queueCount('all') }} Items</span>
-              <span class="queue-pill queue-pill--rtt" *ngIf="queueRttCount > 0">{{ queueRttCount }} RTT Disagreements</span>
+              <span class="queue-pill queue-pill--rtt" *ngIf="queueRttCount > 0">{{ queueRttCount }} potential RTT disagreements</span>
               <span class="queue-pill queue-pill--done">{{ reviews.reviewedCount() }} Reviewed</span>
             </div>
           </div>
@@ -1026,7 +1108,7 @@
                 <span class="queue-dim-name">{{ focusLabel(q) }}</span>
                 <span class="queue-issue-col queue-scores-col">
                   <div class="queue-score-item"><span class="queue-score-lbl">Direct:</span><strong>{{ q.score !== null ? q.score : 'N/A' }}</strong>
-                    <span class="queue-ver-sub">Align: {{ pct(q.passage.alignment.confidence) }}</span></div>
+                    <span class="queue-ver-sub">Align: {{ q.passage.alignment.confidence_label || "—" }}</span></div>
                   <div class="queue-score-item queue-rtt-score-item" *ngIf="rttRecord(q.passage)?.rtt_semantic_score as rs">
                     <span class="queue-score-lbl">RTT:</span><strong class="queue-rtt-num">{{ rs }}</strong>
                     <span class="queue-diff-badge" [class.is-divergent]="(rttRecord(q.passage)?.disagreement || 0) >= rtt.threshold">Δ {{ rttRecord(q.passage)?.disagreement }} pts</span>
@@ -1047,4 +1129,48 @@
       </div>
     </ng-container>
   </div>
+
+  <!-- PDF Book Viewer Panel -->
+  <aside
+    class="ha-pdf-panel"
+    *ngIf="pdfPanelOpen"
+    [attr.aria-label]="getPdfPanelTitle() + ' PDF viewer'">
+    <div class="ha-pdf-panel__header">
+      <div class="ha-pdf-panel__title-group">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <div>
+          <h3>{{ getPdfPanelTitle() }}</h3>
+          <p *ngIf="chapter">
+            Part I · Chapter {{ chapter.chapter_number }}
+            {{ selectedPassageId ? '· ' + selectedPassageId : '' }}
+          </p>
+        </div>
+      </div>
+      <div class="ha-pdf-panel__switchers">
+        <button
+          type="button"
+          class="ha-pdf-btn ha-pdf-btn--sm"
+          [class.ha-pdf-btn--active]="activePdfBook === 'english'"
+          (click)="openPdfBook('english')">
+          EN PDF
+        </button>
+        <button
+          type="button"
+          class="ha-pdf-btn ha-pdf-btn--sm ha-pdf-btn--de"
+          [class.ha-pdf-btn--active]="activePdfBook === 'german'"
+          (click)="openPdfBook('german')">
+          DE PDF
+        </button>
+        <button type="button" class="ha-pdf-close" (click)="closePdfPanel()" aria-label="Close PDF">
+          ✕
+        </button>
+      </div>
+    </div>
+    <div class="ha-pdf-panel__body">
+      <app-pdf-highlighter
+        [text]="pdfHighlightText"
+        [pdfSource]="pdfSource">
+      </app-pdf-highlighter>
+    </div>
+  </aside>
 </div>
