@@ -1,0 +1,4 @@
+{
+  "endpoint": null,
+  "note": "Set endpoint to the URL of a deployed Heidi assistant backend (see server/heidi-assistant). No API key ever goes in this file or in the Angular code."
+}
