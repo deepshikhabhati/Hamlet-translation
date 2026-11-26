@@ -1159,7 +1159,7 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
   private bertScores: Record<string, BertScoreRecord> = {};
 
   get activeIds(): (string | null)[] {
-    return [this.activeLinkId, this.selectedSentenceId];
+    return [this.activeLinkId];
   }
 
   /** Sentence layer — Semantic only: every sentence of the passage is in one alignment record. */

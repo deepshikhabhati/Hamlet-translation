@@ -238,22 +238,6 @@ a.verification-btn { text-decoration: none; }
   &[data-cat="Uncertain"] { background: transparent; color: #475569; border: 1px dotted #64748B; }
   &--sm { font-size: 10.5px; padding: 1px 6px; } }
 
-/* Sentence indicators in speaker line / reader margin */
-.hd-sentence-indicators { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-.hd-sent-ind {
-  display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; padding: 1px 6px;
-  border-radius: 4px; cursor: pointer; border: 1px solid transparent; transition: all 120ms ease; line-height: 1.3;
-  .hd-sent-dot { width: 6px; height: 6px; border-radius: 50%; }
-  &--preserved { background: #DCFCE7; color: #15803D; border-color: #86EFAC; .hd-sent-dot { background: #15803D; } }
-  &--changed { background: #FEF3C7; color: #D97706; border-color: #FDE68A; .hd-sent-dot { background: #D97706; } }
-  &--lost { background: #FEE2E2; color: #DC2626; border-color: #FECACA; .hd-sent-dot { background: #DC2626; } }
-  &--added { background: #F3E8FF; color: #9333EA; border-color: #E9D5FF; .hd-sent-dot { background: #9333EA; } }
-  &--uncertain { background: #F1F5F9; color: #475569; border-color: #CBD5E1; .hd-sent-dot { background: transparent; border: 1.5px dotted #64748B; } }
-  &--unassessed { background: #F8FAFC; color: #64748B; border-color: #E2E8F0; .hd-sent-dot { background: #94A3B8; } }
-  &:hover { filter: brightness(0.96); }
-  &--active { box-shadow: 0 0 0 2px #2563EB; }
-}
-
 /* Analysis summary bar legend matching */
 .reader-analysis-summary-bar {
   .legend-item--preserved { color: #15803D !important; border: 1px solid #86EFAC !important; background: #DCFCE7 !important; }

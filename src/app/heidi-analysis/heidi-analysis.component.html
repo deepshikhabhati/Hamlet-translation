@@ -414,22 +414,10 @@
                     <div class="reader-speaker-line">
                       <span class="reader-speaker-name dialogue-speaker">{{ speakerLine(p) }}</span>
                       <span *ngIf="align.needsAlignmentReview(p)" class="hd-align-badge" [ngClass]="alignmentBadgeClass(p)">Needs Alignment Review</span>
-                      <div class="hd-sentence-indicators" *ngIf="showAnalysis && selectedDimension === 'semantic' && (p.analysis.sentence_alignments?.length || 0) > 0" role="group" aria-label="Sentence indicators">
-                        <span *ngFor="let sa of p.analysis.sentence_alignments; let sIdx = index"
-                              class="hd-sent-ind"
-                              [ngClass]="'hd-sent-ind--' + sa.classification"
-                              [class.hd-sent-ind--active]="selectedSentenceId === sa.sentence_alignment_id"
-                              (click)="pickSentence(p, sa.sentence_alignment_id, $event)"
-                              tabindex="0" role="button"
-                              [attr.aria-label]="'Sentence ' + (sIdx + 1) + ': ' + sa.classification"
-                              [title]="'Sentence ' + (sIdx + 1) + ' (' + sa.classification + '): ' + sa.explanation">
-                          <span class="hd-sent-dot"></span>S{{ sIdx + 1 }}
-                        </span>
-                      </div>
                     </div>
                     <div class="reader-dialogue-body dialogue-text" lang="en">
                       <app-heidi-reader-text *ngIf="p.english_text; else noEn" lang="en"
-                        [text]="p.english_text" [sentences]="showAnalysis ? sentenceHl(p, 'en') : []" [phrases]="showAnalysis ? phraseHl(p, 'en') : []"
+                        [text]="p.english_text" [phrases]="showAnalysis ? phraseHl(p, 'en') : []"
                         [activeIds]="activeIds" (pickSegment)="onPick(p, $event)"></app-heidi-reader-text>
                       <ng-template #noEn><span class="hd-missing">— No English counterpart detected (possible omission by the translator) —</span></ng-template>
                     </div>
@@ -456,7 +444,7 @@
                     </div>
                     <div class="reader-dialogue-body dialogue-text" lang="de">
                       <app-heidi-reader-text *ngIf="p.german_text; else noDe" lang="de"
-                        [text]="p.german_text" [sentences]="showAnalysis ? sentenceHl(p, 'de') : []" [phrases]="showAnalysis ? phraseHl(p, 'de') : []"
+                        [text]="p.german_text" [phrases]="showAnalysis ? phraseHl(p, 'de') : []"
                         [activeIds]="activeIds" (pickSegment)="onPick(p, $event)"></app-heidi-reader-text>
                       <ng-template #noDe><span class="hd-missing">— No German counterpart detected (possible addition by the translator) —</span></ng-template>
                     </div>

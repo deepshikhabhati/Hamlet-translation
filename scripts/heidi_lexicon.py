@@ -178,7 +178,8 @@ for inf, forms in {
     'schlagen': 'schlug schlugen geschlagen schlägt', 'waschen': 'wusch wuschen gewaschen', 'wachsen': 'wuchs wuchsen gewachsen',
     'sterben': 'starb starben gestorben stirbt', 'werden': 'wurde wurden geworden wird ward', 'sein': 'war waren gewesen ist',
     'haben': 'hatte hatten gehabt hat', 'können': 'konnte konnten kann', 'müssen': 'musste mussten muss',
-    'mögen': 'mochte mochten mag', 'dürfen': 'durfte durften darf', 'wollen': 'wollte wollten will',
+    'mögen': 'mochte mochten mag', 'dürfen': 'durfte durften darf', 'wollen': 'wollte wollten will willst wollt',
+    'tun': 'tat taten getan tust tut tue', 'gucken': 'guckte guckten geguckt guckt',
     'erschrecken': 'erschrak erschraken erschrocken', 'entgegnen': 'entgegnete entgegneten', 'versichern': 'versicherte versicherten',
     'erwidern': 'erwiderte erwiderten', 'gefallen': 'gefiel gefielen', 'empfangen': 'empfing empfingen',
 }.items():

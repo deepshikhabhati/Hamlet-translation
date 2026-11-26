@@ -614,10 +614,12 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
       expect(deIdx).toEqual(p.analysis.sentences!.de.map((_, i) => i));
       expect(enIdx).toEqual(p.analysis.sentences!.en.map((_, i) => i));
       expect(component.sentenceHl(p, 'de').length).toBe(p.analysis.sentences!.de.length);
-      expect(el.querySelectorAll('[data-test="card-de"] .hrt-seg[data-sentence]').length).toBeGreaterThan(0);
+      // Continuous phrase/clause highlighting across the paragraph without sentence buttons
+      expect(el.querySelectorAll('.hd-sent-ind').length).toBe(0);
+      expect(el.querySelectorAll('[data-test="card-de"] .hrt-seg[data-phrase]').length).toBeGreaterThan(0);
       (el.querySelector('[data-test="card-tab-cultural"]') as HTMLElement).click();
       fixture.detectChanges();
-      expect(el.querySelectorAll('[data-test="card-de"] .hrt-seg[data-sentence]').length).toBe(0);
+      expect(el.querySelectorAll('.hd-sent-ind').length).toBe(0);
       const cul = component.phraseHl(p, 'de');
       expect(cul.map(s => s.start)).toEqual(p.analysis.dimensions.cultural!.phrase_evidence.filter(e => e.de).map(e => e.de!.start).sort((a, b) => a - b));
       expect(el.querySelectorAll('[data-test="card-de"] .hrt-seg[data-phrase]').length).toBe(cul.length);
@@ -814,8 +816,48 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
       const pres = p.analysis.sentence_alignments!.find(r => r.classification === 'preserved' && r.source_sentences.length && r.target_sentences.length)!;
       component.onPick(p, { sentenceId: pres.sentence_alignment_id, phraseId: null });
       fixture.detectChanges();
-      expect(el.querySelectorAll(`[data-test="card-de"] .hrt-active[data-sentence="${pres.sentence_alignment_id}"]`).length).toBeGreaterThan(0);
-      expect(el.querySelectorAll(`[data-test="card-en"] .hrt-active[data-sentence="${pres.sentence_alignment_id}"]`).length).toBeGreaterThan(0);
+      // Sentence selection updates the inspector without blue rectangular outlines in the reader
+      expect(el.querySelectorAll('.hrt-active[data-sentence]').length).toBe(0);
+      if (pres.phrase_evidence_ids.length) {
+        component.pickPhrase(p, pres.phrase_evidence_ids[0]);
+        fixture.detectChanges();
+        expect(el.querySelectorAll('[data-test="card-de"] .hrt-active').length).toBeGreaterThan(0);
+      }
+    });
+
+    it('Chapter 1 Passages 001 and 002 have continuous full-paragraph clause coverage with multiple colors', () => {
+      const p1 = component.chapters[0].passages.find(x => x.passage_id === 'ch01-a001')!;
+      const p2 = component.chapters[0].passages.find(x => x.passage_id === 'ch01-a002')!;
+      expect(p1).toBeTruthy();
+      expect(p2).toBeTruthy();
+
+      // Check p1 clauses (Preserved and Changed)
+      const p1Sem = p1.analysis.dimensions.semantic!.phrase_evidence;
+      expect(p1Sem.length).toBeGreaterThanOrEqual(10);
+      expect(p1Sem.some(e => e.label === 'Preserved' && e.de?.text.includes('führt ein Fußweg'))).toBeTrue();
+      expect(p1Sem.some(e => e.label === 'Changed' && e.de?.text.includes('Dorfe Maienfeld'))).toBeTrue();
+      expect(p1Sem.some(e => e.label === 'Changed' && e.de?.text.includes('Bergkräutern'))).toBeTrue();
+
+      // Check p2 clauses (Preserved, Changed, Lost on German, Added on English)
+      const p2Sem = p2.analysis.dimensions.semantic!.phrase_evidence;
+      expect(p2Sem.length).toBeGreaterThanOrEqual(30);
+      expect(p2Sem.some(e => e.label === 'Preserved')).toBeTrue();
+      expect(p2Sem.some(e => e.label === 'Changed')).toBeTrue();
+      expect(p2Sem.some(e => e.label === 'Lost' && e.de?.text.includes('um und um gebunden') && e.en === null)).toBeTrue();
+      expect(p2Sem.some(e => e.label === 'Added' && e.en?.text.includes('around her shoulders') && e.de === null)).toBeTrue();
+
+      // Test reader DOM when open
+      component.openPassageCard(p1);
+      fixture.detectChanges();
+      expect(el.querySelectorAll('.hd-sent-ind').length).toBe(0); // S1, S2... buttons removed
+      expect(el.querySelectorAll('[data-test="card-de"] .p-preserved').length).toBeGreaterThan(0);
+      expect(el.querySelectorAll('[data-test="card-de"] .p-changed').length).toBeGreaterThan(0);
+
+      component.openPassageCard(p2);
+      fixture.detectChanges();
+      expect(el.querySelectorAll('.hd-sent-ind').length).toBe(0);
+      expect(el.querySelectorAll('[data-test="card-de"] .p-lost').length).toBeGreaterThan(0);
+      expect(el.querySelectorAll('[data-test="card-en"] .p-added').length).toBeGreaterThan(0);
     });
 
     it('a revised classification saved through Expert Feedback changes the highlight but keeps the machine category', () => {

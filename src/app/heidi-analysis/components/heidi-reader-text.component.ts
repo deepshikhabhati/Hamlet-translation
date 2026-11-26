@@ -21,10 +21,9 @@ const LABEL_TEXT: Record<string, string> = {
 };
 
 /**
- * Heidi reading text with two highlight layers:
- *  - sentence layer (Semantic only): a light background tint for every sentence group;
- *  - phrase layer (every dimension): coloured underline + stronger tint for phrase-level evidence.
- * Spans are code-point offsets and are only rendered when they fit the displayed text.
+ * Heidi reading text with continuous evidence-based phrase/clause highlighting.
+ * Paragraph structure is fully continuous; no sentence blocks, buttons or blue outlines.
+ * Clicking any phrase opens Evidence Inspector and subtly links its counterpart.
  */
 @Component({
   selector: 'app-heidi-reader-text',
@@ -32,38 +31,45 @@ const LABEL_TEXT: Record<string, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<span class="hrt" [attr.lang]="lang"><ng-container *ngFor="let s of segs"><span
-      *ngIf="s.phrase; else nonPhrase" class="hrt-seg hrt-phrase"
-      [ngClass]="cls(s)" [class.hrt-active]="isActive(s)"
-      tabindex="0" role="button" [attr.aria-label]="aria(s)" [attr.data-sentence]="s.sent?.id" [attr.data-phrase]="s.phrase?.id"
-      [attr.data-label]="s.phrase?.label"
-      (click)="pick(s, $event)" (keydown.enter)="pick(s, $event)">{{ s.text }}</span><ng-template #nonPhrase><span
-      *ngIf="s.sent; else plain" class="hrt-seg hrt-sent-only" [class.hrt-active]="isActive(s)"
-      tabindex="0" role="button" [attr.aria-label]="aria(s)" [attr.data-sentence]="s.sent?.id"
-      [attr.data-label]="s.sent?.label"
-      (click)="pick(s, $event)" (keydown.enter)="pick(s, $event)">{{ s.text }}</span><ng-template #plain>{{ s.text }}</ng-template></ng-template></ng-container></span>`,
+      *ngIf="s.phrase; else plain" class="hrt-seg"
+      [ngClass]="'p-' + s.phrase.label" [class.hrt-active]="isActive(s)"
+      tabindex="0" role="button" [attr.aria-label]="aria(s)"
+      [attr.data-phrase]="s.phrase.id" [attr.data-label]="s.phrase.label"
+      (click)="pick(s, $event)" (keydown.enter)="pick(s, $event)">{{ s.text }}</span><ng-template #plain>{{ s.text }}</ng-template></ng-container></span>`,
   styles: [`
     .hrt { white-space: pre-line; }
-    .hrt-seg { border-radius: 2px; transition: background-color 140ms ease, box-shadow 140ms ease;
-      -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-    .hrt-seg:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
-    .hrt-phrase { cursor: pointer; text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-    .hrt-sent-only { cursor: pointer; background: transparent; text-decoration: none; }
+    .hrt-seg {
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background-color 140ms ease, box-shadow 140ms ease;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+      text-decoration-line: underline;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 3px;
+    }
+    .hrt-seg:focus-visible { outline: 1px solid #94a3b8; outline-offset: 1px; }
 
     .p-preserved { background-color: #DCFCE7; text-decoration-color: #15803D; color: inherit; }
     .p-changed { background-color: #FEF3C7; text-decoration-color: #D97706; color: inherit; }
     .p-lost { background-color: #FEE2E2; text-decoration-color: #DC2626; color: inherit; }
     .p-added { background-color: #F3E8FF; text-decoration-color: #9333EA; color: inherit; }
-    .p-uncertain { background-color: transparent; text-decoration-color: #64748B; text-decoration-style: dotted; color: inherit; }
+    .p-uncertain { background-color: #F1F5F9; text-decoration-color: #64748B; text-decoration-style: dotted; color: inherit; }
 
-    .hrt-active { outline: 2px solid #2563eb !important; outline-offset: 1px; }
+    /* Subtle active link indicator: thicker underline and emphasis, no blue rectangular borders! */
+    .hrt-active {
+      font-weight: 600;
+      text-decoration-thickness: 3px !important;
+      filter: brightness(0.95);
+    }
   `],
 })
 export class HeidiReaderTextComponent implements OnChanges {
   @Input() text = '';
   @Input() lang: 'en' | 'de' = 'en';
-  /** Sentence layer — non-overlapping, sorted. */
+  /** Sentence layer — kept for data model/tests; not visually rendered as separate blocks. */
   @Input() sentences: HeidiHl[] = [];
-  /** Phrase layer — overlapping spans are dropped (first wins). */
+  /** Phrase layer — continuous evidence spans. */
   @Input() phrases: HeidiHl[] = [];
   @Input() activeIds: (string | null)[] = [];
   @Output() pickSegment = new EventEmitter<{ sentenceId: string | null; phraseId: string | null }>();
@@ -99,11 +105,21 @@ export class HeidiReaderTextComponent implements OnChanges {
   }
 }
 
-/** Split the text at every highlight boundary (code points). Exported for tests. */
-export function buildSegments(text: string, sentences: HeidiHl[], phrases: HeidiHl[]): Seg[] {
+/** Split the text at highlight boundaries (code points). Exported for tests. */
+export function buildSegments(text: string, sentencesOrPhrases: HeidiHl[], maybePhrases?: HeidiHl[]): Seg[] {
   const cps = Array.from(text);
   const n = cps.length;
   const fits = (h: HeidiHl) => h.start >= 0 && h.end <= n && h.start < h.end;
+
+  let sentences: HeidiHl[] = [];
+  let phrases: HeidiHl[] = [];
+  if (maybePhrases !== undefined) {
+    sentences = sentencesOrPhrases || [];
+    phrases = maybePhrases || [];
+  } else {
+    phrases = sentencesOrPhrases || [];
+  }
+
   const sents = sentences.filter(fits).sort((a, b) => a.start - b.start);
   const ph: HeidiHl[] = [];
   for (const p of phrases.filter(fits).sort((a, b) => a.start - b.start)) {
@@ -120,7 +136,11 @@ export function buildSegments(text: string, sentences: HeidiHl[], phrases: Heidi
     const phrase = ph.find(h => h.start <= a && b <= h.end) || null;
     const last = out[out.length - 1];
     const t = cps.slice(a, b).join('');
-    if (last && last.sent === sent && last.phrase === phrase) { last.text += t; } else { out.push({ text: t, sent, phrase }); }
+    if (last && last.sent === sent && last.phrase === phrase) {
+      last.text += t;
+    } else {
+      out.push({ text: t, sent, phrase });
+    }
   }
   return out;
 }

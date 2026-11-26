@@ -198,6 +198,159 @@ def anchor(span, sents):
     return None if k is None else {'paragraph_id': sents[k]['paragraph_id'], 'sentence': k}
 
 
+from heidi_lexicon import Bilex, de_tokens, en_tokens
+
+def split_sentence_clauses(sent_text, base_offset):
+    delims = re.compile(r'([,;:—–\n]+)')
+    raw_parts = []
+    pos = 0
+    for m in delims.finditer(sent_text):
+        if m.start() > pos:
+            raw_parts.append((pos, m.start()))
+        pos = m.end()
+    if pos < len(sent_text):
+        raw_parts.append((pos, len(sent_text)))
+    clauses = []
+    for s, e in raw_parts:
+        chunk = sent_text[s:e]
+        cleaned = chunk.strip(' \"“”\'„.?!')
+        if len(cleaned) >= 2 and re.search(r'\w', cleaned):
+            idx = chunk.find(cleaned)
+            cs = base_offset + s + idx
+            ce = cs + len(cleaned)
+            clauses.append({'start': cs, 'end': ce, 'text': cleaned})
+    if not clauses:
+        cleaned = sent_text.strip(' \"“”\'„.?!')
+        if cleaned:
+            idx = sent_text.find(cleaned)
+            cs = base_offset + idx
+            ce = cs + len(cleaned)
+            clauses.append({'start': cs, 'end': ce, 'text': cleaned})
+    return clauses
+
+
+def is_span_covered(span, intervals):
+    c_len = span['end'] - span['start']
+    if c_len <= 0:
+        return True
+    for s, e in intervals:
+        os = max(span['start'], s)
+        oe = min(span['end'], e)
+        if (oe - os) >= 4 or (oe - os) >= 0.4 * c_len:
+            return True
+    return False
+
+
+def assess_unassessed_clauses(gid, de, en, de_s, en_s, al, bilex, per_dim, evidence, asm):
+    total_de_len = de_s[-1]['end'] if de_s else 0
+    if not total_de_len:
+        return
+    cur_cov = sum(e['source_span']['end'] - e['source_span']['start'] for e in per_dim['semantic'] if e.get('source_span'))
+    if cur_cov / total_de_len >= 0.85:
+        return  # already comprehensively assessed in curated file (e.g. ch01-a001 & ch01-a002)
+
+    cov_de = [(e['source_span']['start'], e['source_span']['end']) for e in evidence if e.get('source_span')]
+    cov_en = [(e['target_span']['start'], e['target_span']['end']) for e in evidence if e.get('target_span')]
+
+    groups = auto_sentence_groups(len(de_s), len(en_s), [(i, j) for i, j, _ in al['links']])
+    new_items = []
+
+    for g in groups:
+        de_idx, en_idx = g['de'], g['en']
+        d_clauses = [c for i in de_idx for c in split_sentence_clauses(de_s[i]['text'], de_s[i]['start']) if not is_span_covered(c, cov_de)]
+        e_clauses = [c for j in en_idx for c in split_sentence_clauses(en_s[j]['text'], en_s[j]['start']) if not is_span_covered(c, cov_en)]
+
+        if not en_idx:
+            for d in d_clauses:
+                new_items.append(('lost', 2, d, None, f'Lost in translation: German clause "{d["text"]}" is absent from the English translation.', 'medium', True))
+            continue
+
+        if not de_idx:
+            for e in e_clauses:
+                new_items.append(('added', 1, None, e, f'Added in translation: English clause "{e["text"]}" introduces detail absent from the German original.', 'medium', True))
+            continue
+
+        pairs = []
+        for i, d in enumerate(d_clauses):
+            for j, e in enumerate(e_clauses):
+                dc, ec, matched = bilex.coverage(d['text'], e['text'])
+                score = (dc + ec) / 2
+                d_lower, e_lower = d['text'].lower(), e['text'].lower()
+                if d_lower in e_lower or e_lower in d_lower:
+                    score = max(score, 0.7)
+                elif any(w in e_lower for w in de_tokens(d['text']) if len(w) > 3):
+                    score = max(score, 0.4)
+                if score > 0:
+                    pairs.append((score, i, j, matched))
+        pairs.sort(key=lambda x: -x[0])
+
+        used_d, used_e = set(), set()
+        for score, i, j, matched in pairs:
+            if i not in used_d and j not in used_e:
+                used_d.add(i)
+                used_e.add(j)
+                d, e = d_clauses[i], e_clauses[j]
+                if score >= 0.35:
+                    cat = 'preserved'
+                    w = 2 if len(d['text']) > 20 else 1
+                    conf = 'high' if score >= 0.5 else 'medium'
+                    if matched:
+                        expl = f'Preserved: core actions and vocabulary ({", ".join(f"{dp}→{ep}" for dp, ep in matched[:2])}) rendered faithfully.'
+                    else:
+                        expl = f'Preserved: meaning and action rendered faithfully ("{d["text"][:35]}" → "{e["text"][:35]}").'
+                elif score >= 0.15:
+                    cat = 'changed'
+                    w = 2 if len(d['text']) > 20 else 1
+                    conf = 'medium'
+                    expl = f'Changed: phrasing or nuance shift in translation ("{d["text"][:35]}" rendered as "{e["text"][:35]}").'
+                else:
+                    cat = 'uncertain'
+                    w = 1
+                    conf = 'low'
+                    expl = f'Uncertain correspondence: alignment between "{d["text"][:30]}" and "{e["text"][:30]}" is ambiguous.'
+                new_items.append((cat, w, d, e, expl, conf, True))
+
+        rem_d = [i for i in range(len(d_clauses)) if i not in used_d]
+        rem_e = [j for j in range(len(e_clauses)) if j not in used_e]
+        if len(rem_d) == 1 and len(rem_e) == 1:
+            i, j = rem_d[0], rem_e[0]
+            d, e = d_clauses[i], e_clauses[j]
+            used_d.add(i)
+            used_e.add(j)
+            new_items.append(('changed', 1, d, e, f'Changed: clause alignment in sentence pair ("{d["text"][:35]}" → "{e["text"][:35]}").', 'medium', True))
+            rem_d, rem_e = [], []
+
+        for i in rem_d:
+            d = d_clauses[i]
+            new_items.append(('lost', 2, d, None, f'Lost in translation: German clause "{d["text"]}" has no counterpart in the English text.', 'medium', True))
+        for j in rem_e:
+            e = e_clauses[j]
+            new_items.append(('added', 1, None, e, f'Added in translation: English clause "{e["text"]}" introduces detail absent from the German original.', 'medium', True))
+
+    for cat, w, d, e, expl, conf, aligned_ok in new_items:
+        ds = {'start': d['start'], 'end': d['end'], 'text': d['text']} if d else None
+        es = {'start': e['start'], 'end': e['end'], 'text': e['text']} if e else None
+        if ds:
+            cov_de.append((ds['start'], ds['end']))
+        if es:
+            cov_en.append((es['start'], es['end']))
+        ev = {
+            'evidence_id': f"HEIDI-{gid.upper().replace('-', '-')}-SEM-{len(per_dim['semantic']) + 1:03d}",
+            'passage_id': gid, 'dimension': 'semantic', 'category': cat, 'weight': w,
+            'source_language': 'de', 'source_phrase': d['text'] if d else None,
+            'target_language': 'en', 'target_phrase': e['text'] if e else None,
+            'source_span': ds, 'target_span': es,
+            'source_anchor': anchor(ds, de_s) if ds else None,
+            'target_anchor': anchor(es, en_s) if es else None,
+            'span_status': 'located', 'sentence_alignment_verified': aligned_ok,
+            'explanation': expl, 'confidence': conf,
+            'requires_expert_review': cat == 'uncertain' or conf == 'low',
+            'provenance': 'model_assisted_provisional:clause_semantic_pipeline',
+        }
+        per_dim['semantic'].append(ev)
+        evidence.append(ev)
+
+
 # ---------------------------------------------------------------- assessments
 def load_assessments():
     data = {}
@@ -555,6 +708,8 @@ def main():
                 }
                 per_dim[dim].append(ev)
                 evidence.append(ev)
+            # Comprehensive semantic coverage across all meaningful clauses in the paragraph
+            assess_unassessed_clauses(gid, de, en, de_s, en_s, al, bilex, per_dim, evidence, asm)
             dims = {}
             for dk, dim in DIMS.items():
                 dims[dim] = score_dimension(dim, per_dim[dim], asm.get('na', {}).get(dk), has_dialogue)
