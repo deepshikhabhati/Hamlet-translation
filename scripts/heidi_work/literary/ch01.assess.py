@@ -3,9 +3,11 @@
 # item: (dimension, category, weight 1-3, German phrase | None, English phrase | None, explanation[, confidence])
 {
 'ch01-a001': {'items': [
- ('sem', 'C', 2, 'Vom freundlichen Dorfe Maienfeld', 'The little old town of Mayenfeld is charmingly situated.', 'German "friendly village" becomes a "little old town"; the settlement type changes and "charmingly situated" recasts the epithet as a separate statement.'),
+ ('sem', 'C', 2, 'Vom freundlichen Dorfe Maienfeld', 'The little old town of Mayenfeld is charmingly situated.', 'German "friendly village" becomes a "little old town"; the settlement description and specificity differ.'),
+ ('sem', 'P', 2, 'führt ein Fußweg', 'From it a footpath leads', 'Footpath leading from the settlement is preserved.'),
  ('sem', 'P', 2, 'durch grüne, baumreiche Fluren', 'through green, well-wooded stretches', 'Route through green, wooded fields preserved.'),
- ('sem', 'C', 1, 'kräftigen Bergkräutern', 'pungent herbage', '"Kräftig" (hearty, vigorous) herbs become "pungent" herbage, shifting the quality to smell.'),
+ ('sem', 'P', 2, 'bis zum Fuße der Höhen', 'to the foot of the heights', 'Path leading to the foot of the heights preserved.'),
+ ('sem', 'C', 1, 'kräftigen Bergkräutern', 'pungent herbage', '"Kräftig" (hearty, vigorous) herbs become "pungent" herbage; the descriptive qualities differ.'),
  ('img', 'C', 2, 'groß und ernst auf das Tal herniederschauen', 'look down imposingly upon the valley', 'The personified heights still "look down", but the paired "large and solemn" collapses into "imposingly"; the solemnity is softened.'),
  ('img', 'P', 2, 'dem Kommenden entgegenzuduften', 'sends out its soft perfume to meet the wayfarer', 'Personified scent going out to meet the walker is preserved; "soft" is an added nuance.'),
  ('ton', 'P', 1, 'freundlichen', 'charmingly', 'The warm, inviting narrative tone of the opening is kept.'),

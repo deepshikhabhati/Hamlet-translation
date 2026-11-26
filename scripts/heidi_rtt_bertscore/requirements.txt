@@ -1,0 +1,4 @@
+bert-score>=0.3.13,<0.4
+scipy>=1.10
+numpy>=1.24
+openai>=1.30

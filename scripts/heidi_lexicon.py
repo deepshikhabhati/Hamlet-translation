@@ -131,7 +131,14 @@ def load_lexicon():
     if os.path.exists(CACHE):
         d = json.load(open(CACHE, encoding='utf-8'))
         return {k: set(v) for k, v in d['entries'].items()}
-    return {k: set(v) for k, v in build_lexicon().items()}
+    if os.path.exists(DING_DEFAULT):
+        return {k: set(v) for k, v in build_lexicon().items()}
+    lex = {}
+    for k, v in NAME_EQUIV.items():
+        lst = lex.setdefault(de_stem(k), set())
+        for x in v:
+            lst.add(en_stem(x))
+    return lex
 
 
 def de_content(text):

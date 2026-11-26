@@ -68,34 +68,34 @@ export function codePointLength(text: string): number {
       transition: all 120ms ease;
     }
     .ev-span-preserved {
-      text-decoration-color: #16a34a;
+      text-decoration-color: #15803D;
       color: #14513F;
-      background: rgba(22, 163, 74, 0.08);
+      background: #DCFCE7;
       border-radius: 2px;
     }
     .ev-span-changed {
-      text-decoration-color: #d97706;
+      text-decoration-color: #D97706;
       color: #92400e;
-      background: rgba(217, 119, 6, 0.10);
+      background: #FEF3C7;
       border-radius: 2px;
     }
     .ev-span-lost {
-      text-decoration-color: #dc2626;
+      text-decoration-color: #DC2626;
       color: #991b1b;
-      background: rgba(220, 38, 38, 0.08);
+      background: #FEE2E2;
       border-radius: 2px;
     }
     .ev-span-added {
-      text-decoration-color: #9333ea;
+      text-decoration-color: #9333EA;
       color: #6b21a8;
-      background: rgba(147, 51, 234, 0.08);
+      background: #F3E8FF;
       border-radius: 2px;
     }
     .ev-span-review {
       text-decoration-style: dotted;
-      text-decoration-color: #64748b;
+      text-decoration-color: #64748B;
       color: #334155;
-      background: rgba(100, 116, 139, 0.06);
+      background: transparent;
       border-radius: 2px;
     }
     .ev-span-source-cue {

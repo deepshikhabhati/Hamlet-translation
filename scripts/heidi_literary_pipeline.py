@@ -63,6 +63,7 @@ LIT = os.path.join(HERE, 'heidi_work', 'literary')
 MANIFEST = os.path.join(LIT, 'manifest.json')
 JOIN = '\n\n'
 SCHEMA = 'heidi-literary-analysis-v1'
+SENTENCE_SCHEMA = 'heidi-sentence-alignment-v1'
 ASSESSOR_IN_SESSION = 'model_assisted_provisional:claude-in-session'
 
 DIMS = {'sem': 'semantic', 'emo': 'emotion', 'img': 'imagery', 'ton': 'tone', 'voi': 'voice',
@@ -214,6 +215,129 @@ def load_assessments():
     return data
 
 
+def load_sentence_assessments():
+    """Explicit sentence-level semantic assessments: chNN.sentences.py → {gid: {'groups': [(de_idx, en_idx, code, expl[, conf])],
+    'expert_reviewed': bool}}. Groups must cover every German and English sentence exactly once."""
+    data = {}
+    for f in sorted(glob.glob(os.path.join(LIT, 'ch*.sentences.py'))):
+        for k, v in ast.literal_eval(open(f, encoding='utf-8').read()).items():
+            v['_file'] = os.path.basename(f)
+            data[k] = v
+    for f in sorted(glob.glob(os.path.join(LIT, 'api_cache', '*.sentences.json'))):
+        k = os.path.basename(f)[:-len('.sentences.json')]
+        if k not in data:   # in-session / expert files take precedence over cached API results
+            v = json.load(open(f, encoding='utf-8'))
+            v['groups'] = [tuple(g) for g in v['groups']]
+            data[k] = v
+    return data
+
+
+def auto_sentence_groups(n_de, n_en, links):
+    """Connected components of the sentence-link graph (supports 1:1, 1:N, N:1 and N:M); unlinked sentences stand alone."""
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for i in range(n_de):
+        find(('d', i))
+    for j in range(n_en):
+        find(('e', j))
+    for i, j in links:
+        parent[find(('d', i))] = find(('e', j))
+    comps = defaultdict(lambda: {'de': [], 'en': []})
+    for i in range(n_de):
+        comps[find(('d', i))]['de'].append(i)
+    for j in range(n_en):
+        comps[find(('e', j))]['en'].append(j)
+
+    def key(g):
+        fd = g['de'][0] / max(1, n_de) if g['de'] else None
+        fe = g['en'][0] / max(1, n_en) if g['en'] else None
+        return (min(x for x in (fd, fe) if x is not None), fd if fd is not None else 9)
+    return sorted(comps.values(), key=key)
+
+
+SENT_LABEL = {'P': 'preserved', 'C': 'changed', 'L': 'lost', 'A': 'added', 'U': 'uncertain'}
+
+
+def derive_label(g, de_s, en_s, evs):
+    """Sentence label derived ONLY from recorded semantic / omission phrase evidence inside the group.
+    No evidence → 'unassessed' (never assumed preserved)."""
+    def inside(span, sents, idx):
+        return span and any(sents[k]['start'] <= span['start'] < sents[k]['end'] for k in idx)
+    hit = [e for e in evs if inside(e['source_span'], de_s, g['de']) or inside(e['target_span'], en_s, g['en'])]
+    cats = {e['category'] for e in hit}
+    if not hit:
+        if not g['en'] or not g['de']:
+            return 'uncertain', [], 'No counterpart sentence was found automatically and no evidence was recorded; possible omission/addition or re-segmentation — needs review.'
+        return 'unassessed', [], 'This sentence has not been individually assessed yet.'
+    ids = [e['evidence_id'] for e in hit]
+    if not g['en'] and cats <= {'lost'}:
+        cover = sum(e['source_span']['end'] - e['source_span']['start'] for e in hit if e['source_span'])
+        size = sum(de_s[k]['end'] - de_s[k]['start'] for k in g['de'])
+        if cover >= 0.5 * size:
+            return 'lost', ids, 'Content of this German sentence is absent from the English (from the recorded omission evidence).'
+    if not g['de'] and cats <= {'added'}:
+        return 'added', ids, 'This English sentence introduces content not in the German (from the recorded addition evidence).'
+    if cats <= {'uncertain'}:
+        return 'uncertain', ids, hit[0]['explanation']
+    if cats <= {'preserved'}:
+        return 'preserved', ids, 'Recorded evidence in this sentence is preserved: ' + hit[0]['explanation']
+    worst = next(e for e in hit if e['category'] in ('changed', 'lost', 'added', 'uncertain'))
+    return 'changed', ids, 'Partly changed (mixed sentence): ' + worst['explanation']
+
+
+def build_sentence_layer(gid, de_s, en_s, al, evidence, explicit):
+    """Sentence alignment records for one passage (semantic dimension). Every sentence appears in exactly one record."""
+    problems = []
+    sem_evs = [e for e in evidence if e['dimension'] in ('semantic', 'omissions')]
+    if explicit:
+        groups = [{'de': list(g[0]), 'en': list(g[1]), 'code': g[2], 'expl': g[3], 'conf': CONF[g[4]] if len(g) > 4 and g[4] else 'medium'}
+                  for g in explicit['groups']]
+        cd = sorted(i for g in groups for i in g['de'])
+        ce = sorted(j for g in groups for j in g['en'])
+        if cd != list(range(len(de_s))) or ce != list(range(len(en_s))):
+            problems.append(f'{gid}: sentence assessment does not cover every sentence exactly once '
+                            f'(de {cd} of {len(de_s)}, en {ce} of {len(en_s)})')
+            explicit = None
+        for g in groups:
+            if g['code'] == 'L' and g['en']:
+                problems.append(f'{gid}: Lost sentence group must not have English sentences')
+            if g['code'] == 'A' and g['de']:
+                problems.append(f'{gid}: Added sentence group must not have German sentences')
+    if not explicit:
+        groups = [dict(g) for g in auto_sentence_groups(len(de_s), len(en_s), [(i, j) for i, j, _ in al['links']])]
+    out = []
+    for n, g in enumerate(groups, 1):
+        def inside(span, sents, idx):
+            return span and any(sents[k]['start'] <= span['start'] < sents[k]['end'] for k in idx)
+        ids = [e['evidence_id'] for e in sem_evs if inside(e['source_span'], de_s, g['de']) or inside(e['target_span'], en_s, g['en'])]
+        if explicit:
+            label, expl, conf = SENT_LABEL[g['code']], g['expl'], g['conf']
+            basis = 'assessed'
+            prov = ('expert_reviewed' if explicit.get('expert_reviewed') else explicit.get('assessor', ASSESSOR_IN_SESSION) + ' (sentence review)')
+            review = 'expert_reviewed' if explicit.get('expert_reviewed') else ('requires_expert_review' if label == 'uncertain' or conf == 'low' else 'machine_provisional')
+        else:
+            label, ids, expl = derive_label(g, de_s, en_s, sem_evs)
+            basis = 'unassessed' if label == 'unassessed' else 'derived'
+            conf = None if basis == 'unassessed' else ('low' if label == 'uncertain' else 'medium')
+            prov = None if basis == 'unassessed' else 'derived_from_phrase_evidence'
+            review = 'not_assessed' if basis == 'unassessed' else ('requires_expert_review' if label == 'uncertain' else 'machine_provisional')
+        sp = lambda sents, idx: [{'start': sents[k]['start'], 'end': sents[k]['end'], 'text': sents[k]['text']} for k in idx]
+        out.append({
+            'sentence_alignment_id': f'HEIDI-{gid.upper()}-SA{n:02d}', 'passage_id': gid, 'chapter': int(gid[2:4]),
+            'dimension': 'semantic', 'source_sentences': g['de'], 'target_sentences': g['en'],
+            'source_spans': sp(de_s, g['de']), 'target_spans': sp(en_s, g['en']),
+            'alignment_type': f"{len(g['de'])}:{len(g['en'])}", 'classification': label, 'basis': basis,
+            'explanation': expl, 'phrase_evidence_ids': ids, 'confidence': conf, 'provenance': prov, 'review_status': review,
+        })
+    return out, problems
+
+
 def text_hash(de, en):
     return hashlib.sha256((de + '\u0000' + en).encode('utf-8')).hexdigest()
 
@@ -245,6 +369,40 @@ def assess_with_api(group_id, de, en, model):
            'na': res.get('na', {}), 'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds')}
     os.makedirs(os.path.join(LIT, 'api_cache'), exist_ok=True)
     json.dump(rec, open(os.path.join(LIT, 'api_cache', f'{group_id}.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    return rec
+
+
+SENTENCE_API_PROMPT = """You compare Johanna Spyri's German original (authoritative) with Elisabeth P. Stork's English translation,
+sentence by sentence, for MEANING. Both texts are given as numbered sentences (D0.., E0..). Group the sentences that correspond
+by meaning (1:1, 1:N, N:1 or N:M; order may differ). Every German and every English sentence must appear in exactly one group.
+Label each group: P (meaning retained even if reworded), C (meaning, intensity, specificity or implication changed; also use C for a
+sentence where only part is omitted or added), L (German sentence(s) with no English counterpart; English list empty), A (English
+sentence(s) with no German counterpart; German list empty), U (relationship cannot be established reliably).
+Do not treat different vocabulary as loss. Reply ONLY with JSON: {"groups": [[[de indices], [en indices], "P|C|L|A|U", "one-sentence explanation"]]}"""
+
+
+def assess_sentences_with_api(group_id, de_s, en_s, model):
+    """Optional sentence-level assessor (ANTHROPIC_API_KEY). Cached per passage under literary/api_cache/<id>.sentences.json."""
+    import urllib.request
+    cache = os.path.join(LIT, 'api_cache', f'{group_id}.sentences.json')
+    if os.path.exists(cache):
+        return json.load(open(cache, encoding='utf-8'))
+    key = os.environ.get('ANTHROPIC_API_KEY')
+    if not key:
+        raise RuntimeError('ANTHROPIC_API_KEY is not set — the sentence assessor cannot run.')
+    listing = '\n'.join(f'D{i}: {x["text"]}' for i, x in enumerate(de_s)) + '\n\n' + '\n'.join(f'E{j}: {x["text"]}' for j, x in enumerate(en_s))
+    body = json.dumps({'model': model, 'max_tokens': 4000, 'system': SENTENCE_API_PROMPT,
+                       'messages': [{'role': 'user', 'content': listing}]}).encode()
+    req = urllib.request.Request('https://api.anthropic.com/v1/messages', data=body, headers={
+        'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        out = json.loads(r.read().decode())
+    txt = ''.join(b.get('text', '') for b in out.get('content', []))
+    res = json.loads(txt[txt.find('{'):txt.rfind('}') + 1])
+    rec = {'groups': [tuple(g[:4]) for g in res.get('groups', [])], 'assessor': f'model_assisted_provisional:{model}',
+           'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds')}
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    json.dump(rec, open(cache, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     return rec
 
 
@@ -284,7 +442,7 @@ def score_dimension(dim, evs, na_reason, has_dialogue):
     issues = sorted([e for e in scored if e['category'] != 'preserved'], key=lambda e: -e['weight'])
     parts = [f"{counts.get(c, 0)} {c}" for c in ('preserved', 'changed', 'lost', 'added', 'uncertain') if counts.get(c)]
     lead = issues[0]['explanation'] if issues else scored[0]['explanation']
-    expl = f"{', '.join(parts)} (rubric_v1). " + ('Main difference: ' if issues else '') + lead
+    expl = f"{', '.join(parts)}. " + ('Main difference: ' if issues else '') + lead
     if unl:
         expl += f' {len(unl)} evidence item(s) could not be located in the text and are excluded from the score.'
     return {**base, 'applicability': 'evaluated', 'score': score, 'confidence': conf, 'explanation': expl,
@@ -297,6 +455,8 @@ def main():
     ap.add_argument('--assessor', choices=['none', 'anthropic'], default='none',
                     help='also assess groups without an assessment using this assessor')
     ap.add_argument('--model', default='claude-sonnet-4-5')
+    ap.add_argument('--sentence-assessor', choices=['none', 'anthropic'], default='none',
+                    help='assess passages without an explicit sentence assessment (cached per passage)')
     ap.add_argument('--limit', type=int, default=0)
     a = ap.parse_args()
 
@@ -304,6 +464,7 @@ def main():
     bilex = Bilex()
     src = json.load(open(SRC, encoding='utf-8'))
     assessments = load_assessments()
+    sentence_asm = load_sentence_assessments()
     manifest = json.load(open(MANIFEST, encoding='utf-8')) if os.path.exists(MANIFEST) else {}
     passages, problems = {}, []
     cov = Counter()
@@ -398,6 +559,18 @@ def main():
             for dk, dim in DIMS.items():
                 dims[dim] = score_dimension(dim, per_dim[dim], asm.get('na', {}).get(dk), has_dialogue)
                 dim_cov[dim][dims[dim]['applicability']] += 1
+            s_asm = sentence_asm.get(gid)
+            if s_asm is None and a.sentence_assessor == 'anthropic' and (not a.limit or api_calls < a.limit):
+                s_asm = assess_sentences_with_api(gid, de_s, en_s, a.model)
+                api_calls += 1
+            sent_records, sprob = build_sentence_layer(gid, de_s, en_s, al, evidence, s_asm)
+            problems += sprob
+            for rec in sent_records:
+                cov['sentence_groups'] += 1
+                cov['sentence_groups_' + rec['basis']] += 1
+                cov['sentences_' + rec['basis']] += len(rec['source_sentences']) + len(rec['target_sentences'])
+                cov['sentence_label_' + rec['classification']] += 1
+            cov['sentences_total'] += len(de_s) + len(en_s)
             cov['analyzed'] += 1
             cov['evidence'] += len(evidence)
             cov['unlocated_evidence'] += sum(1 for e in evidence if e['span_status'] == 'unlocated')
@@ -410,13 +583,15 @@ def main():
                                        'links': len(al['links']), 'link_types': al['types'],
                                        'unmatched_de': len(al['unmatched_de']), 'unmatched_en': len(al['unmatched_en'])},
                 'dimensions': dims, 'evidence': evidence,
+                'sentences': {'de': [[x['start'], x['end']] for x in de_s], 'en': [[x['start'], x['end']] for x in en_s]},
+                'sentence_alignments': sent_records,
             }
     out = {
         'schema': SCHEMA, 'project_id': 'heidi',
         'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'source': 'heidi_part1_side_by_side.json', 'source_language': 'de', 'target_language': 'en',
         'method': 'Eight-dimension phrase-level comparison; German original authoritative. See scripts/heidi_literary_pipeline.py.',
-        'rubric': RUBRIC, 'coverage': {**cov, 'dimension_applicability': {k: dict(v) for k, v in dim_cov.items()}},
+        'rubric': RUBRIC, 'sentence_schema': SENTENCE_SCHEMA, 'coverage': {**cov, 'dimension_applicability': {k: dict(v) for k, v in dim_cov.items()}},
         'passages': passages,
     }
     json.dump(out, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

@@ -139,6 +139,8 @@ export interface HeidiPassage {
     note?: string;
     assessor?: string | null;
     sentence_alignment?: { sentences_de: number; sentences_en: number; links: number; link_types: Record<string, number>; unmatched_de: number; unmatched_en: number } | null;
+    sentences?: { de: [number, number][]; en: [number, number][] } | null;
+    sentence_alignments?: import('../literary/heidi-literary').LitSentenceAlignment[];
   };
   round_trip_verification: HeidiRoundTrip;
   expert_review: { status: string };
@@ -190,6 +192,11 @@ export interface HeidiDimensionReview {
   decision: 'accept' | 'override' | 'reject' | 'revise' | null;
   score_override: number | null;
   comment: string | null;
+  /** Expert Feedback: optional revised preservation classification and corrected translation / phrase. */
+  revised_classification?: 'Preserved' | 'Changed' | 'Lost' | 'Added' | 'Uncertain' | null;
+  corrected_translation?: string | null;
+  /** Set when the corrected translation came from the AI assistant and the expert approved it. */
+  corrected_translation_source?: 'expert' | 'ai_assistant_approved' | null;
 }
 
 export interface HeidiPassageReview {
@@ -234,12 +241,13 @@ export const ALIGNMENT_STATUS_LABELS: Record<HeidiAlignmentStatus, string> = {
 };
 
 export const RTT_STATUS_LABELS: Record<HeidiRoundTrip['status'], string> = {
-  not_run: 'Not Run',
+  not_run: 'Not evaluated',
   running: 'Running',
-  agreement: 'Agreement',
-  disagreement: 'Disagreement',
+  /** Below an uncalibrated threshold: reported neutrally, never as "agreement". */
+  agreement: 'Evaluated',
+  disagreement: 'Potential disagreement',
   failed: 'Failed',
-  expert_reviewed: 'Expert Reviewed',
+  expert_reviewed: 'Expert reviewed',
 };
 
 /** v2: passage IDs are the alignment-group IDs of heidi_part1_side_by_side.json (chCC-aGGG). */

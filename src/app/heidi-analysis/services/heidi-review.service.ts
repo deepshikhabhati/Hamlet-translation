@@ -115,7 +115,7 @@ export class HeidiReviewService {
     const automated = a && a.score !== null && a.score !== undefined ? a.score : null;
     const r = this.reviews[p.passage_id];
     const dr = r?.dimensions?.[dim];
-    if (dr?.decision === 'override' && dr.score_override !== null && dr.score_override !== undefined) {
+    if (dr && dr.decision !== 'reject' && dr.score_override !== null && dr.score_override !== undefined && (dr.score_override as unknown) !== '') {
       return { score: dr.score_override, provenance: 'expert_override', automatedScore: automated, method: a?.method ?? null };
     }
     if (dim === 'semantic' && r?.rtt_corrected_semantic_score !== null && r?.rtt_corrected_semantic_score !== undefined) {

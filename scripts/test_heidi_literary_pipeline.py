@@ -59,6 +59,69 @@ class Scoring(unittest.TestCase):
         self.assertLess(r['score'], 100)
 
 
+def sent(text_list):
+    out, pos = [], 0
+    for t in text_list:
+        out.append({'start': pos, 'end': pos + len(t), 'text': t, 'paragraph_id': 'x'})
+        pos += len(t) + 1
+    return out
+
+
+def span_ev(cat, de=None, en=None, dim='semantic', expl='x'):
+    return {'evidence_id': 'E', 'dimension': dim, 'category': cat, 'source_span': de, 'target_span': en, 'explanation': expl}
+
+
+class Sentences(unittest.TestCase):
+    def test_auto_groups_support_n_to_m_and_cover_every_sentence(self):
+        g = P.auto_sentence_groups(3, 3, [(0, 0), (0, 1), (1, 1), (2, 2)])
+        self.assertEqual(sorted(i for x in g for i in x['de']), [0, 1, 2])
+        self.assertEqual(sorted(j for x in g for j in x['en']), [0, 1, 2])
+        self.assertIn({'de': [0, 1], 'en': [0, 1]}, g)
+
+    def test_unlinked_sentences_stand_alone(self):
+        g = P.auto_sentence_groups(2, 1, [(0, 0)])
+        self.assertIn({'de': [1], 'en': []}, g)
+
+    def test_no_evidence_is_unassessed_not_preserved(self):
+        de, en = sent(['Ein Satz.']), sent(['A sentence.'])
+        lab, _, _ = P.derive_label({'de': [0], 'en': [0]}, de, en, [])
+        self.assertEqual(lab, 'unassessed')
+
+    def test_partial_loss_is_changed_not_lost(self):
+        de, en = sent(['Das große rote Tuch um und um gebunden.']), sent(['A large red shawl.'])
+        ev = [span_ev('lost', de={'start': 22, 'end': 38})]
+        lab, ids, _ = P.derive_label({'de': [0], 'en': [0]}, de, en, ev)
+        self.assertEqual(lab, 'changed')
+
+    def test_unmatched_german_sentence_with_loss_evidence_is_lost(self):
+        de, en = sent(['Er war Soldat in Neapel.']), sent([])
+        ev = [span_ev('lost', de={'start': 0, 'end': 24})]
+        self.assertEqual(P.derive_label({'de': [0], 'en': []}, de, en, ev)[0], 'lost')
+
+    def test_unmatched_sentence_without_evidence_is_uncertain(self):
+        de, en = sent(['Er war Soldat.']), sent([])
+        self.assertEqual(P.derive_label({'de': [0], 'en': []}, de, en, [])[0], 'uncertain')
+
+    def test_explicit_assessment_must_cover_every_sentence(self):
+        de, en = sent(['A.', 'B.']), sent(['a.'])
+        al = {'links': [[0, 0, 1.0]]}
+        recs, probs = P.build_sentence_layer('ch01-a999', de, en, al, [], {'groups': [([0], [0], 'P', 'ok')]})
+        self.assertTrue(probs)
+        self.assertEqual(sorted(i for r in recs for i in r['source_sentences']), [0, 1])   # falls back to automatic groups
+
+    def test_lost_group_cannot_have_english(self):
+        de, en = sent(['A.']), sent(['a.'])
+        _, probs = P.build_sentence_layer('ch01-a999', de, en, {'links': []}, [], {'groups': [([0], [0], 'L', 'x')]})
+        self.assertTrue(any('Lost' in p for p in probs))
+
+    def test_expert_reviewed_assessment_is_kept_and_marked(self):
+        de, en = sent(['A.']), sent(['a.'])
+        recs, _ = P.build_sentence_layer('ch01-a999', de, en, {'links': []}, [],
+                                         {'groups': [([0], [0], 'C', 'expert')], 'expert_reviewed': True})
+        self.assertEqual(recs[0]['review_status'], 'expert_reviewed')
+        self.assertEqual(recs[0]['classification'], 'changed')
+
+
 class Output(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -88,8 +151,35 @@ class Output(unittest.TestCase):
                 if dim['applicability'] != 'evaluated':
                     self.assertIsNone(dim['score'], f'{gid} {k}')
 
-    def test_no_text_in_analysis_file(self):
-        self.assertNotIn('german_text', json.dumps(self.d['passages']['ch01-a002']))
+    def test_every_sentence_is_accounted_for_and_spans_match_text(self):
+        src = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'src', 'assets', 'data', 'heidi_part1_side_by_side.json'), encoding='utf-8'))
+        rows = {r['id']: r for ch in src['chapters'] for r in ch['rows']}
+        for gid, p in self.d['passages'].items():
+            if p['status'] != 'analyzed':
+                self.assertNotIn('sentence_alignments', p)
+                continue
+            de = '\n\n'.join(x['text'] for x in rows[gid]['de'])
+            en = '\n\n'.join(x['text'] for x in rows[gid]['en'])
+            recs = p['sentence_alignments']
+            self.assertEqual(sorted(i for r in recs for i in r['source_sentences']), list(range(len(p['sentences']['de']))), gid)
+            self.assertEqual(sorted(j for r in recs for j in r['target_sentences']), list(range(len(p['sentences']['en']))), gid)
+            for r in recs:
+                self.assertRegex(r['sentence_alignment_id'], r'^HEIDI-CH\d\d-A\d{3}-SA\d{2}$')
+                for sp in r['source_spans']:
+                    self.assertEqual(de[sp['start']:sp['end']], sp['text'])
+                for sp in r['target_spans']:
+                    self.assertEqual(en[sp['start']:sp['end']], sp['text'])
+                if r['classification'] == 'lost':
+                    self.assertEqual(r['target_sentences'], [])
+                if r['classification'] == 'added':
+                    self.assertEqual(r['source_sentences'], [])
+                if r['basis'] == 'unassessed':
+                    self.assertIsNone(r['provenance'])
+
+    def test_chapter_1_is_fully_sentence_assessed(self):
+        for gid, p in self.d['passages'].items():
+            if gid.startswith('ch01') and p['status'] == 'analyzed':
+                self.assertTrue(all(r['basis'] == 'assessed' for r in p['sentence_alignments']), gid)
 
 
 if __name__ == '__main__':

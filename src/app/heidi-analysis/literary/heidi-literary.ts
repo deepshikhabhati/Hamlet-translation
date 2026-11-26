@@ -47,6 +47,28 @@ export interface LitDimension {
   review_status: string;
 }
 
+/** One sentence-alignment record (semantic dimension). Every German and English sentence of a passage is in exactly one record. */
+export interface LitSentenceAlignment {
+  sentence_alignment_id: string;
+  passage_id: string;
+  chapter: number;
+  dimension: 'semantic';
+  source_sentences: number[];
+  target_sentences: number[];
+  source_spans: LitSpan[];
+  target_spans: LitSpan[];
+  alignment_type: string;
+  /** 'unassessed' = sentence not individually assessed yet (never treated as preserved). */
+  classification: LitCategory | 'unassessed';
+  /** assessed = sentence reviewed by the assessor; derived = from recorded phrase evidence; unassessed = no judgement. */
+  basis: 'assessed' | 'derived' | 'unassessed';
+  explanation: string;
+  phrase_evidence_ids: string[];
+  confidence: 'low' | 'medium' | 'high' | null;
+  provenance: string | null;
+  review_status: string;
+}
+
 export interface LitPassage {
   status: 'analyzed' | 'awaiting_alignment_review' | 'awaiting_analysis' | 'stale_assessment' | 'alignment_disputed';
   alignment_confidence: string;
@@ -57,6 +79,8 @@ export interface LitPassage {
   sentence_alignment?: { sentences_de: number; sentences_en: number; links: number; link_types: Record<string, number>; unmatched_de: number; unmatched_en: number };
   dimensions?: Partial<Record<HeidiDimensionKey, LitDimension>>;
   evidence?: LitEvidence[];
+  sentences?: { de: [number, number][]; en: [number, number][] };
+  sentence_alignments?: LitSentenceAlignment[];
 }
 
 export interface LitFile {
@@ -170,7 +194,9 @@ export function mapPassageAnalysis(lit: LitPassage | undefined, de: string | nul
   }
   return {
     analysis: { status: 'literary_provisional', method: LIT_METHOD, dimensions: dims, assessor: lit.assessor ?? null,
-      sentence_alignment: lit.sentence_alignment ?? null },
+      sentence_alignment: lit.sentence_alignment ?? null,
+      sentences: lit.sentences ?? null,
+      sentence_alignments: validSentenceRecords(lit.sentence_alignments || [], de, en) },
     unlocated,
     disputed: null,
   };
@@ -188,3 +214,17 @@ export function categoryTotals(a: HeidiPassage['analysis'], dim?: HeidiDimension
   }
   return out;
 }
+
+/** Keep only sentence spans that match the displayed text exactly (code points); a mismatching span is dropped, never shifted. */
+export function validSentenceRecords(recs: LitSentenceAlignment[], de: string | null, en: string | null): LitSentenceAlignment[] {
+  const ok = (t: string | null, sp: LitSpan) => !!t && Array.from(t).slice(sp.start, sp.end).join('') === sp.text;
+  return recs.map(r => ({
+    ...r,
+    source_spans: r.source_spans.filter(sp => ok(de, sp)),
+    target_spans: r.target_spans.filter(sp => ok(en, sp)),
+  }));
+}
+
+export const SENTENCE_LABEL: Record<string, 'Preserved' | 'Changed' | 'Lost' | 'Added' | 'Uncertain' | 'Not assessed'> = {
+  preserved: 'Preserved', changed: 'Changed', lost: 'Lost', added: 'Added', uncertain: 'Uncertain', unassessed: 'Not assessed',
+};

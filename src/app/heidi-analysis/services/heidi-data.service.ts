@@ -124,7 +124,10 @@ export class HeidiDataService {
       original_language: 'de',
       translation_language: 'en',
       translator: 'Elisabeth P. Stork',
-      sources: sbs.meta?.sources ?? {},
+      // The source JSON (kept unchanged) names Helen B. Dole, but Project Gutenberg #20781 — the edition whose text it contains —
+      // is Elisabeth P. Stork's translation (1915). Attribution is corrected here, not in the immutable file.
+      sources: { ...(sbs.meta?.sources ?? {}), en: { ...((sbs.meta?.sources as any)?.en ?? {}), translator: 'Elisabeth P. Stork (1915, J. B. Lippincott)',
+        translator_note: 'Corrected from "Helen B. Dole" in heidi_part1_side_by_side.json: PG #20781 is the Stork translation.' } },
       scope: { part: 1, chapter_start: 1, chapter_end: 14 },
       methods: { alignment: 'heidi_part1_side_by_side.json (curated)', analysis: litOk ? LIT_METHOD : 'not available' },
       editorial_notes: [],

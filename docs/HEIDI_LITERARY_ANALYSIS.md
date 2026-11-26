@@ -120,3 +120,69 @@ Per dimension: `applicability`, `score`, `confidence`, `method`, `evidence_count
 | `ch14-a017` | semantic | This German sentence is rendered in the previous English group (group boundary). |
 
 Plus the 147 groups awaiting alignment review.
+
+
+## 8. Sentence-level semantic layer (schema `heidi-sentence-alignment-v1`)
+
+Every analysed passage carries `sentences` (code-point spans of each German / English sentence) and `sentence_alignments`:
+one record per aligned sentence group, and **every sentence is in exactly one record** (validated).
+
+| Field | Meaning |
+|---|---|
+| `sentence_alignment_id` | stable, e.g. `HEIDI-CH01-A002-SA03` |
+| `passage_id`, `chapter`, `dimension` | `dimension` is `semantic` |
+| `source_sentences` / `target_sentences` | sentence indices; 1:1, 1:N, N:1, N:M; `[]` on one side for Lost / Added |
+| `source_spans` / `target_spans` | exact `{start, end, text}` checked against the displayed text |
+| `classification` | preserved · changed · lost · added · uncertain · **unassessed** |
+| `basis` | `assessed` (sentence reviewed) · `derived` (from recorded phrase evidence only) · `unassessed` |
+| `explanation`, `phrase_evidence_ids`, `confidence`, `provenance`, `review_status` | |
+
+Rules: a sentence where only a phrase is omitted is **changed** (the omitted phrase is red inside it), never wholly lost.
+Lost groups have no English sentence, Added groups no German sentence. A sentence without any recorded judgement is
+`unassessed` — it is never assumed preserved. An assessment marked `expert_reviewed` is kept as it is.
+
+Sources, in order of precedence: `scripts/heidi_work/literary/chNN.sentences.py` (in-session or expert),
+cached API results (`--sentence-assessor anthropic`, needs `ANTHROPIC_API_KEY`, cached per passage), then derivation
+from phrase evidence over the automatic sentence alignment (connected components of meaning-based links).
+
+### Coverage
+
+| Chapter | Groups | Analysed | Disputed | Awaiting alignment | Sentences | Assessed | Derived | Not yet assessed |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 49 | 48 | 0 | 1 | 416 | 416 | 0 | 0 |
+| 2 | 33 | 31 | 0 | 2 | 271 | 0 | 199 | 72 |
+| 3 | 62 | 52 | 0 | 10 | 403 | 0 | 334 | 69 |
+| 4 | 47 | 36 | 0 | 11 | 357 | 0 | 290 | 67 |
+| 5 | 38 | 23 | 0 | 15 | 215 | 0 | 192 | 23 |
+| 6 | 39 | 32 | 0 | 7 | 179 | 0 | 154 | 25 |
+| 7 | 62 | 38 | 1 | 23 | 301 | 0 | 275 | 26 |
+| 8 | 34 | 27 | 0 | 7 | 294 | 0 | 248 | 46 |
+| 9 | 25 | 15 | 0 | 10 | 115 | 0 | 96 | 19 |
+| 10 | 33 | 16 | 2 | 15 | 131 | 0 | 104 | 27 |
+| 11 | 17 | 13 | 0 | 4 | 131 | 0 | 108 | 23 |
+| 12 | 52 | 37 | 0 | 15 | 276 | 0 | 219 | 57 |
+| 13 | 51 | 40 | 0 | 11 | 410 | 0 | 361 | 49 |
+| 14 | 39 | 22 | 1 | 16 | 228 | 0 | 185 | 43 |
+| **All** | 581 | 430 | 4 | 147 | 3727 | 416 | 2765 | 546 |
+
+Chapter 1 (verified alignment) is fully sentence-assessed. Chapters 2–14 use derived labels where phrase evidence exists;
+546 sentences have no recorded judgement yet and are shown as *Not assessed*. Running the sentence assessor (or an expert
+pass) fills them incrementally — completed passages are not reassessed.
+
+## 9. Interface
+
+* Passage view: breadcrumb → dimension selector → score/status + legend → Stork | Spyri reader → collapsed
+  Round-Trip Translation → Expert Feedback / Ask Assistant AI → collapsed **Research details** (IDs, method, assessor,
+  weights, span status, models, threshold, storage keys, export/import).
+* Semantic shows a light sentence tint for every sentence plus phrase underlines; other dimensions show phrase evidence only.
+* Clicking a sentence or phrase links the counterpart in the other language and fills the right-hand Evidence Inspector
+  (collapsible); the reader does not scroll.
+* Round-trip statuses are neutral: Evaluated · Not evaluated · Potential disagreement · Expert reviewed. BERTScore results are
+  shown, labelled as BERTScore-based similarity, only if `src/assets/data/heidi_rtt_bertscore.json` exists
+  (`scripts/heidi_rtt_bertscore/`; not run here — Hugging Face models are not reachable from this environment).
+* Ask Assistant AI posts the passage context to a server (`server/heidi-assistant`) that holds the API key; with no
+  configured endpoint (`src/assets/config/heidi-assistant.json`) it says it is unavailable and generates nothing.
+* Translator attribution: the source JSON says Helen B. Dole, but PG #20781 is Stork's translation; the app shows and
+  exports Stork (the source file is left unchanged).
+
+Unresolved items: see [HEIDI_UNRESOLVED.md](HEIDI_UNRESOLVED.md).
