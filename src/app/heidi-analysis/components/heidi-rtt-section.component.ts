@@ -39,7 +39,6 @@ export function rttStatusLabel(r: RttRecord | null | undefined): string {
     <div class="hrs-body" *ngIf="expanded" data-test="rtt-body">
       <div class="hrs-switch" role="tablist" aria-label="Round-trip workflow">
         <button type="button" role="tab" [attr.aria-selected]="mode === 'de'" [class.on]="mode === 'de'" (click)="mode = 'de'" data-test="rtt-mode-de">German original → AI English</button>
-        <button type="button" role="tab" [attr.aria-selected]="mode === 'en'" [class.on]="mode === 'en'" (click)="mode = 'en'" data-test="rtt-mode-en">Human English → AI German → AI English</button>
       </div>
 
       <ng-container *ngIf="mode === 'de'">

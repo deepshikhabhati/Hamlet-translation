@@ -295,15 +295,7 @@
                   <h5 class="reader-main-title reader-title">Heidi, side by side</h5>
                   <span class="reader-header-divider" aria-hidden="true">|</span>
                   <span class="reader-header-canonical-scene" data-test="reader-location">Part I · Chapter {{ ch.chapter_number }}</span>
-                  <span class="v15-scene-rtt-coverage-pill" *ngIf="chapterStats(ch) as s" data-test="rtt-coverage"
-                        [title]="'RTT verified: ' + s.rtt + ' of ' + s.eligible + ' automatically aligned passages. Only completed back-translations are counted.'">
-                    <i class="fa fa-sync-alt" aria-hidden="true"></i>
-                    RTT verified: {{ s.rtt }} of {{ s.eligible }} passages
-                  </span>
-                  <button type="button" class="v15-rtt-inspect-btn" *ngIf="!chapterRttBusy && chapterRttPending(ch).length" (click)="runChapterRtt(ch)"
-                          [title]="'Back-translate the German original of ' + chapterRttPending(ch).length + ' eligible passage(s) to English, one at a time (MyMemory, free daily quota ≈ 5,000 characters)'"
-                          data-test="chapter-rtt-run">Run RTT for chapter</button>
-                  <span class="hd-ev-meta" *ngIf="chapterRttBusy || chapterRttProgress" data-test="chapter-rtt-progress">
+                   <span class="hd-ev-meta" *ngIf="chapterRttBusy || chapterRttProgress" data-test="chapter-rtt-progress">
                     <ng-container *ngIf="chapterRttProgress as pr">RTT {{ pr.done }}/{{ pr.total }}<ng-container *ngIf="pr.stopped"> · {{ pr.stopped }}</ng-container></ng-container>
                     <button type="button" class="v15-rtt-inspect-btn" *ngIf="chapterRttBusy" (click)="cancelChapterRtt()">Stop</button>
                   </span>
