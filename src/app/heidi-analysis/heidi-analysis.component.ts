@@ -16,6 +16,7 @@ import {
   HeidiPhraseEvidence,
   HeidiSpan,
   RTT_STATUS_LABELS,
+  normalizeDimensionKey,
 } from './models/heidi.models';
 import { HeidiDataService } from './services/heidi-data.service';
 import { EffectiveScore, HeidiReviewService } from './services/heidi-review.service';
@@ -369,13 +370,14 @@ export class HeidiAnalysisComponent implements OnInit, OnDestroy {
     this.readerScroll?.nativeElement.scrollTo({ top: 0 });
   }
 
-  selectDimension(k: HeidiDimensionKey): void {
-    this.selectedDimension = k;
+  selectDimension(k: string | HeidiDimensionKey): void {
+    const normKey = normalizeDimensionKey(k);
+    this.selectedDimension = normKey;
     this.selectedPhrase = null;
     this.activeLinkId = null;
     this.selectedEvidenceId = null;
     this.selectedSentenceId = null;
-    if (k !== 'wordplay') { this.tocColorBy = k; }
+    if (normKey !== 'wordplay') { this.tocColorBy = normKey; }
     if (this.viewMode === 'passage') { this.syncUrl(); }
   }
 

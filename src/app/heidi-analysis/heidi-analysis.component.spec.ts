@@ -4,6 +4,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { Router } from '@angular/router';
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { of } from 'rxjs';
 import { HeidiAnalysisComponent, categorizeEvidence, hamletScoreClass } from './heidi-analysis.component';
 import { HeidiDataService } from './services/heidi-data.service';
 import { HeidiReviewService } from './services/heidi-review.service';
@@ -13,7 +14,7 @@ import { SideBySideFile } from './services/heidi-data.service';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { HEIDI_ALIGNMENT_URL } from './models/heidi.models';
 import { EvidenceReviewService } from '../shared/analysis/evidence-review.service';
-import { HEIDI_REVIEW_STORAGE_KEY, HEIDI_RTT_STORAGE_KEY, HeidiDataset, HeidiPassage } from './models/heidi.models';
+import { HEIDI_REVIEW_STORAGE_KEY, HEIDI_RTT_STORAGE_KEY, HeidiDataset, HeidiDimensionKey, HeidiPassage, normalizeDimensionKey } from './models/heidi.models';
 import { APP_ROUTES } from '../app-routing.module';
 import { buildSegments } from './components/heidi-reader-text.component';
 import { HEIDI_LITERARY_URL, LitFile, mapDimension, mapPassageAnalysis } from './literary/heidi-literary';
@@ -1166,6 +1167,160 @@ describe('HeidiAnalysisComponent (Hamlet v1.5 UI)', () => {
     expect(hamletScoreClass(null)).toBe('score-cell-na');
     expect(hamletScoreClass(59)).toBe('score-band-1');
     expect(hamletScoreClass(97)).toBe('score-band-5');
+  });
+
+  describe('Task 8 Acceptance Suite: Eight-dimension literary highlighting & passage verification', () => {
+    const dims: HeidiDimensionKey[] = ['semantic', 'emotion', 'imagery', 'tone', 'voice', 'cultural', 'omissions', 'wordplay'];
+
+    it('normalizes all legacy dimension keys correctly', () => {
+      expect(normalizeDimensionKey('metaphor_imagery')).toBe('imagery');
+      expect(normalizeDimensionKey('character_voice')).toBe('voice');
+      expect(normalizeDimensionKey('cultural_archaic')).toBe('cultural');
+      expect(normalizeDimensionKey('omissions_additions')).toBe('omissions');
+      expect(normalizeDimensionKey('semantic')).toBe('semantic');
+
+      component.selectDimension('metaphor_imagery' as any);
+      expect(component.selectedDimension).toBe('imagery');
+      component.selectDimension('character_voice' as any);
+      expect(component.selectedDimension).toBe('voice');
+    });
+
+    it('verifies translator attribution is Elisabeth P. Stork (PG #20781), not Helen B. Dole', () => {
+      expect(DATASET.translator).toBe('Elisabeth P. Stork');
+      expect(((DATASET.sources as any)?.en?.translator)).toContain('Elisabeth P. Stork');
+      const p1 = all(DATASET).find(p => p.passage_id === 'ch01-a001')!;
+      component.openPassageCard(p1);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.hd-col-title')?.textContent).toContain('Elisabeth P. Stork');
+    });
+
+    it('evaluates all 8 dimensions on ch01-a001 with 0 invalid spans and correct applicability', () => {
+      const p = all(DATASET).find(x => x.passage_id === 'ch01-a001')!;
+      expect(p).toBeTruthy();
+      component.openPassageCard(p);
+
+      for (const d of dims) {
+        component.selectDimension(d);
+        expect(component.selectedDimension).toBe(d);
+        const deHl = component.phraseHl(p, 'de');
+        const enHl = component.phraseHl(p, 'en');
+        const evs = p.analysis.dimensions[d]?.phrase_evidence || [];
+        for (const h of deHl) {
+          const it = evs.find(e => e.id === h.id);
+          expect(p.german_text!.slice(h.start, h.end)).toBe(it?.de?.text ?? '');
+        }
+        for (const h of enHl) {
+          const it = evs.find(e => e.id === h.id);
+          expect(p.english_text!.slice(h.start, h.end)).toBe(it?.en?.text ?? '');
+        }
+      }
+
+      // Voice is narration only -> N/A
+      expect(p.analysis.dimensions['voice']?.applicability).toBe('not_applicable');
+      // Semantic is fully evaluated
+      expect(p.analysis.dimensions['semantic']?.applicability).toBe('evaluated');
+      expect(p.analysis.dimensions['semantic']?.score).toBeGreaterThan(0);
+    });
+
+    it('evaluates all 8 dimensions on ch01-a002 with valid spans and continuous phrase highlights', () => {
+      const p = all(DATASET).find(x => x.passage_id === 'ch01-a002')!;
+      expect(p).toBeTruthy();
+      component.openPassageCard(p);
+
+      for (const d of dims) {
+        component.selectDimension(d);
+        const deHl = component.phraseHl(p, 'de');
+        const enHl = component.phraseHl(p, 'en');
+        const evs = p.analysis.dimensions[d]?.phrase_evidence || [];
+        for (const h of deHl) {
+          const it = evs.find(e => e.id === h.id);
+          expect(p.german_text!.slice(h.start, h.end)).toBe(it?.de?.text ?? '');
+        }
+        for (const h of enHl) {
+          const it = evs.find(e => e.id === h.id);
+          expect(p.english_text!.slice(h.start, h.end)).toBe(it?.en?.text ?? '');
+        }
+      }
+      component.selectDimension('semantic');
+      const semDe = component.phraseHl(p, 'de');
+      expect(semDe.some(h => h.label === 'preserved')).toBeTrue();
+      expect(semDe.some(h => h.label === 'changed')).toBeTrue();
+      expect(semDe.some(h => h.label === 'lost')).toBeTrue();
+    });
+
+    it('comprehensively assesses ch01-a028 with exact clause alignment and all 8 dimensions', () => {
+      const p = all(DATASET).find(x => x.passage_id === 'ch01-a028')!;
+      expect(p).toBeTruthy();
+      component.openPassageCard(p);
+
+      const semEvs = p.analysis.dimensions['semantic']?.phrase_evidence || [];
+      expect(semEvs.length).toBeGreaterThanOrEqual(7);
+
+      // Dete <-> Deta is Preserved
+      const dete = semEvs.find(e => e.de?.text === 'Dete' && e.en?.text === 'Deta');
+      expect(dete).toBeTruthy();
+      expect(dete?.label).toBe('Preserved');
+
+      // was du denkst <-> how you can do it is Changed
+      const denkst = semEvs.find(e => e.de?.text === 'was du denkst');
+      expect(denkst).toBeTruthy();
+      expect(denkst?.label).toBe('Changed');
+      expect(denkst?.en?.text).toBe('how you can do it');
+
+      // sagte die Barbel <-> said Barbara
+      const barbel = semEvs.find(e => e.de?.text === 'sagte die Barbel');
+      expect(barbel).toBeTruthy();
+      expect(barbel?.label).toBe('Preserved');
+      expect(barbel?.en?.text).toBe('said Barbara');
+
+      // vorwurfsvoll <-> with reproach in her voice
+      const vorwurf = semEvs.find(e => e.de?.text === 'vorwurfsvoll');
+      expect(vorwurf).toBeTruthy();
+      expect(vorwurf?.label).toBe('Preserved');
+      expect(vorwurf?.en?.text).toBe('with reproach in her voice');
+
+      // Added adjective 'terrible' in omissions/emotion
+      const omiEvs = p.analysis.dimensions['omissions']?.phrase_evidence || [];
+      const terrible = omiEvs.find(e => e.en?.text === 'terrible' && e.de === null);
+      expect(terrible).toBeTruthy();
+      expect(terrible?.label).toBe('Added');
+
+      // All spans on ch01-a028 slice text accurately
+      for (const d of dims) {
+        component.selectDimension(d);
+        const evs = p.analysis.dimensions[d]?.phrase_evidence || [];
+        for (const h of component.phraseHl(p, 'de')) {
+          const it = evs.find(e => e.id === h.id);
+          expect(p.german_text!.slice(h.start, h.end)).toBe(it?.de?.text ?? '');
+        }
+        for (const h of component.phraseHl(p, 'en')) {
+          const it = evs.find(e => e.id === h.id);
+          expect(p.english_text!.slice(h.start, h.end)).toBe(it?.en?.text ?? '');
+        }
+      }
+    });
+
+    it('validates multi-paragraph passages maintain correct double-newline offsets and valid spans', () => {
+      const multiPara = all(DATASET).filter(p => !!p.source.de_paragraph_ids && p.source.de_paragraph_ids.length > 1 && p.analysis.status === 'literary_provisional');
+      expect(multiPara.length).toBeGreaterThan(0);
+
+      for (const p of multiPara.slice(0, 10)) {
+        expect(p.german_text).toContain('\n\n');
+        for (const d of dims) {
+          component.selectDimension(d);
+          const evs = p.analysis.dimensions[d]?.phrase_evidence || [];
+          for (const h of component.phraseHl(p, 'de')) {
+            const it = evs.find(e => e.id === h.id);
+            expect(p.german_text!.slice(h.start, h.end)).toBe(it?.de?.text ?? '');
+          }
+          for (const h of component.phraseHl(p, 'en')) {
+            const it = evs.find(e => e.id === h.id);
+            expect(p.english_text!.slice(h.start, h.end)).toBe(it?.en?.text ?? '');
+          }
+        }
+      }
+    });
   });
 });
 

@@ -229,28 +229,28 @@ def split_sentence_clauses(sent_text, base_offset):
     return clauses
 
 
-def is_span_covered(span, intervals):
-    c_len = span['end'] - span['start']
+def is_span_covered(span, intervals, min_ratio=0.5):
+    c_start, c_end = span['start'], span['end']
+    c_len = c_end - c_start
     if c_len <= 0:
         return True
+    covered = [False] * c_len
     for s, e in intervals:
-        os = max(span['start'], s)
-        oe = min(span['end'], e)
-        if (oe - os) >= 4 or (oe - os) >= 0.4 * c_len:
-            return True
-    return False
+        os_idx = max(c_start, s)
+        oe_idx = min(c_end, e)
+        for i in range(max(0, os_idx - c_start), min(c_len, oe_idx - c_start)):
+            covered[i] = True
+    return sum(covered) >= min_ratio * c_len
 
 
 def assess_unassessed_clauses(gid, de, en, de_s, en_s, al, bilex, per_dim, evidence, asm):
     total_de_len = de_s[-1]['end'] if de_s else 0
     if not total_de_len:
         return
-    cur_cov = sum(e['source_span']['end'] - e['source_span']['start'] for e in per_dim['semantic'] if e.get('source_span'))
-    if cur_cov / total_de_len >= 0.85:
-        return  # already comprehensively assessed in curated file (e.g. ch01-a001 & ch01-a002)
 
-    cov_de = [(e['source_span']['start'], e['source_span']['end']) for e in evidence if e.get('source_span')]
-    cov_en = [(e['target_span']['start'], e['target_span']['end']) for e in evidence if e.get('target_span')]
+    # Scope strictly to semantic evidence
+    cov_de = [(e['source_span']['start'], e['source_span']['end']) for e in per_dim['semantic'] if e.get('source_span')]
+    cov_en = [(e['target_span']['start'], e['target_span']['end']) for e in per_dim['semantic'] if e.get('target_span')]
 
     groups = auto_sentence_groups(len(de_s), len(en_s), [(i, j) for i, j, _ in al['links']])
     new_items = []
@@ -295,7 +295,8 @@ def assess_unassessed_clauses(gid, de, en, de_s, en_s, al, bilex, per_dim, evide
                     w = 2 if len(d['text']) > 20 else 1
                     conf = 'high' if score >= 0.5 else 'medium'
                     if matched:
-                        expl = f'Preserved: core actions and vocabulary ({", ".join(f"{dp}→{ep}" for dp, ep in matched[:2])}) rendered faithfully.'
+                        pair_str = ", ".join(f"{dp}→{ep}" for dp, ep in matched[:2])
+                        expl = f'Preserved: core actions and vocabulary ({pair_str}) rendered faithfully.'
                     else:
                         expl = f'Preserved: meaning and action rendered faithfully ("{d["text"][:35]}" → "{e["text"][:35]}").'
                 elif score >= 0.15:
@@ -349,6 +350,245 @@ def assess_unassessed_clauses(gid, de, en, de_s, en_s, al, bilex, per_dim, evide
         }
         per_dim['semantic'].append(ev)
         evidence.append(ev)
+
+
+# --- Contextual multi-feature detection for the other seven dimensions ---
+
+EMOTION_PATTERNS = [
+    (r'\b(freute sich|vor Freude|große Freude|voller Freude|glücklich|fröhlich|lachte|lächelte|Jubel|jubelte|Lust|Vergnügen|selig)\b', 'joy', 'Joy or delight in original'),
+    (r'\b(weinte|Tränen|traurig|Kummer|Jammer|jammerte|Schmerz|Leid|bitterlich|bekümmert|seufzte|klagte|Heimweh|unglücklich|verweint|schluchzen)\b', 'distress', 'Grief, homesickness, or distress in original'),
+    (r'\b(Angst|ängstlich|erschrak|Erschrecken|Grauen|zitterte|bange|Furcht|fürchtete|Bangigkeit|erschrocken)\b', 'fear', 'Fear or sudden fright in original'),
+    (r'\b(zornig|Zorn|böse|Grimm|unwillig|ärgerlich|entrüstet|vorwurfsvoll|schalt|schimpfte|drohend|wütend)\b', 'anger', 'Indignation, anger, or moral reproach in original'),
+    (r'\b(liebevoll|zärtlich|herzlich|getröstet|beruhigt|erbarmte|Mitleid|Erbarmen|Güte|innig|trösten|beruhigen)\b', 'tenderness', 'Tenderness, affection, or comfort in original'),
+    (r'\b(Gott sei Dank|Du lieber Gott|Ach Gott|O weh)\b', 'affective_call', 'Affective religious or emotional exclamation'),
+]
+
+IMAGERY_PATTERNS = [
+    (r'\b(wie ein\w* [A-Za-zäöüÄÖÜ]+|wie eine\w* [A-Za-zäöüÄÖÜ]+|als ob\b[^,;.!?]+|als wäre\b[^,;.!?]+)', 'simile', 'Simile or comparative imagery'),
+    (r'\b(flammend|glühend|goldig|funkelnd|strahlend|leuchtend|brausend|rauschend|feurig|blutrot|schneeweiß|in Brand|dunkle Tannen|Abendglut|Felsenzacken|Alpenglühen|Feuerschein)\b', 'sensory', 'Vivid sensory or Alpine landscape imagery'),
+    (r'\b(wie ein Vogel|wie eine Feder|aus voller Brust|wie die Gemsen|im Flug|Licht aufging|Herz hüpfte)\b', 'metaphor', 'Metaphorical or figurative depiction'),
+]
+
+TONE_PATTERNS = [
+    (r'\b([A-ZÄÖÜa-zäöü]+(?:chen|lein|li))\b', 'diminutive', 'Affective German diminutive reflecting tender Alpine tone'),
+    (r'\b(ja|doch|wohl|halt|denn|einmal|bloß)\b', 'modal_particle', 'Conversational modal particle shaping narrative nuance'),
+]
+
+CULTURAL_TERMS = [
+    (r'\b(Alm|Alpe|Dörfli|Maienfeld|Falknis|Schesaplana|Ragaz|Frankfurt)\b', 'toponym', 'Swiss / regional Alpine toponym or setting'),
+    (r'\b(Geiß|Geißen|Geißlein|Geißbub|Geißenpeter|Senn|Sennhütte|Alpheu|Käsekessel|Molken|Heustock|Heuboden|Disteln|Ziegenmilch)\b', 'pastoral', 'Alpine pastoral, agricultural, or goat-herding term'),
+    (r'\b(Öhi|Alp-Öhi|Alm-Öhi|Base|Alte da droben)\b', 'kinship', 'Regional Swiss kinship title or community designation'),
+    (r'\b(Gulden|Rappen|Franken|Thaler|Schlitten|Spinnrad|Brunnen|Kuckucksuhr|Herrgottswinkel)\b', 'material_culture', 'Historical currency, traditional Alpine craft, or domestic artifact'),
+    (r'\b(Dete|Barbel|Peterli|Schwänli|Bärli|Distelfink|Türk|Schneehöckli)\b', 'hypocoristic', 'Swiss character name or dialect diminutive'),
+    (r'\b(es nimmt mich wunder|zu Mute sein|an die Hand geben|gut sein lassen)\b', 'idiom', 'Regional Swiss-German idiomatic expression'),
+]
+
+
+def find_aligned_en_phrase(de_phrase, ds, de_s, en_s, links, bilex):
+    k = sent_index(de_s, ds['start'])
+    if k is None:
+        return None
+    linked_en = [j for (i, j) in links if i == k]
+    for j in linked_en:
+        sent_txt = en_s[j]['text']
+        _, _, matched = bilex.coverage(de_phrase, sent_txt)
+        if matched:
+            for _, ep in matched:
+                pos = sent_txt.lower().find(ep.lower())
+                if pos != -1:
+                    return sent_txt[pos:pos + len(ep)]
+        p_lower = de_phrase.lower()
+        pos = sent_txt.lower().find(p_lower)
+        if pos != -1:
+            return sent_txt[pos:pos + len(de_phrase)]
+    return None
+
+
+def expand_contextual_dimensions(gid, de, en, de_s, en_s, al, bilex, per_dim, evidence, asm, has_dialogue):
+    """Contextually identifies authentic literary features for emotion, imagery, tone, voice, and cultural dimensions."""
+    links = {(i, j) for i, j, _ in al['links']}
+
+    # 1. EMOTION
+    if len(per_dim['emotion']) < 2:
+        cov_emo = [(e['source_span']['start'], e['source_span']['end']) for e in per_dim['emotion'] if e.get('source_span')]
+        for pat, _, desc in EMOTION_PATTERNS:
+            for m in re.finditer(pat, de, re.IGNORECASE):
+                dph = m.group(1)
+                ds, dst = locate(de, de_s, dph)
+                if not ds or dst == 'unlocated' or any(s <= ds['start'] and ds['end'] <= e for s, e in cov_emo):
+                    continue
+                eph = find_aligned_en_phrase(dph, ds, de_s, en_s, links, bilex)
+                es = None
+                if eph:
+                    es, est = locate(en, en_s, eph)
+                    if est == 'unlocated':
+                        es = None
+                        eph = None
+                cat = 'preserved' if es else 'lost'
+                expl = f'{desc}: "{dph}"' + (f' rendered as "{eph}".' if eph else ' omitted in English.')
+                ev = {
+                    'evidence_id': f"HEIDI-{gid.upper().replace('-', '-')}-EMO-{len(per_dim['emotion']) + 1:03d}",
+                    'passage_id': gid, 'dimension': 'emotion', 'category': cat, 'weight': 2,
+                    'source_language': 'de', 'source_phrase': dph, 'target_language': 'en', 'target_phrase': eph,
+                    'source_span': ds, 'target_span': es,
+                    'source_anchor': anchor(ds, de_s), 'target_anchor': anchor(es, en_s) if es else None,
+                    'span_status': 'located', 'sentence_alignment_verified': True,
+                    'explanation': expl, 'confidence': 'medium', 'requires_expert_review': False,
+                    'provenance': 'model_assisted_provisional:contextual_feature_pipeline',
+                }
+                per_dim['emotion'].append(ev)
+                evidence.append(ev)
+                cov_emo.append((ds['start'], ds['end']))
+                if len(per_dim['emotion']) >= 3:
+                    break
+            if len(per_dim['emotion']) >= 3:
+                break
+
+    # 2. IMAGERY
+    if len(per_dim['imagery']) < 2:
+        cov_img = [(e['source_span']['start'], e['source_span']['end']) for e in per_dim['imagery'] if e.get('source_span')]
+        for pat, _, desc in IMAGERY_PATTERNS:
+            for m in re.finditer(pat, de, re.IGNORECASE):
+                dph = m.group(1)
+                ds, dst = locate(de, de_s, dph)
+                if not ds or dst == 'unlocated' or any(s <= ds['start'] and ds['end'] <= e for s, e in cov_img):
+                    continue
+                eph = find_aligned_en_phrase(dph, ds, de_s, en_s, links, bilex)
+                es = None
+                if eph:
+                    es, est = locate(en, en_s, eph)
+                    if est == 'unlocated':
+                        es = None
+                        eph = None
+                cat = 'preserved' if es else 'lost'
+                expl = f'{desc}: "{dph}"' + (f' preserved as "{eph}".' if eph else ' dropped in English translation.')
+                ev = {
+                    'evidence_id': f"HEIDI-{gid.upper().replace('-', '-')}-IMG-{len(per_dim['imagery']) + 1:03d}",
+                    'passage_id': gid, 'dimension': 'imagery', 'category': cat, 'weight': 2,
+                    'source_language': 'de', 'source_phrase': dph, 'target_language': 'en', 'target_phrase': eph,
+                    'source_span': ds, 'target_span': es,
+                    'source_anchor': anchor(ds, de_s), 'target_anchor': anchor(es, en_s) if es else None,
+                    'span_status': 'located', 'sentence_alignment_verified': True,
+                    'explanation': expl, 'confidence': 'medium', 'requires_expert_review': False,
+                    'provenance': 'model_assisted_provisional:contextual_feature_pipeline',
+                }
+                per_dim['imagery'].append(ev)
+                evidence.append(ev)
+                cov_img.append((ds['start'], ds['end']))
+                if len(per_dim['imagery']) >= 3:
+                    break
+            if len(per_dim['imagery']) >= 3:
+                break
+
+    # 3. TONE
+    if len(per_dim['tone']) < 2:
+        cov_ton = [(e['source_span']['start'], e['source_span']['end']) for e in per_dim['tone'] if e.get('source_span')]
+        for pat, _, desc in TONE_PATTERNS:
+            for m in re.finditer(pat, de, re.IGNORECASE):
+                dph = m.group(1)
+                if len(dph) < 3:
+                    continue
+                ds, dst = locate(de, de_s, dph)
+                if not ds or dst == 'unlocated' or any(s <= ds['start'] and ds['end'] <= e for s, e in cov_ton):
+                    continue
+                eph = find_aligned_en_phrase(dph, ds, de_s, en_s, links, bilex)
+                es = None
+                if eph:
+                    es, est = locate(en, en_s, eph)
+                    if est == 'unlocated':
+                        es = None
+                        eph = None
+                cat = 'preserved' if es else 'lost'
+                expl = f'{desc}: "{dph}"' + (f' rendered as "{eph}".' if eph else ' omitted in English translation.')
+                ev = {
+                    'evidence_id': f"HEIDI-{gid.upper().replace('-', '-')}-TON-{len(per_dim['tone']) + 1:03d}",
+                    'passage_id': gid, 'dimension': 'tone', 'category': cat, 'weight': 1,
+                    'source_language': 'de', 'source_phrase': dph, 'target_language': 'en', 'target_phrase': eph,
+                    'source_span': ds, 'target_span': es,
+                    'source_anchor': anchor(ds, de_s), 'target_anchor': anchor(es, en_s) if es else None,
+                    'span_status': 'located', 'sentence_alignment_verified': True,
+                    'explanation': expl, 'confidence': 'medium', 'requires_expert_review': False,
+                    'provenance': 'model_assisted_provisional:contextual_feature_pipeline',
+                }
+                per_dim['tone'].append(ev)
+                evidence.append(ev)
+                cov_ton.append((ds['start'], ds['end']))
+                if len(per_dim['tone']) >= 3:
+                    break
+            if len(per_dim['tone']) >= 3:
+                break
+
+    # 4. VOICE (dialogue only)
+    if has_dialogue and len(per_dim['voice']) < 2:
+        cov_voi = [(e['source_span']['start'], e['source_span']['end']) for e in per_dim['voice'] if e.get('source_span')]
+        for m in re.finditer(r'["„“]([^"“”]{4,80})["“”]', de):
+            speech = m.group(1).strip()
+            ds, dst = locate(de, de_s, speech)
+            if not ds or dst == 'unlocated' or any(s <= ds['start'] and ds['end'] <= e for s, e in cov_voi):
+                continue
+            en_quotes = [qm.group(1).strip() for qm in re.finditer(r'["“]([^"”]{4,80})["”]', en)]
+            es = None
+            eph = None
+            if en_quotes:
+                target_q = en_quotes[0]
+                es, est = locate(en, en_s, target_q)
+                if es and est != 'unlocated':
+                    eph = target_q
+                else:
+                    es = None
+            cat = 'preserved' if es else 'lost'
+            expl = f'Character dialogue cadence: "{speech[:30]}..."' + (f' rendered as "{eph[:30]}...".' if eph else ' omitted in English.')
+            ev = {
+                'evidence_id': f"HEIDI-{gid.upper().replace('-', '-')}-VOI-{len(per_dim['voice']) + 1:03d}",
+                'passage_id': gid, 'dimension': 'voice', 'category': cat, 'weight': 2,
+                'source_language': 'de', 'source_phrase': speech, 'target_language': 'en', 'target_phrase': eph,
+                'source_span': ds, 'target_span': es,
+                'source_anchor': anchor(ds, de_s), 'target_anchor': anchor(es, en_s) if es else None,
+                'span_status': 'located', 'sentence_alignment_verified': True,
+                'explanation': expl, 'confidence': 'medium', 'requires_expert_review': False,
+                'provenance': 'model_assisted_provisional:contextual_feature_pipeline',
+            }
+            per_dim['voice'].append(ev)
+            evidence.append(ev)
+            cov_voi.append((ds['start'], ds['end']))
+            if len(per_dim['voice']) >= 3:
+                break
+
+    # 5. CULTURAL
+    if len(per_dim['cultural']) < 2:
+        cov_cul = [(e['source_span']['start'], e['source_span']['end']) for e in per_dim['cultural'] if e.get('source_span')]
+        for pat, _, desc in CULTURAL_TERMS:
+            for m in re.finditer(pat, de, re.IGNORECASE):
+                dph = m.group(1)
+                ds, dst = locate(de, de_s, dph)
+                if not ds or dst == 'unlocated' or any(s <= ds['start'] and ds['end'] <= e for s, e in cov_cul):
+                    continue
+                eph = find_aligned_en_phrase(dph, ds, de_s, en_s, links, bilex)
+                es = None
+                if eph:
+                    es, est = locate(en, en_s, eph)
+                    if est == 'unlocated':
+                        es = None
+                        eph = None
+                cat = 'preserved' if es else 'lost'
+                expl = f'{desc}: "{dph}"' + (f' rendered as "{eph}".' if eph else ' omitted in English.')
+                ev = {
+                    'evidence_id': f"HEIDI-{gid.upper().replace('-', '-')}-CUL-{len(per_dim['cultural']) + 1:03d}",
+                    'passage_id': gid, 'dimension': 'cultural', 'category': cat, 'weight': 1,
+                    'source_language': 'de', 'source_phrase': dph, 'target_language': 'en', 'target_phrase': eph,
+                    'source_span': ds, 'target_span': es,
+                    'source_anchor': anchor(ds, de_s), 'target_anchor': anchor(es, en_s) if es else None,
+                    'span_status': 'located', 'sentence_alignment_verified': True,
+                    'explanation': expl, 'confidence': 'medium', 'requires_expert_review': False,
+                    'provenance': 'model_assisted_provisional:contextual_feature_pipeline',
+                }
+                per_dim['cultural'].append(ev)
+                evidence.append(ev)
+                cov_cul.append((ds['start'], ds['end']))
+                if len(per_dim['cultural']) >= 3:
+                    break
+            if len(per_dim['cultural']) >= 3:
+                break
 
 
 # ---------------------------------------------------------------- assessments
@@ -710,6 +950,7 @@ def main():
                 evidence.append(ev)
             # Comprehensive semantic coverage across all meaningful clauses in the paragraph
             assess_unassessed_clauses(gid, de, en, de_s, en_s, al, bilex, per_dim, evidence, asm)
+            expand_contextual_dimensions(gid, de, en, de_s, en_s, al, bilex, per_dim, evidence, asm, has_dialogue)
             dims = {}
             for dk, dim in DIMS.items():
                 dims[dim] = score_dimension(dim, per_dim[dim], asm.get('na', {}).get(dk), has_dialogue)

@@ -6,7 +6,7 @@
  * evidence, spans and rubric scores only; all passage text still comes from heidi_part1_side_by_side.json.
  * This module maps the file onto the existing HeidiPassage['analysis'] model. Nothing here computes a score.
  */
-import { HeidiDimensionAssessment, HeidiDimensionKey, HeidiPassage, HeidiPhraseEvidence, HeidiSpan } from '../models/heidi.models';
+import { HeidiDimensionAssessment, HeidiDimensionKey, HeidiPassage, HeidiPhraseEvidence, HeidiSpan, normalizeDimensionKey } from '../models/heidi.models';
 
 export const HEIDI_LITERARY_URL = 'assets/data/heidi_literary_analysis.json';
 export const HEIDI_LITERARY_SCHEMA = 'heidi-literary-analysis-v1';
@@ -105,9 +105,13 @@ function cpSlice(text: string | null, s: LitSpan | null): string | null {
   return Array.from(text).slice(s.start, s.end).join('');
 }
 
-function toSpan(s: LitSpan | null, text: string | null): { span: HeidiSpan | null; ok: boolean } {
+function toSpan(s: LitSpan | null, text: string | null, passageId?: string, dim?: string): { span: HeidiSpan | null; ok: boolean } {
   if (!s) { return { span: null, ok: true }; }
-  const ok = cpSlice(text, s) === s.text;
+  const slice = text ? text.slice(s.start, s.end) : null;
+  const ok = slice === s.text;
+  if (!ok) {
+    console.warn(`[Heidi Highlighting] Invalid span in passage ${passageId ?? 'unknown'}, dimension ${dim ?? 'unknown'}: expected "${s.text}", found "${slice}" at [${s.start}:${s.end}]`);
+  }
   return { span: ok ? { start: s.start, end: s.end, text: s.text } : null, ok };
 }
 
@@ -119,8 +123,8 @@ export function mapDimension(dim: LitDimension, evs: LitEvidence[], de: string |
       : dim.applicability === 'not_applicable' ? 'not_applicable'
         : dim.applicability === 'uncertain' ? 'uncertain' : 'not_assessed';
   const phrase_evidence: HeidiPhraseEvidence[] = evs.map(e => {
-    const d = toSpan(e.source_span, de);
-    const t = toSpan(e.target_span, en);
+    const d = toSpan(e.source_span, de, e.passage_id, e.dimension);
+    const t = toSpan(e.target_span, en, e.passage_id, e.dimension);
     if (!d.ok) { unlocated.push({ dimension: e.dimension, side: 'de', text: e.source_phrase || '', evidence_id: e.evidence_id }); }
     if (!t.ok) { unlocated.push({ dimension: e.dimension, side: 'en', text: e.target_phrase || '', evidence_id: e.evidence_id }); }
     if (e.span_status === 'unlocated') {
@@ -189,8 +193,9 @@ export function mapPassageAnalysis(lit: LitPassage | undefined, de: string | nul
   }
   const evs = lit.evidence || [];
   const dims: Partial<Record<HeidiDimensionKey, HeidiDimensionAssessment>> = {};
-  for (const [k, d] of Object.entries(lit.dimensions) as [HeidiDimensionKey, LitDimension][]) {
-    dims[k] = mapDimension(d, evs.filter(e => e.dimension === k), de, en, unlocated);
+  for (const [k, d] of Object.entries(lit.dimensions)) {
+    const normKey = normalizeDimensionKey(k);
+    dims[normKey] = mapDimension(d, evs.filter(e => normalizeDimensionKey(e.dimension) === normKey), de, en, unlocated);
   }
   return {
     analysis: { status: 'literary_provisional', method: LIT_METHOD, dimensions: dims, assessor: lit.assessor ?? null,

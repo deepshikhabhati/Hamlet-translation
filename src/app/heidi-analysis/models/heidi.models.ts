@@ -27,6 +27,21 @@ export type HeidiDimensionKey =
   | 'omissions'
   | 'wordplay';
 
+export function normalizeDimensionKey(key: string): HeidiDimensionKey {
+  switch (key) {
+    case 'metaphor_imagery':
+      return 'imagery';
+    case 'character_voice':
+      return 'voice';
+    case 'cultural_archaic':
+      return 'cultural';
+    case 'omissions_additions':
+      return 'omissions';
+    default:
+      return key as HeidiDimensionKey;
+  }
+}
+
 export interface HeidiSpan {
   start: number;
   end: number;
